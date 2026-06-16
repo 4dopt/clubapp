@@ -1,10 +1,22 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { theme } from '@/src/theme';
+import { useAdminAuth } from '@/src/admin-auth';
 
 export default function AdminTabLayout() {
+  const { adminToken, loading } = useAdminAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.color.surface }}>
+        <ActivityIndicator color={theme.color.brandPrimary} />
+      </View>
+    );
+  }
+  if (!adminToken) return <Redirect href="/(admin)/login" />;
+
   return (
     <Tabs
       screenOptions={{
