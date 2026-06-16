@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';

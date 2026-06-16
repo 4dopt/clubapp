@@ -19,12 +19,12 @@ import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 
 const CATEGORIES = [
-  { id: 'all', label: 'All' },
-  { id: 'range', label: 'Range' },
-  { id: 'course', label: 'Course' },
-  { id: 'proshop', label: 'Pro Shop' },
-  { id: 'cafe', label: 'Cafe' },
-  { id: 'lessons', label: 'Lessons' },
+  { id: 'all', label: 'All', icon: 'apps' as const },
+  { id: 'range', label: 'Range', icon: 'golf' as const },
+  { id: 'course', label: 'Course', icon: 'flag' as const },
+  { id: 'proshop', label: 'Pro Shop', icon: 'bag-handle' as const },
+  { id: 'cafe', label: 'Cafe', icon: 'cafe' as const },
+  { id: 'lessons', label: 'Lessons', icon: 'school' as const },
 ];
 
 export default function RewardsScreen() {
@@ -65,8 +65,9 @@ export default function RewardsScreen() {
             <Text style={styles.title}>Redeem</Text>
           </View>
           <View style={styles.balancePill} testID="rewards-balance-pill">
-            <Ionicons name="ellipse" size={6} color={theme.color.brandPrimary} />
-            <Text style={styles.balanceText}>{balance.toLocaleString()} pts</Text>
+            <Ionicons name="flash" size={12} color={theme.color.brandPrimary} />
+            <Text style={styles.balanceText}>{balance.toLocaleString()}</Text>
+            <Text style={styles.balanceUnit}>pts</Text>
           </View>
         </View>
 
@@ -83,11 +84,13 @@ export default function RewardsScreen() {
                 key={c.id}
                 testID={`category-chip-${c.id}`}
                 onPress={() => setCategory(c.id)}
-                style={[
-                  styles.chip,
-                  active && styles.chipActive,
-                ]}
+                style={[styles.chip, active && styles.chipActive]}
               >
+                <Ionicons
+                  name={c.icon}
+                  size={13}
+                  color={active ? '#FFFFFF' : theme.color.onSurfaceSecondary}
+                />
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>
                   {c.label}
                 </Text>
@@ -134,18 +137,45 @@ export default function RewardsScreen() {
                 style={styles.card}
                 onPress={() => router.push(`/reward/${item.id}`)}
               >
-                <Image source={{ uri: item.image_url }} style={styles.cardImg} contentFit="cover" />
-                <View style={styles.cardScrim} />
-                <View style={[styles.cardBadge, !canAfford && styles.cardBadgeMuted]}>
-                  <Text style={[styles.cardBadgeText, !canAfford && styles.cardBadgeTextMuted]}>
-                    {item.points_cost.toLocaleString()} pts
-                  </Text>
+                <View style={styles.cardImgWrap}>
+                  <Image source={{ uri: item.image_url }} style={styles.cardImg} contentFit="cover" />
+                  <View style={[styles.cardBadge, !canAfford && styles.cardBadgeMuted]}>
+                    <Ionicons
+                      name="flash"
+                      size={10}
+                      color={canAfford ? theme.color.brandPrimary : theme.color.onSurfaceTertiary}
+                    />
+                    <Text style={[styles.cardBadgeText, !canAfford && styles.cardBadgeTextMuted]}>
+                      {item.points_cost.toLocaleString()}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardCategory}>
-                    {item.category.toUpperCase()}
-                  </Text>
+                  <Text style={styles.cardCategory}>{item.category.toUpperCase()}</Text>
                   <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                  <View style={styles.cardFooter}>
+                    <View
+                      style={[
+                        styles.cardStatus,
+                        { backgroundColor: canAfford ? theme.color.accentSoft : theme.color.surfaceTertiary },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.cardStatusDot,
+                          { backgroundColor: canAfford ? theme.color.accent : theme.color.onSurfaceTertiary },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.cardStatusText,
+                          { color: canAfford ? theme.color.accent : theme.color.onSurfaceTertiary },
+                        ]}
+                      >
+                        {canAfford ? 'Available' : 'Locked'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </Pressable>
             );
@@ -162,93 +192,106 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.md,
     backgroundColor: theme.color.surface,
-    borderBottomWidth: 0.5,
-    borderBottomColor: theme.color.border,
   },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  eyebrow: { color: theme.color.onSurfaceTertiary, letterSpacing: 2, fontSize: 10 },
-  title: { color: theme.color.onSurface, fontFamily: theme.font.display, fontSize: 32, marginTop: 2 },
+  eyebrow: {
+    color: theme.color.brandPrimary,
+    letterSpacing: 1.5,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  title: {
+    color: theme.color.onSurface,
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+    marginTop: 2,
+  },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: 4,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
-    backgroundColor: theme.color.surfaceSecondary,
+    backgroundColor: theme.color.brandTertiary,
   },
-  balanceText: { color: theme.color.brandPrimary, fontSize: 13, letterSpacing: 1 },
+  balanceText: { color: theme.color.brandPrimary, fontSize: 14, fontWeight: '800' },
+  balanceUnit: { color: theme.color.brandPrimary, fontSize: 11, fontWeight: '600' },
 
   chipRow: { marginTop: theme.spacing.md, height: 56 },
-  chipRowContent: {
-    paddingHorizontal: 0,
-    gap: theme.spacing.sm,
-    alignItems: 'center',
-  },
+  chipRowContent: { paddingHorizontal: 0, gap: theme.spacing.sm, alignItems: 'center' },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     height: 36,
     flexShrink: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.color.border,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
+    backgroundColor: theme.color.surfaceSecondary,
   },
   chipActive: {
     borderColor: theme.color.brandPrimary,
-    backgroundColor: 'rgba(212,175,55,0.08)',
+    backgroundColor: theme.color.brandPrimary,
   },
-  chipText: { color: theme.color.onSurfaceSecondary, fontSize: 12, letterSpacing: 1 },
-  chipTextActive: { color: theme.color.brandPrimary },
+  chipText: { color: theme.color.onSurfaceSecondary, fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: '#FFFFFF' },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
-  emptyTitle: { color: theme.color.onSurface, fontSize: 16, marginTop: 8 },
+  emptyTitle: { color: theme.color.onSurface, fontSize: 16, marginTop: 8, fontWeight: '700' },
   emptySub: { color: theme.color.onSurfaceTertiary, fontSize: 13 },
 
   card: {
     flex: 1,
-    aspectRatio: 0.78,
-    borderRadius: theme.radius.lg,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.color.border,
     backgroundColor: theme.color.surfaceSecondary,
   },
+  cardImgWrap: { width: '100%', aspectRatio: 1.05 },
   cardImg: { ...StyleSheet.absoluteFillObject },
-  cardScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(14,18,16,0.55)',
-  },
   cardBadge: {
     position: 'absolute',
-    top: theme.spacing.md,
-    left: theme.spacing.md,
-    backgroundColor: 'rgba(212,175,55,0.92)',
+    top: 10, left: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: theme.radius.pill,
   },
   cardBadgeMuted: {
-    backgroundColor: 'rgba(22,27,24,0.85)',
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
-  cardBadgeText: { color: theme.color.onBrandPrimary, fontSize: 11, fontWeight: '500' },
-  cardBadgeTextMuted: { color: theme.color.onSurfaceSecondary },
-  cardBody: {
-    position: 'absolute',
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    bottom: theme.spacing.md,
-  },
+  cardBadgeText: { color: theme.color.brandPrimary, fontSize: 11, fontWeight: '800' },
+  cardBadgeTextMuted: { color: theme.color.onSurfaceTertiary },
+  cardBody: { padding: theme.spacing.md },
   cardCategory: {
     color: theme.color.brandPrimary,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     fontSize: 9,
-    marginBottom: 4,
+    fontWeight: '700',
   },
-  cardTitle: { color: theme.color.onSurface, fontFamily: theme.font.display, fontSize: 18 },
+  cardTitle: {
+    color: theme.color.onSurface,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 4,
+    lineHeight: 19,
+    minHeight: 38,
+  },
+  cardFooter: { marginTop: theme.spacing.sm, flexDirection: 'row' },
+  cardStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.radius.pill,
+  },
+  cardStatusDot: { width: 5, height: 5, borderRadius: 2.5 },
+  cardStatusText: { fontSize: 10, fontWeight: '700' },
 });

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -76,27 +77,45 @@ export default function Login() {
 
   return (
     <Pressable style={styles.root} onPress={Keyboard.dismiss}>
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      <LinearGradient
-        colors={['rgba(14,18,16,0.2)', 'rgba(14,18,16,0.85)', 'rgba(14,18,16,0.98)']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      {/* Hero — top 55% */}
+      <View style={styles.hero}>
+        <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <LinearGradient
+          colors={['rgba(15,27,22,0.25)', 'rgba(14,90,58,0.65)', '#0E5A3A']}
+          locations={[0, 0.6, 1]}
+          style={StyleSheet.absoluteFill}
+        />
 
-      <View style={[styles.top, { paddingTop: insets.top + 32 }]}>
-        <Text style={styles.eyebrow}>PRIVATE MEMBERS&apos; CLUB</Text>
-        <Text style={styles.wordmark}>PlayGolf</Text>
-        <View style={styles.rule} />
-        <Text style={styles.tagline}>Driving Range · Course · Cafe</Text>
+        <View style={[styles.heroInner, { paddingTop: insets.top + 36 }]}>
+          <View style={styles.logoRow}>
+            <View style={styles.logoMark}>
+              <Ionicons name="golf" size={18} color={theme.color.brandPrimary} />
+            </View>
+            <Text style={styles.logoText}>PlayGolf</Text>
+          </View>
+          <Text style={styles.heroTitle}>The course is{'\n'}calling.</Text>
+          <Text style={styles.heroSub}>
+            Driving range · Championship course · Clubhouse cafe
+          </Text>
+        </View>
+
+        {/* Notch / curve at bottom of hero */}
+        <View style={styles.heroCurve} />
       </View>
 
+      {/* Form sheet */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[styles.bottom, { paddingBottom: insets.bottom + 24 }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.formWrap, { paddingBottom: insets.bottom + 24 }]}
       >
         {step === 'phone' ? (
-          <View style={styles.form}>
-            <Text style={styles.label}>Member phone number</Text>
+          <View>
+            <Text style={styles.formTitle}>Sign in to your membership</Text>
+            <Text style={styles.formSub}>
+              We&apos;ll text you a quick code — no password needed.
+            </Text>
+
+            <Label icon="call-outline" text="PHONE NUMBER" />
             <TextInput
               testID="login-phone-input"
               value={phone}
@@ -107,9 +126,8 @@ export default function Login() {
               style={styles.input}
               autoFocus
             />
-            <Text style={[styles.label, { marginTop: theme.spacing.lg }]}>
-              Your name (new members only)
-            </Text>
+
+            <Label icon="person-outline" text="YOUR NAME (NEW MEMBERS)" />
             <TextInput
               testID="login-name-input"
               value={name}
@@ -123,24 +141,26 @@ export default function Login() {
 
             <Pressable
               testID="login-send-otp-button"
-              style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }]}
               onPress={sendOtp}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color={theme.color.onBrandPrimary} />
               ) : (
-                <Text style={styles.ctaText}>Send Code</Text>
+                <>
+                  <Text style={styles.ctaText}>Send Code</Text>
+                  <Ionicons name="arrow-forward" size={18} color={theme.color.onBrandPrimary} />
+                </>
               )}
             </Pressable>
-            <Text style={styles.hint}>
-              Demo mode — any phone works. Code is sent instantly.
-            </Text>
+            <Text style={styles.hint}>Demo mode · Any phone works, code is instant</Text>
           </View>
         ) : (
-          <View style={styles.form}>
-            <Text style={styles.label}>Verification code sent to</Text>
-            <Text style={styles.phoneEcho}>{phone}</Text>
+          <View>
+            <Text style={styles.formTitle}>Enter your code</Text>
+            <Text style={styles.formSub}>Sent to {phone}</Text>
+
             <TextInput
               testID="login-otp-input"
               value={otp}
@@ -153,32 +173,32 @@ export default function Login() {
               autoFocus
             />
             {devOtp ? (
-              <Text testID="dev-otp-hint" style={styles.hint}>
-                Demo code: {devOtp}
-              </Text>
+              <View style={styles.demoPill} testID="dev-otp-hint">
+                <Ionicons name="information-circle" size={14} color={theme.color.accent} />
+                <Text style={styles.demoPillText}>Demo code: {devOtp}</Text>
+              </View>
             ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
               testID="login-verify-button"
-              style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }]}
               onPress={verify}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color={theme.color.onBrandPrimary} />
               ) : (
-                <Text style={styles.ctaText}>Verify & Enter</Text>
+                <>
+                  <Text style={styles.ctaText}>Verify & Tee Off</Text>
+                  <Ionicons name="golf" size={18} color={theme.color.onBrandPrimary} />
+                </>
               )}
             </Pressable>
 
             <Pressable
               testID="login-change-phone"
-              onPress={() => {
-                setStep('phone');
-                setOtp('');
-                setError(null);
-              }}
+              onPress={() => { setStep('phone'); setOtp(''); setError(null); }}
               style={styles.linkBtn}
             >
               <Text style={styles.link}>Change phone number</Text>
@@ -190,67 +210,103 @@ export default function Login() {
   );
 }
 
+function Label({ icon, text }: { icon: any; text: string }) {
+  return (
+    <View style={styles.labelRow}>
+      <Ionicons name={icon} size={12} color={theme.color.brandPrimary} />
+      <Text style={styles.label}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.color.surface },
-  top: { paddingHorizontal: theme.spacing.xl, alignItems: 'center' },
-  eyebrow: {
-    color: theme.color.onSurfaceTertiary,
-    letterSpacing: 4,
-    fontSize: 11,
+  hero: {
+    minHeight: 380,
+    overflow: 'hidden',
   },
-  wordmark: {
-    color: theme.color.onSurface,
-    fontFamily: theme.font.display,
-    fontSize: 64,
+  heroInner: { paddingHorizontal: theme.spacing.xl, paddingBottom: 60 },
+  heroCurve: {
+    position: 'absolute',
+    left: -40, right: -40, bottom: -32,
+    height: 64,
+    borderTopLeftRadius: 60, borderTopRightRadius: 60,
+    backgroundColor: theme.color.surface,
+  },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoMark: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  logoText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 44,
+    fontWeight: '800',
+    letterSpacing: -1.2,
+    lineHeight: 48,
+    marginTop: theme.spacing.xxl,
+  },
+  heroSub: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
     marginTop: theme.spacing.md,
-    fontWeight: '400',
+    letterSpacing: 0.3,
   },
-  rule: {
-    width: 48,
-    height: 1,
-    backgroundColor: theme.color.brandPrimary,
-    marginVertical: theme.spacing.md,
-  },
-  tagline: {
-    color: theme.color.onSurfaceSecondary,
-    letterSpacing: 2,
-    fontSize: 12,
-  },
-  bottom: {
-    marginTop: 'auto',
+
+  formWrap: {
+    flex: 1,
     paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.xl,
+    justifyContent: 'center',
   },
-  form: {
-    backgroundColor: 'rgba(22,27,24,0.85)',
-    borderColor: theme.color.border,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.xl,
+  formTitle: {
+    color: theme.color.onSurface,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  formSub: {
+    color: theme.color.onSurfaceSecondary,
+    fontSize: 13,
+    marginTop: 6,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: theme.spacing.xl,
+    marginBottom: 6,
   },
   label: {
-    color: theme.color.onSurfaceSecondary,
-    fontSize: 12,
+    color: theme.color.brandPrimary,
+    fontSize: 10,
     letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    fontWeight: '700',
   },
   input: {
-    marginTop: theme.spacing.sm,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderColor: theme.color.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
     color: theme.color.onSurface,
-    fontSize: 18,
-    paddingVertical: 12,
-    borderBottomColor: theme.color.borderStrong,
-    borderBottomWidth: 1,
+    fontSize: 17,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontWeight: '500',
   },
   otpInput: {
+    marginTop: theme.spacing.lg,
     fontSize: 28,
-    letterSpacing: 12,
+    letterSpacing: 14,
     textAlign: 'center',
-  },
-  phoneEcho: {
-    color: theme.color.brandPrimary,
-    fontSize: 16,
-    marginTop: 6,
-    marginBottom: theme.spacing.md,
+    fontWeight: '700',
   },
   cta: {
     marginTop: theme.spacing.xl,
@@ -258,13 +314,20 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    shadowColor: theme.color.brandPrimary,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   ctaText: {
     color: theme.color.onBrandPrimary,
-    fontWeight: '500',
+    fontWeight: '700',
     fontSize: 15,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   hint: {
     color: theme.color.onSurfaceTertiary,
@@ -272,11 +335,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: theme.spacing.md,
   },
+  demoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.color.accentSoft,
+    borderRadius: theme.radius.pill,
+    marginTop: theme.spacing.md,
+  },
+  demoPillText: { color: theme.color.accent, fontSize: 12, fontWeight: '600' },
   error: {
     marginTop: theme.spacing.md,
-    color: theme.color.onError,
-    backgroundColor: 'rgba(138,51,51,0.25)',
-    borderColor: theme.color.error,
+    color: theme.color.error,
+    backgroundColor: '#FBE8E8',
+    borderColor: '#F0C5C5',
     borderWidth: 1,
     borderRadius: theme.radius.md,
     paddingVertical: 10,
@@ -285,5 +360,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   linkBtn: { alignItems: 'center', marginTop: theme.spacing.lg },
-  link: { color: theme.color.brandPrimary, fontSize: 13, letterSpacing: 1 },
+  link: { color: theme.color.brandPrimary, fontSize: 13, fontWeight: '600' },
 });

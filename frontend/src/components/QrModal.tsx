@@ -17,7 +17,7 @@ export function QrModal({ visible, onClose, value, title, subtitle, footer }: Pr
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
       statusBarTranslucent
     >
@@ -26,8 +26,8 @@ export function QrModal({ visible, onClose, value, title, subtitle, footer }: Pr
           <View style={styles.handle} />
           <View style={styles.headerRow}>
             <Text style={styles.title}>{title}</Text>
-            <Pressable onPress={onClose} testID="qr-modal-close" hitSlop={12}>
-              <Ionicons name="close" size={22} color={theme.color.onSurfaceSecondary} />
+            <Pressable onPress={onClose} testID="qr-modal-close" hitSlop={12} style={styles.closeBtn}>
+              <Ionicons name="close" size={20} color={theme.color.onSurfaceSecondary} />
             </Pressable>
           </View>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -36,14 +36,18 @@ export function QrModal({ visible, onClose, value, title, subtitle, footer }: Pr
             <QRCode
               value={value || 'playgolf'}
               size={220}
-              backgroundColor="#EAECE8"
-              color="#0E1210"
+              backgroundColor="#FFFFFF"
+              color={theme.color.brandPrimary}
             />
           </View>
 
-          <Text style={styles.code} selectable testID="qr-value">
-            {value}
-          </Text>
+          <View style={styles.codeBox}>
+            <Text style={styles.codeLabel}>SCAN CODE</Text>
+            <Text style={styles.code} selectable testID="qr-value">
+              {value}
+            </Text>
+          </View>
+
           {footer ? <Text style={styles.footer}>{footer}</Text> : null}
         </Pressable>
       </Pressable>
@@ -54,18 +58,16 @@ export function QrModal({ visible, onClose, value, title, subtitle, footer }: Pr
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.78)',
+    backgroundColor: 'rgba(15,27,22,0.55)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: theme.color.surfaceSecondary,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: theme.color.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.xxxl,
-    borderTopWidth: 1,
-    borderTopColor: theme.color.border,
   },
   handle: {
     width: 44,
@@ -75,40 +77,60 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: theme.spacing.lg,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: {
     color: theme.color.onSurface,
-    fontFamily: theme.font.display,
-    fontSize: 26,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: theme.color.surfaceTertiary,
+    alignItems: 'center', justifyContent: 'center',
   },
   subtitle: {
     color: theme.color.onSurfaceSecondary,
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 6,
   },
   qrCard: {
     alignSelf: 'center',
-    backgroundColor: theme.color.surfaceInverse,
+    backgroundColor: '#FFFFFF',
     padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    borderRadius: 24,
     marginTop: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  codeBox: {
+    marginTop: theme.spacing.lg,
+    alignSelf: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.color.brandTertiary,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+  },
+  codeLabel: {
+    color: theme.color.brandPrimary,
+    fontSize: 9,
+    letterSpacing: 2,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   code: {
     color: theme.color.brandPrimary,
     textAlign: 'center',
     letterSpacing: 4,
     fontSize: 18,
-    marginTop: theme.spacing.lg,
+    fontWeight: '700',
   },
   footer: {
     color: theme.color.onSurfaceTertiary,
     fontSize: 12,
     textAlign: 'center',
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.lg,
     paddingHorizontal: theme.spacing.lg,
     lineHeight: 18,
   },

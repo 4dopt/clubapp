@@ -18,11 +18,7 @@ import { theme } from '@/src/theme';
 function formatDate(iso: string) {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   } catch { return iso; }
 }
 
@@ -51,11 +47,35 @@ export default function History() {
     setRefreshing(false);
   };
 
+  const totalEarned = txns.filter((t) => t.type === 'earn').reduce((s, t) => s + t.points, 0);
+  const totalRedeemed = txns.filter((t) => t.type === 'redeem').reduce((s, t) => s + t.points, 0);
+
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
         <Text style={styles.eyebrow}>ACTIVITY</Text>
-        <Text style={styles.title}>Points History</Text>
+        <Text style={styles.title}>History</Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: theme.color.accentSoft }]}>
+              <Ionicons name="arrow-up" size={14} color={theme.color.accent} />
+            </View>
+            <View>
+              <Text style={styles.statLabel}>EARNED</Text>
+              <Text style={styles.statVal}>{totalEarned.toLocaleString()}</Text>
+            </View>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#FCEFD2' }]}>
+              <Ionicons name="gift" size={14} color="#B36F00" />
+            </View>
+            <View>
+              <Text style={styles.statLabel}>REDEEMED</Text>
+              <Text style={styles.statVal}>{totalRedeemed.toLocaleString()}</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       {loading ? (
@@ -65,9 +85,9 @@ export default function History() {
       ) : txns.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="receipt-outline" size={42} color={theme.color.onSurfaceTertiary} />
-          <Text style={styles.emptyTitle}>No transactions yet</Text>
+          <Text style={styles.emptyTitle}>No activity yet</Text>
           <Text style={styles.emptySub}>
-            Visit PlayGolf or redeem a reward to see activity here.
+            Visit PlayGolf or redeem a reward to see it here.
           </Text>
         </View>
       ) : (
@@ -79,7 +99,7 @@ export default function History() {
             paddingTop: theme.spacing.md,
             paddingBottom: insets.bottom + 120,
           }}
-          ItemSeparatorComponent={() => <View style={styles.divider} />}
+          ItemSeparatorComponent={() => <View style={{ height: theme.spacing.sm }} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -94,26 +114,26 @@ export default function History() {
                 <View
                   style={[
                     styles.iconWrap,
-                    { backgroundColor: isEarn ? theme.color.brandTertiary : theme.color.surfaceTertiary },
+                    { backgroundColor: isEarn ? theme.color.accentSoft : '#FCEFD2' },
                   ]}
                 >
                   <Ionicons
-                    name={isEarn ? 'arrow-up-circle-outline' : 'gift-outline'}
-                    size={20}
-                    color={isEarn ? theme.color.brandPrimary : theme.color.onSurfaceSecondary}
+                    name={isEarn ? 'arrow-up' : 'gift'}
+                    size={18}
+                    color={isEarn ? theme.color.accent : '#B36F00'}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.rowSub}>
                     {formatDate(item.created_at)}
-                    {item.redemption_code ? ` · Code ${item.redemption_code}` : ''}
+                    {item.redemption_code ? ` · ${item.redemption_code}` : ''}
                   </Text>
                 </View>
                 <Text
                   style={[
                     styles.amount,
-                    { color: isEarn ? theme.color.brandPrimary : theme.color.onSurfaceSecondary },
+                    { color: isEarn ? theme.color.accent : theme.color.onSurfaceSecondary },
                   ]}
                 >
                   {isEarn ? '+' : '−'}{item.points.toLocaleString()}
@@ -132,26 +152,59 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.lg,
-    borderBottomWidth: 0.5,
-    borderBottomColor: theme.color.border,
   },
-  eyebrow: { color: theme.color.onSurfaceTertiary, letterSpacing: 2, fontSize: 10 },
-  title: { color: theme.color.onSurface, fontFamily: theme.font.display, fontSize: 32, marginTop: 2 },
+  eyebrow: {
+    color: theme.color.brandPrimary,
+    letterSpacing: 1.5,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  title: {
+    color: theme.color.onSurface,
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+    marginTop: 2,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  statIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  statLabel: { color: theme.color.onSurfaceTertiary, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' },
+  statVal: { color: theme.color.onSurface, fontSize: 18, fontWeight: '800', marginTop: 1 },
+
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 32 },
-  emptyTitle: { color: theme.color.onSurface, fontSize: 16, marginTop: 8 },
+  emptyTitle: { color: theme.color.onSurface, fontSize: 16, marginTop: 8, fontWeight: '700' },
   emptySub: { color: theme.color.onSurfaceTertiary, fontSize: 13, textAlign: 'center' },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
     gap: theme.spacing.md,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.color.border,
   },
-  iconWrap: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  rowTitle: { color: theme.color.onSurface, fontSize: 15 },
-  rowSub: { color: theme.color.onSurfaceTertiary, fontSize: 12, marginTop: 2 },
-  amount: { fontSize: 16, letterSpacing: 0.5 },
-  divider: { height: 1, backgroundColor: theme.color.divider },
+  iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { color: theme.color.onSurface, fontSize: 14, fontWeight: '700' },
+  rowSub: { color: theme.color.onSurfaceTertiary, fontSize: 11, marginTop: 2 },
+  amount: { fontSize: 16, fontWeight: '800' },
 });

@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  ActivityIndicator,
+  View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,11 +32,8 @@ export default function RewardDetail() {
         if (!id) return;
         const r = await api.reward(String(id));
         setReward(r);
-      } catch (e: any) {
-        setError(e.message || 'Failed to load');
-      } finally {
-        setLoading(false);
-      }
+      } catch (e: any) { setError(e.message || 'Failed to load'); }
+      finally { setLoading(false); }
     })();
   }, [id]);
 
@@ -57,9 +49,7 @@ export default function RewardDetail() {
     } catch (e: any) {
       setError(e.message || 'Could not redeem');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setRedeeming(false);
-    }
+    } finally { setRedeeming(false); }
   };
 
   if (loading) {
@@ -83,14 +73,12 @@ export default function RewardDetail() {
 
   return (
     <View style={styles.root}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
-      >
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}>
         <View style={styles.heroWrap}>
           <Image source={{ uri: reward.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <LinearGradient
-            colors={['rgba(14,18,16,0.5)', 'rgba(14,18,16,0)', 'rgba(14,18,16,0.95)']}
-            locations={[0, 0.4, 1]}
+            colors={['rgba(15,27,22,0.25)', 'rgba(15,27,22,0)', 'rgba(244,241,234,1)']}
+            locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
           <Pressable
@@ -103,27 +91,30 @@ export default function RewardDetail() {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.category}>{reward.category.toUpperCase()}</Text>
-          <Text style={styles.title} testID="reward-title">{reward.title}</Text>
-
-          <View style={styles.costRow}>
-            <View style={styles.costPill}>
-              <Ionicons name="ellipse" size={6} color={theme.color.onBrandPrimary} />
-              <Text style={styles.costText}>{reward.points_cost.toLocaleString()} pts</Text>
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.category}>{reward.category.toUpperCase()}</Text>
+              <Text style={styles.title} testID="reward-title">{reward.title}</Text>
             </View>
-            <Text style={styles.balanceHint}>
-              Your balance: {balance.toLocaleString()}
-            </Text>
+            <View style={styles.costPill}>
+              <Ionicons name="flash" size={12} color={theme.color.onBrandPrimary} />
+              <Text style={styles.costText}>{reward.points_cost.toLocaleString()}</Text>
+            </View>
           </View>
 
-          <Text style={styles.sectionLabel}>ABOUT THIS REWARD</Text>
+          <View style={styles.balanceRow}>
+            <Ionicons name="wallet-outline" size={14} color={theme.color.onSurfaceSecondary} />
+            <Text style={styles.balanceHint}>Your balance: <Text style={styles.balanceVal}>{balance.toLocaleString()} pts</Text></Text>
+          </View>
+
+          <Text style={styles.sectionLabel}>ABOUT</Text>
           <Text style={styles.description}>{reward.description}</Text>
 
           <Text style={styles.sectionLabel}>HOW TO REDEEM</Text>
           <View style={styles.stepsCard}>
-            <Step n={1} text="Tap Redeem below — your points will be deducted instantly." />
-            <Step n={2} text="A unique code & QR will be generated for staff to scan." />
-            <Step n={3} text="Show it at the counter to claim your reward." last />
+            <Step n={1} text="Tap Redeem below — points are deducted instantly." />
+            <Step n={2} text="A unique code & QR is generated for staff to scan." />
+            <Step n={3} text="Present it at the counter to claim your reward." last />
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -144,23 +135,25 @@ export default function RewardDetail() {
           {redeeming ? (
             <ActivityIndicator color={theme.color.onBrandPrimary} />
           ) : (
-            <Text style={[styles.redeemText, !canAfford && styles.redeemTextDisabled]}>
-              {canAfford
-                ? `Redeem · ${reward.points_cost.toLocaleString()} pts`
-                : `Need ${(reward.points_cost - balance).toLocaleString()} more pts`}
-            </Text>
+            <>
+              <Text style={[styles.redeemText, !canAfford && styles.redeemTextDisabled]}>
+                {canAfford
+                  ? `Redeem · ${reward.points_cost.toLocaleString()} pts`
+                  : `Need ${(reward.points_cost - balance).toLocaleString()} more pts`}
+              </Text>
+              {canAfford ? (
+                <Ionicons name="arrow-forward" size={16} color={theme.color.onBrandPrimary} />
+              ) : null}
+            </>
           )}
         </Pressable>
       </View>
 
       <QrModal
         visible={!!code}
-        onClose={() => {
-          setCode(null);
-          router.back();
-        }}
+        onClose={() => { setCode(null); router.back(); }}
         value={code || ''}
-        title="Reward Redeemed"
+        title="Reward Unlocked"
         subtitle={reward.title}
         footer="Present this QR to staff to claim your reward. Code is single-use."
       />
@@ -180,44 +173,46 @@ function Step({ n, text, last }: { n: number; text: string; last?: boolean }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.color.surface },
   center: { alignItems: 'center', justifyContent: 'center' },
-  heroWrap: { height: 320, width: '100%', backgroundColor: theme.color.surfaceSecondary },
+  heroWrap: { height: 280, width: '100%', backgroundColor: theme.color.surfaceTertiary },
   backBtn: {
-    position: 'absolute',
-    left: theme.spacing.lg,
+    position: 'absolute', left: theme.spacing.lg,
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(14,18,16,0.6)',
-    borderColor: theme.color.borderStrong,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  body: { padding: theme.spacing.xl },
-  category: { color: theme.color.brandPrimary, letterSpacing: 2, fontSize: 11 },
-  title: { color: theme.color.onSurface, fontFamily: theme.font.display, fontSize: 32, marginTop: 6 },
-  costRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.lg },
+  body: { padding: theme.spacing.xl, marginTop: -20 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md },
+  category: { color: theme.color.brandPrimary, letterSpacing: 1.5, fontSize: 11, fontWeight: '700' },
+  title: { color: theme.color.onSurface, fontSize: 26, fontWeight: '800', marginTop: 4, letterSpacing: -0.6, lineHeight: 32 },
   costPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 8,
     backgroundColor: theme.color.brandPrimary,
     borderRadius: theme.radius.pill,
+    marginTop: 4,
   },
-  costText: { color: theme.color.onBrandPrimary, fontSize: 13, fontWeight: '500' },
-  balanceHint: { color: theme.color.onSurfaceTertiary, fontSize: 12 },
+  costText: { color: theme.color.onBrandPrimary, fontSize: 13, fontWeight: '800' },
+  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: theme.spacing.md },
+  balanceHint: { color: theme.color.onSurfaceSecondary, fontSize: 13 },
+  balanceVal: { color: theme.color.onSurface, fontWeight: '700' },
+
   sectionLabel: {
-    color: theme.color.onSurfaceTertiary, letterSpacing: 2, fontSize: 10,
+    color: theme.color.brandPrimary, letterSpacing: 1.5, fontSize: 10, fontWeight: '700',
     marginTop: theme.spacing.xl, marginBottom: theme.spacing.md,
   },
   description: { color: theme.color.onSurfaceSecondary, fontSize: 14, lineHeight: 22 },
   stepsCard: {
     backgroundColor: theme.color.surfaceSecondary,
     borderColor: theme.color.border, borderWidth: 1,
-    borderRadius: theme.radius.lg,
+    borderRadius: 16,
     paddingHorizontal: theme.spacing.lg,
   },
   errorText: {
     marginTop: theme.spacing.lg,
-    color: theme.color.onError,
-    backgroundColor: 'rgba(138,51,51,0.25)',
-    borderColor: theme.color.error,
+    color: theme.color.error,
+    backgroundColor: '#FBE8E8',
+    borderColor: '#F0C5C5',
     borderWidth: 1,
     borderRadius: theme.radius.md,
     paddingVertical: 10,
@@ -229,7 +224,7 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0,
     padding: theme.spacing.lg,
     paddingTop: theme.spacing.md,
-    backgroundColor: 'rgba(14,18,16,0.96)',
+    backgroundColor: theme.color.surface,
     borderTopWidth: 0.5,
     borderTopColor: theme.color.border,
   },
@@ -238,11 +233,14 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     paddingVertical: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: theme.color.brandPrimary,
+    shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  redeemBtnDisabled: { backgroundColor: theme.color.surfaceTertiary },
-  redeemText: {
-    color: theme.color.onBrandPrimary, letterSpacing: 1.5, fontWeight: '500', fontSize: 14, textTransform: 'uppercase',
-  },
+  redeemBtnDisabled: { backgroundColor: theme.color.surfaceTertiary, shadowOpacity: 0 },
+  redeemText: { color: theme.color.onBrandPrimary, fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
   redeemTextDisabled: { color: theme.color.onSurfaceTertiary },
 });
 
@@ -251,9 +249,9 @@ const stepStyles = StyleSheet.create({
   divider: { borderBottomColor: theme.color.divider, borderBottomWidth: 1 },
   num: {
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: theme.color.brandTertiary,
+    backgroundColor: theme.color.brandPrimary,
     alignItems: 'center', justifyContent: 'center',
   },
-  numText: { color: theme.color.onBrandTertiary, fontSize: 12 },
+  numText: { color: theme.color.onBrandPrimary, fontSize: 12, fontWeight: '800' },
   text: { flex: 1, color: theme.color.onSurfaceSecondary, fontSize: 13, lineHeight: 20 },
 });

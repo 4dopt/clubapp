@@ -17,29 +17,26 @@ export default function TabLayout() {
           letterSpacing: 1.2,
           textTransform: 'uppercase',
           marginTop: 2,
+          fontWeight: '600',
         },
         tabBarStyle: {
           position: 'absolute',
           borderTopColor: theme.color.border,
           borderTopWidth: 0.5,
           backgroundColor:
-            Platform.OS === 'ios' ? 'transparent' : 'rgba(14,18,16,0.96)',
+            Platform.OS === 'ios' ? 'transparent' : 'rgba(255,255,255,0.96)',
           elevation: 0,
           height: Platform.OS === 'ios' ? 84 : 64,
           paddingTop: 8,
         },
         tabBarBackground: () =>
           Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={60}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
           ) : (
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: 'rgba(14,18,16,0.96)' },
+                { backgroundColor: 'rgba(255,255,255,0.96)' },
               ]}
             />
           ),
@@ -49,8 +46,12 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Card',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="card-outline" size={size - 2} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'card' : 'card-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
@@ -58,8 +59,12 @@ export default function TabLayout() {
         name="rewards"
         options={{
           title: 'Rewards',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="gift-outline" size={size - 2} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'gift' : 'gift-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
@@ -67,8 +72,12 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size - 2} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'time' : 'time-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
@@ -76,8 +85,12 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size - 2} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'person' : 'person-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
