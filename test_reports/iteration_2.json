@@ -1,0 +1,43 @@
+{
+  "summary": "Backend: 21/21 admin pytest tests PASSED against the public preview URL — admin login (wrong PIN→401, '123456'→200 with admin_token), X-Admin-Token guard on all /api/admin/*, stats shape (total_members, points_issued_today, visits_today, redemptions_today, week_earn_total, week_redeem_total, tiers{Silver,Gold,Platinum}, recent[]), members list with no _id leak, q=PG- search, GET member with transactions[], PATCH points_balance, PATCH tier override, PATCH suspended (suspended user verify-otp→403), credit-points happy path with by_admin=true txn and tier promotion at lifetime≥1000→Gold, credit-points unknown member 404, credit-points points<=0 400, verify-redemption first call sets used=true, second returns already_used=true, unknown code 404, admin/rewards lists inactive (whereas /api/rewards hides them), POST/PATCH/DELETE rewards (soft-delete) all work. FRONTEND BLOCKED: Critical infinite render loop ('Maximum update depth exceeded') on the /admin/login screen made it impossible to complete any frontend admin flow E2E. Root cause: (admin)/login.tsx lives INSIDE the (admin) group, but (admin)/_layout.tsx renders <Redirect href='/(admin)/login'/> when adminToken is null — the Redirect re-mounts the same layout which Redirects again → infinite loop and >300 console errors. Attempted a minimal fix using useSegments() to short-circuit the Redirect when already on login, but after restart the click on staff-sign-in still hung the page — the structural fix is to move login.tsx out of the (admin) group OR use <Slot/> with the redirect happening from the login route itself.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "(admin)/_layout.tsx + (admin)/login.tsx", "issue": "Infinite render loop: 'Maximum update depth exceeded' error fired hundreds of times on console immediately after tapping 'Staff sign in'. Layout redirects to /(admin)/login when adminToken is null, but the login route is itself a child of that layout → endless Redirect→layout→Redirect cycle. Blocks ALL frontend admin testing.", "testID": "staff-sign-in / admin-pin-input", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Member→Admin sign-in handoff", "issue": "Navigation from member /(auth)/login to /(admin)/login is blocked by the render loop above; no admin flow can be exercised on web until the layout is restructured.", "affected_testIDs": ["staff-sign-in", "admin-pin-input", "admin-login-submit"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "Console warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Multiple sources — check styles using shadowColor/shadowOpacity/shadowRadius/shadowOffset (e.g. /app/frontend/app/(auth)/login.tsx CTA styles) and migrate to boxShadow for web parity (RN-web is the loud one). Non-blocking but should be cleaned up."},
+      {"component": "pointerEvents prop (carried over from iter 1)", "issue": "Still emits 'props.pointerEvents is deprecated. Use style.pointerEvents' on web. Likely upstream library."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_api.py",
+    "/app/test_reports/pytest/admin_results.xml",
+    "/app/backend/tests/test_playgolf_api.py"
+  ],
+  "action_items": [
+    "FIX RENDER LOOP (CRITICAL): Move /app/frontend/app/(admin)/login.tsx OUT of the (admin) group — e.g. to /app/frontend/app/admin-login.tsx — and update the route reference in /app/frontend/app/(auth)/login.tsx (`router.push('/admin-login')`) and (admin)/_layout.tsx redirect target. Alternative: keep the login inside but switch (admin)/_layout.tsx to render <Slot/> always and gate access from inside (admin)/(tabs)/_layout.tsx only. The minimal `useSegments`-based guard I applied to (admin)/_layout.tsx did not eliminate the loop in practice — please verify and either complete the structural move or strengthen the guard.",
+    "After the layout fix, re-run frontend E2E: staff-sign-in → wrong PIN error → '123456' → dashboard KPIs + tier bars + 7d totals + recent[]; Scan tab manual-entry sheet (member PG-XXXXXX → credit-points preset 150 → success), redemption code verify; Members tab search debounce + row tap → detail (adjust points add/sub/set, suspend toggle, set-tier-Gold); Rewards tab add-reward-btn modal (create + toggle visibility + edit).",
+    "Optional cleanup: migrate `shadow*` style props to `boxShadow` (or wrap in Platform.select) to silence the deprecation warning on web."
+  ],
+  "critical_code_review_comments": [
+    "server.py admin_update_member (lines 475-484): `get_old_balance` call after the update has already been persisted — `delta` will always be 0. The 'adjust' transaction also records `points=abs(int(payload.points_balance))` which is the NEW balance, not the delta. Logging is misleading but does not affect user-visible balance. Recommend computing delta BEFORE `db.users.update_one`.",
+    "server.py: ADMIN_PIN read from env with default '123456' — acceptable for demo but consider failing fast in prod.",
+    "(admin)/_layout.tsx Redirect pattern is unsafe with login living in same group — see action item #1.",
+    "All /api/admin/* endpoints correctly project {'_id': 0} and validate with Pydantic. CORS allows '*' which is fine for the demo preview."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_api.py (new — 21 admin endpoint tests)",
+    "/app/frontend/app/(admin)/_layout.tsx (attempted Redirect-loop guard via useSegments; did NOT fully resolve — main agent please apply structural fix)"
+  ],
+  "success_rate": {"backend": "100% (21/21 admin tests + earlier 21/21 member tests)", "frontend": "0% (blocked by render loop on admin login screen)"},
+  "seed_data_creation": "Backend tests create TEST_-prefixed users via OTP verify (e.g. TEST_AdminTarget, TEST_TierPromo) and short-lived TEST_AdminReward_*/TEST_Patch_* rewards (soft-deleted at end of class). All driven via the public preview URL.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_admin_api.py for admin regression — runs in ~2.5s. Backend is fully green. For frontend, the (admin) route group has a Redirect-loop issue: layout redirects to login while login lives inside that layout. Until the structural fix lands, do NOT try to navigate to /admin/login via Playwright — the page will spin in a setState loop and Playwright timeouts will cascade (300+ 'Maximum update depth' errors observed). After fix, validate: (1) member login screen has data-testid='staff-sign-in' → /admin/login, (2) wrong PIN shows error text, (3) '123456' → /(admin)/(tabs) dashboard, (4) Scan tab open-manual-entry → manual-input + manual-submit (member_id PG-XXXXXX → credit-points-input + preset-150 + credit-submit, then redemption-code verify), (5) Members tab members-search + member-row-{id} → detail screen adjust-points (op-add/op-subtract/op-set + adjust-amount + adjust-submit) and toggle-suspend + set-tier-Gold, (6) Rewards tab add-reward-btn (reward-title/description/cost/image/cat-range + save-reward), toggle-{id}, edit-{id}.",
+  "rca_of_issue": "Render loop RCA: In /app/frontend/app/(admin)/_layout.tsx, when `adminToken` is null the component returns `<Redirect href='/(admin)/login'/>`. Because login.tsx is itself a child of the (admin) group, expo-router re-mounts AdminLayout to render the login route. AdminLayout reads adminToken=null again → returns Redirect again → infinite re-render. Each iteration triggers a React setState (in Redirect's internal navigation hook), tripping the 'Maximum update depth exceeded' guard. Reproduction: load app → tap 'Staff sign in' on member login → observe 300+ identical console errors and an unresponsive page. Mitigation (preferred): move login.tsx out of the (admin) group so its rendering doesn't pass through AdminLayout. Mitigation (in-place): use `useSegments()` to detect the login route and render the Stack/Slot without redirecting — partial attempt applied to (admin)/_layout.tsx but did not fully break the loop in this preview; needs verification or replacement."
+}

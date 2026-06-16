@@ -205,6 +205,15 @@ export default function Login() {
             </Pressable>
           </View>
         )}
+
+        <Pressable
+          testID="staff-sign-in"
+          onPress={() => router.push('/(admin)/login')}
+          style={styles.staffLink}
+        >
+          <Ionicons name="shield-checkmark-outline" size={14} color={theme.color.onSurfaceSecondary} />
+          <Text style={styles.staffLinkText}>Staff sign in</Text>
+        </Pressable>
       </KeyboardAvoidingView>
     </Pressable>
   );
@@ -361,4 +370,9 @@ const styles = StyleSheet.create({
   },
   linkBtn: { alignItems: 'center', marginTop: theme.spacing.lg },
   link: { color: theme.color.brandPrimary, fontSize: 13, fontWeight: '600' },
+  staffLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginTop: theme.spacing.xl, paddingVertical: 10,
+  },
+  staffLinkText: { color: theme.color.onSurfaceSecondary, fontSize: 12, fontWeight: '600' },
 });

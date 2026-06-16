@@ -8,6 +8,7 @@ import { View } from 'react-native';
 
 import { useIconFonts } from '@/src/hooks/use-icon-fonts';
 import { AuthProvider } from '@/src/auth';
+import { AdminAuthProvider } from '@/src/admin-auth';
 import { theme } from '@/src/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -25,16 +26,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.color.surface }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="dark" />
-          <View style={{ flex: 1, backgroundColor: theme.color.surface }}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: theme.color.surface },
-                animation: 'fade',
-              }}
-            />
-          </View>
+          <AdminAuthProvider>
+            <StatusBar style="dark" />
+            <View style={{ flex: 1, backgroundColor: theme.color.surface }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: theme.color.surface },
+                  animation: 'fade',
+                }}
+              />
+            </View>
+          </AdminAuthProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
