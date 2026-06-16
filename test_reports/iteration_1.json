@@ -1,0 +1,46 @@
+{
+  "summary": "PlayGolf full-stack regression. Backend: 21/21 pytest tests passed against the public preview URL (OTP mock, verify-otp idempotency, /me without _id, rewards seeded with all 5 categories, category filter, points/add tier promotion Silver→Gold at 1000 lifetime, redeem deducts + returns redemption_code, insufficient-points 400, transactions sorted desc, auth guards). Frontend (mobile viewport 390x844 over Expo web preview): full E2E happy path passed — login (phone → +OTP 0000 → tabs), membership card visible with member_id encoded in QR, points balance updates from 250 → 400 after Log Visit (+150), rewards tab loads 10 cards with 6 category chips and 'range' filter correctly narrows to 2 cards, reward detail Redeem flow yields a QR with redemption_code (e.g. X4U3Y4OI), History tab shows correctly signed txns (Welcome bonus +250, Range visit +150), Profile tab shows Silver Member badge, member ID, lifetime points and benefits. One minor React Native deprecation warning detected: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Logout uses Alert.alert which on web maps to confirm() — works but needs the dialog accepted (expected RN-web behavior).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "pointerEvents prop",
+        "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Some component (likely an internal or third-party RN component used on Login/Tabs) still passes pointerEvents as a prop instead of via style. Non-blocking, but should be migrated. No exact file in app code — could be inside react-native-safe-area-context / expo-router internals. Verify by grep for 'pointerEvents=' in /app/frontend."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_playgolf_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Optional: grep app code for `pointerEvents=` prop usage and migrate to `style={{ pointerEvents: ... }}` to silence the deprecation warning. If not in app code, the warning originates from a dependency and can be ignored until upstream fix.",
+    "Optional UX: on web, Profile logout currently triggers a native confirm() dialog (because Alert.alert is not fully supported on react-native-web). It works on native; consider a custom in-app confirmation modal if web parity matters."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~440 lines — within 700 LOC limit, well-structured.",
+    "All Mongo reads use projection {'_id': 0}; /me verified to not return _id.",
+    "All write endpoints (points/add, redeem, me/name, /me, /transactions, /auth/logout) correctly require Bearer token; verify-otp, request-otp, /rewards, /rewards/{id}, /seed, /api/ root are public — matches spec.",
+    "Tier auto-recompute on each /me fetch is a nice safety net.",
+    "Session tokens are stored in Mongo with no TTL or revocation cleanup besides logout — fine for demo.",
+    "Frontend correctly reads EXPO_PUBLIC_BACKEND_URL; all interactive elements carry kebab-case testIDs as documented."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_playgolf_api.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Created several TEST_-prefixed users via OTP verify and a few TEST_ transactions during pytest runs. Rewards are auto-seeded by /api/seed and startup hook.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use /app/backend/tests/test_playgolf_api.py as the regression suite — run with `EXPO_PUBLIC_BACKEND_URL=<preview-url> pytest /app/backend/tests/ -v`. Each pytest run creates fresh phone numbers (no cross-run collisions). UI flow proven via mobile viewport (390x844). For tab navigation in Playwright, click tabs via role='tab' locator, not raw text — the tab label Text is inside a tabbar that can be obscured by modals/bottom sheets so dismiss any open QR sheet first. For logout button click on web, set up `page.on('dialog', lambda d: d.accept())` since RN Alert.alert maps to window.confirm.",
+  "rca_of_issue": "N/A — no failing flows observed."
+}
