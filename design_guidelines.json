@@ -1,0 +1,172 @@
+{
+  "app_name": "PlayGolf",
+  "personality": "6 Glass / Luxe (DARK)",
+  "personality_one_liner": "A cinematic, expensive, and restrained country-club experience that feels like a private members' club.",
+  "color": {
+    "surface": "#0E1210",
+    "onSurface": "#F4F5F0",
+    "surfaceSecondary": "#161B18",
+    "onSurfaceSecondary": "#C2C5C0",
+    "surfaceTertiary": "#1E2521",
+    "onSurfaceTertiary": "#A3A8A1",
+    "surfaceInverse": "#EAECE8",
+    "onSurfaceInverse": "#0E1210",
+    "brand": "#D4AF37",
+    "brandPrimary": "#D4AF37",
+    "onBrandPrimary": "#1A1504",
+    "brandSecondary": "#C39D2C",
+    "onBrandSecondary": "#1A1504",
+    "brandTertiary": "#433610",
+    "onBrandTertiary": "#E9D18A",
+    "success": "#2D6646",
+    "onSuccess": "#E3F0E8",
+    "warning": "#A37522",
+    "onWarning": "#FDEBD0",
+    "error": "#8A3333",
+    "onError": "#F5D6D6",
+    "info": "#4A5852",
+    "onInfo": "#DCE2DE",
+    "border": "#2A322D",
+    "borderStrong": "#3D4741",
+    "divider": "#1E2521"
+  },
+  "typography": {
+    "displayFontFamily": "Cormorant Garamond",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous, cinematic spacing. Elements should breathe, highlighting the premium feel rather than dense operational dashboards.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use heavy glass over background imagery for the hero membership card.",
+      "Apply frosted glass to the bottom tab bar and sticky headers.",
+      "Use glass for floating action buttons or bottom-sheet handles."
+    ],
+    "dont's": [
+      "Do not apply glass to dense list rows or form inputs.",
+      "Do not use glass without a translucent tint underneath to ensure text readability."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Auth",
+      "purpose": "Simple phone + OTP login.",
+      "states": {
+        "loading": "Centered gold spinner over dark background",
+        "empty": "N/A",
+        "error": "Error toast in muted red"
+      },
+      "layout": "Full-bleed hero background image with a vertical gradient scrim (0% top to 90% bottom). PlayGolf wordmark in Cormorant Garamond centered. Phone input and submit button at the bottom."
+    },
+    {
+      "name": "Home",
+      "purpose": "Dashboard displaying the digital membership card and quick access to points and rewards.",
+      "states": {
+        "loading": "Skeleton loaders for the card and points",
+        "empty": "N/A",
+        "error": "Retry button if user data fails to load"
+      },
+      "layout": "Top safe area. Large cinematic Hero Membership Card (using hero_membership_card image, heavy gradient scrim, displaying user name, 'Platinum Member', ID, and QR trigger). Below it, an oversized points balance using the display font. Followed by a horizontal scrolling list of 'Featured Rewards' with rich imagery."
+    },
+    {
+      "name": "Rewards Catalog",
+      "purpose": "Browse and redeem offers using points.",
+      "states": {
+        "loading": "Skeleton grid",
+        "empty": "Illustration of a golf flag with 'No rewards available right now.'",
+        "error": "Readable error message with a retry button"
+      },
+      "layout": "Sticky glassmorphic category filter row (Range, Course, Pro Shop, Cafe). 2-column grid for rewards. Each card has a premium photo, gold title, and points cost. Sticky 'Redeem' CTA at the bottom if a reward is selected."
+    },
+    {
+      "name": "Points History",
+      "purpose": "Track earned and redeemed points.",
+      "states": {
+        "loading": "List skeleton",
+        "empty": "Illustration of a blank ledger with 'No transactions yet.'",
+        "error": "Retry button"
+      },
+      "layout": "Clean list view. Each row features a tinted icon container (brandTertiary), transaction title, date, and a right-aligned points value (Gold for earned, Muted Bone for redeemed)."
+    }
+  ],
+  "images": {
+    "auth_background": {
+      "url": "https://images.unsplash.com/photo-1709525616662-8d9f9a995ceb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwyfHxnb2xmJTIwY291cnNlJTIwZ29sZGVuJTIwaG91cnxlbnwwfHx8fDE3ODE2MTY5Nzd8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1709525616662-8d9f9a995ceb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwyfHxnb2xmJTIwY291cnNlJTIwZ29sZGVuJTIwaG91cnxlbnwwfHx8fDE3ODE2MTY5Nzd8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Golf course at golden hour"
+    },
+    "hero_membership_card": {
+      "url": "https://images.unsplash.com/photo-1709525617237-778500c895a8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwzfHxnb2xmJTIwY291cnNlJTIwZ29sZGVuJTIwaG91cnxlbnwwfHx8fDE3ODE2MTY5Nzd8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1709525617237-778500c895a8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwzfHxnb2xmJTIwY291cnNlJTIwZ29sZGVuJTIwaG91cnxlbnwwfHx8fDE3ODE2MTY5Nzd8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract sun shining on golf course"
+    },
+    "reward_driving_range": {
+      "url": "https://images.unsplash.com/photo-1526323610139-381ca0f77a12?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwyfHxnb2xmJTIwZHJpdmluZyUyMHJhbmdlJTIwYmFsbHN8ZW58MHx8fHwxNzgxNjE2OTc3fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Basket of golf balls at driving range"
+    },
+    "reward_cafe": {
+      "url": "https://images.unsplash.com/photo-1585418694458-dc80a5c20294?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBnb2xmJTIwY2x1YmhvdXNlJTIwcmVzdGF1cmFudHxlbnwwfHx8fDE3ODE2MTY5OTF8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Luxury golf clubhouse restaurant"
+    },
+    "reward_proshop": {
+      "url": "https://images.unsplash.com/photo-1597369199842-f08ca157e015?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxnb2xmJTIwcHJvJTIwc2hvcCUyMGFwcGFyZWx8ZW58MHx8fHwxNzgxNjE2OTc3fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Golf pro shop apparel and gear"
+    },
+    "reward_course": {
+      "url": "https://images.unsplash.com/photo-1561251224-e393160cd769?crop=entropy&cs=srgb&fm=jpg&ixid=M3w8NjAzMjV8MHwxfHNlYXJjaHwxfHxnb2xmJTIwY2FydCUyMG9uJTIwY291cnNlfGVufDB8fHx8MTc4MTYxNjk5MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Golf carts on the course"
+    }
+  },
+  "haptics": {
+    "tab_press": "light",
+    "button_press": "medium",
+    "reward_redeem": "success",
+    "qr_expand": "medium"
+  },
+  "instructions_to_main_agent": [
+    "Design the Hero Membership Card to look like a physical luxury card. Use the 'hero_membership_card' image as the background, overlay it with a dark gradient scrim (0% at top, 80% at bottom) so the Antique Gold and White text pops.",
+    "Do NOT use any blue, purple, or indigo colors. Stick exclusively to the deep obsidian/green slate and antique gold palette provided.",
+    "Use 'Cormorant Garamond' for the PlayGolf wordmark, tier names, and large points balance displays to reinforce the luxury editorial feel.",
+    "Ensure 'Satoshi' is used for all secondary body text to maintain high readability.",
+    "When displaying the QR code for points redemption or earning, use a bottom sheet (`@gorhom/bottom-sheet`) and render the QR code on a 'surfaceInverse' (white) card to ensure it can be scanned by physical devices.",
+    "For the Rewards Catalog grid, wrap the images in a rounded container with a subtle `border` and apply a linear gradient scrim before overlaying the reward title.",
+    "Limit font weights to 400 or 500 across the entire app. Use size and color (like 'brandPrimary' Gold) to establish hierarchy rather than heavy bolding."
+  ]
+}
