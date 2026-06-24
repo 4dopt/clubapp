@@ -163,33 +163,49 @@ export default function OrderScreen() {
         
         console.log = function() {
           var args = Array.prototype.slice.call(arguments);
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_LOG', data: args.join(' ') }));
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_LOG', data: args.join(' ') }));
+            } catch (err) {}
+          }
           originalLog.apply(console, arguments);
         };
         
         console.error = function() {
           var args = Array.prototype.slice.call(arguments);
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_ERROR', data: args.join(' ') }));
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_ERROR', data: args.join(' ') }));
+            } catch (err) {}
+          }
           originalError.apply(console, arguments);
         };
 
         console.warn = function() {
           var args = Array.prototype.slice.call(arguments);
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_WARN', data: args.join(' ') }));
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_WARN', data: args.join(' ') }));
+            } catch (err) {}
+          }
           originalWarn.apply(console, arguments);
         };
 
         window.onerror = function(message, source, lineno, colno, error) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'WEB_WINDOW_ERROR',
-            data: message + ' at ' + source + ':' + lineno + ':' + colno
-          }));
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            try {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'WEB_WINDOW_ERROR',
+                data: message + ' at ' + source + ':' + lineno + ':' + colno
+              }));
+            } catch (err) {}
+          }
           return false;
         };
         
         console.log("PointOne console redirected to native successfully.");
       } catch (e) {
-        // Fail-silent in case message handler not ready
+        // Fail-silent
       }
 
       // 2. Inject Theme Customizations
