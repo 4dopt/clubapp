@@ -11,6 +11,10 @@ import { theme } from '@/src/theme';
 
 const TARGET_URL = 'https://order.pointone.co.uk/1956-playgolf/?qr';
 
+const USER_AGENT = Platform.OS === 'android'
+  ? 'Mozilla/5.0 (Linux; Android 13; SM-S901B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36'
+  : 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
+
 // Custom CSS to inject into PointOne WebApp to match PlayGolf theme (applies on iOS/Android native WebView)
 const CUSTOM_CSS = `
   /* Theme Harmonization Styles */
@@ -151,26 +155,34 @@ export default function OrderScreen() {
   // Injected JavaScript that appends our custom styles as the web content loads
   const INJECTED_JS = `
     (function() {
-      var css = ${JSON.stringify(CUSTOM_CSS)};
-      function inject() {
-        if (document.getElementById('p1-native-theme')) return;
-        var style = document.createElement('style');
-        style.id = 'p1-native-theme';
-        style.type = 'text/css';
-        style.innerHTML = css;
-        if (document.head) {
-          document.head.appendChild(style);
-        } else if (document.documentElement) {
-          document.documentElement.appendChild(style);
+      try {
+        var css = ${JSON.stringify(CUSTOM_CSS)};
+        function inject() {
+          try {
+            if (document.getElementById('p1-native-theme')) return;
+            var style = document.createElement('style');
+            style.id = 'p1-native-theme';
+            style.type = 'text/css';
+            style.innerHTML = css;
+            if (document.head) {
+              document.head.appendChild(style);
+            } else if (document.documentElement) {
+              document.documentElement.appendChild(style);
+            }
+          } catch (e) {
+            console.error("Theme style injection error:", e);
+          }
         }
+        
+        inject();
+        
+        // Watch for DOM content loaded and re-inject in case of dynamic routing/SPA
+        document.addEventListener('DOMContentLoaded', inject);
+        var interval = setInterval(inject, 200);
+        setTimeout(function() { clearInterval(interval); }, 6000);
+      } catch (err) {
+        console.error("Injected theme script error:", err);
       }
-      
-      inject();
-      
-      // Watch for DOM content loaded and re-inject in case of dynamic routing/SPA
-      document.addEventListener('DOMContentLoaded', inject);
-      var interval = setInterval(inject, 200);
-      setTimeout(function() { clearInterval(interval); }, 6000);
     })();
     true;
   `;
@@ -236,6 +248,12 @@ export default function OrderScreen() {
           <WebView
             ref={webViewRef}
             source={{ uri: TARGET_URL }}
+            userAgent={USER_AGENT}
+            originWhitelist={['*']}
+            sharedCookiesEnabled={true}
+            thirdPartyCookiesEnabled={true}
+            setSupportMultipleWindows={false}
+            allowsBackForwardNavigationGestures={true}
             injectedJavaScript={INJECTED_JS}
             injectedJavaScriptBeforeContentLoaded={INJECTED_JS}
             onLoadStart={() => setLoading(true)}
