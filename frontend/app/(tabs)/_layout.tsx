@@ -56,6 +56,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="booking"
+        options={{
+          title: 'Book',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'calendar' : 'calendar-outline'}
+              size={size - 2}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="rewards"
         options={{
           title: 'Rewards',
@@ -69,12 +82,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="order"
         options={{
-          title: 'History',
+          title: 'Order',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
-              name={focused ? 'time' : 'time-outline'}
+              name={focused ? 'fast-food' : 'fast-food-outline'}
               size={size - 2}
               color={color}
             />

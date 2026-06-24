@@ -15,7 +15,7 @@ export default function AdminTabLayout() {
       </View>
     );
   }
-  if (!adminToken) return <Redirect href="/(admin)/login" />;
+  if (!adminToken) return <Redirect href="/(admin)/staff" />;
 
   return (
     <Tabs
@@ -46,7 +46,7 @@ export default function AdminTabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="dashboard"
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color, size, focused }) => (
@@ -73,7 +73,7 @@ export default function AdminTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="rewards"
+        name="admin-rewards"
         options={{
           title: 'Rewards',
           tabBarIcon: ({ color, size, focused }) => (

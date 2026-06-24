@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, type User } from './api';
+import { supabase } from './supabase';
 
 type AuthState = {
   token: string | null;
@@ -29,6 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let subscription: any;
+
     (async () => {
       try {
         const t = await AsyncStorage.getItem(TOKEN_KEY);
@@ -45,7 +48,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       finally {
         setLoading(false);
       }
+
+      // Listen to Supabase auth events (e.g. Magic Link clicks)
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+          try {
+            const u = await api.me(session.access_token);
+            await AsyncStorage.setItem(TOKEN_KEY, session.access_token);
+            setToken(session.access_token);
+            setUserState(u);
+          } catch {
+            // Profile may not exist yet, verifyOtp will fetch it/create it
+          }
+        } else {
+          await AsyncStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+          setUserState(null);
+        }
+      });
+      subscription = data.subscription;
     })();
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(async (t: string, u: User) => {

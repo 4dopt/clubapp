@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,20 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  Platform,
+  Alert,
+  Modal,
+  TextInput,
+  Linking,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '@/src/auth';
 import { api, type Reward } from '@/src/api';
@@ -30,6 +38,13 @@ export default function Home() {
   const [qrOpen, setQrOpen] = useState(false);
   const [addingPoints, setAddingPoints] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // QR Check-in states
+  const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
+  const cooldownRef = useRef<boolean>(false);
 
   const load = useCallback(async () => {
     try {
@@ -49,20 +64,49 @@ export default function Home() {
   };
 
   const simulateVisit = async () => {
-    if (!token || addingPoints) return;
-    setAddingPoints(true);
-    try {
-      await api.addPoints(token, 150, 'Range visit');
-      await refresh();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setToast('+150 points credited');
-      setTimeout(() => setToast(null), 2200);
-    } catch (e: any) {
-      setToast(e.message || 'Failed');
-      setTimeout(() => setToast(null), 2200);
-    } finally {
-      setAddingPoints(false);
+    setScanError(null);
+    setScanModalOpen(true);
+    if (!permission?.granted && permission?.canAskAgain) {
+      await requestPermission();
     }
+  };
+
+  const handleCheckInCode = async (code: string) => {
+    if (checkingCode) return;
+    const cleanCode = code.trim();
+    if (!cleanCode) return;
+
+    setCheckingCode(true);
+    setScanError(null);
+    try {
+      if (cleanCode.toUpperCase() === 'PLAYGOLF-CHECKIN') {
+        if (!token) throw new Error('Not logged in');
+        await api.addPoints(token, 150, 'Range visit (QR Check-in)');
+        await refresh();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setToast('+150 points credited');
+        setTimeout(() => setToast(null), 2200);
+        setScanModalOpen(false);
+      } else {
+        setScanError('Invalid check-in code. Please check the QR code or try again.');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch (e: any) {
+      setScanError(e.message || 'Verification failed. Try again.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setCheckingCode(false);
+    }
+  };
+
+  const handleBarcodeScanned = async ({ data }: { data: string }) => {
+    if (checkingCode || !scanModalOpen) return;
+    if (cooldownRef.current) return;
+    cooldownRef.current = true;
+    setTimeout(() => { cooldownRef.current = false; }, 2500);
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await handleCheckInCode(data);
   };
 
   if (!user) {
@@ -187,6 +231,39 @@ export default function Home() {
           </Pressable>
         </View>
 
+        {/* Book Now Banner */}
+        <Pressable
+          testID="book-now-banner"
+          style={({ pressed }) => [
+            styles.bookBanner,
+            pressed && { opacity: 0.95, transform: [{ scale: 0.99 }] }
+          ]}
+          onPress={() => router.push('/(tabs)/booking')}
+        >
+          <LinearGradient
+            colors={['#0E5A3A', '#093A26']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.bookBannerGradient}
+          >
+            <View style={styles.bookBannerContent}>
+              <View style={styles.bookBannerTextSection}>
+                <Text style={styles.bookBannerEyebrow}>RESERVATIONS</Text>
+                <Text style={styles.bookBannerTitle}>Book a Session</Text>
+                <Text style={styles.bookBannerSub}>
+                  Reserve range bays, tee times, interactive darts, or minigolf.
+                </Text>
+              </View>
+              <View style={styles.bookBannerAction}>
+                <View style={styles.bookBannerBtn}>
+                  <Text style={styles.bookBannerBtnText}>Book Now</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#0E5A3A" />
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
+        </Pressable>
+
         {/* Featured rewards */}
         <View style={styles.sectionHeader}>
           <View>
@@ -257,6 +334,102 @@ export default function Home() {
         subtitle="Show this to club staff to earn points"
         footer="Staff will scan to credit points after your visit."
       />
+
+      {/* Check-in Scanner Modal */}
+      <Modal
+        visible={scanModalOpen}
+        animationType="slide"
+        onRequestClose={() => setScanModalOpen(false)}
+      >
+        <View style={[styles.scanModalContainer, { paddingTop: insets.top }]}>
+          {/* Header */}
+          <View style={styles.scanModalHeader}>
+            <View>
+              <Text style={styles.scanModalEyebrow}>MEMBER CHECK-IN</Text>
+              <Text style={styles.scanModalTitle}>Scan QR Code</Text>
+            </View>
+            <Pressable
+              testID="close-scan-modal"
+              onPress={() => setScanModalOpen(false)}
+              style={styles.scanModalCloseBtn}
+            >
+              <Ionicons name="close" size={24} color={theme.color.onSurface} />
+            </Pressable>
+          </View>
+
+          {/* Error Message */}
+          {scanError ? (
+            <View style={styles.scanErrorContainer} testID="scan-error">
+              <Ionicons name="alert-circle-outline" size={18} color={theme.color.error} />
+              <Text style={styles.scanErrorText}>{scanError}</Text>
+            </View>
+          ) : null}
+
+          {/* Scanner view */}
+          <View style={styles.scanContentContainer}>
+            {permission?.granted ? (
+              <View style={styles.cameraWrapper}>
+                <CameraView
+                  style={StyleSheet.absoluteFill}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  onBarcodeScanned={checkingCode ? undefined : handleBarcodeScanned}
+                />
+
+                {/* Viewfinder overlay */}
+                {!checkingCode && (
+                  <View style={styles.viewfinder} pointerEvents="none">
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
+                  </View>
+                )}
+
+                <View style={styles.cameraHintBar}>
+                  <Ionicons name="information-circle-outline" size={14} color="#FFFFFF" />
+                  <Text style={styles.hintText}>
+                    {checkingCode ? 'Verifying code...' : 'Scan the PlayGolf check-in QR code'}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.cameraFallback}>
+                <Ionicons name="camera-outline" size={48} color={theme.color.brandPrimary} style={{ marginBottom: 12 }} />
+                <Text style={styles.fallbackTitle}>Camera access needed</Text>
+                <Text style={styles.fallbackSub}>
+                  Please allow camera access to scan physical QR codes at the club counter.
+                </Text>
+                {permission?.canAskAgain === false ? (
+                  <Pressable onPress={() => Linking.openSettings()} style={styles.fallbackBtn}>
+                    <Text style={styles.fallbackBtnText}>Open Settings</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={requestPermission} style={styles.fallbackBtn}>
+                    <Text style={styles.fallbackBtnText}>Allow camera</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Footer controls */}
+          <View style={styles.scanModalFooter}>
+            {/* Developer help hint */}
+            {__DEV__ && (
+              <Pressable
+                style={styles.devHintBox}
+                onPress={() => handleCheckInCode('PLAYGOLF-CHECKIN')}
+                testID="dev-simulate-scan-btn"
+              >
+                <Text style={styles.devHintText}>
+                  [DEV] Tap here to simulate scanning correct QR code (PLAYGOLF-CHECKIN)
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -489,4 +662,295 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toastText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+
+  // Scanner modal styles
+  scanModalContainer: {
+    flex: 1,
+    backgroundColor: theme.color.surface,
+  },
+  scanModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderColor: theme.color.border,
+  },
+  scanModalEyebrow: {
+    color: theme.color.brandPrimary,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    fontWeight: '700',
+  },
+  scanModalTitle: {
+    color: theme.color.onSurface,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  scanModalCloseBtn: {
+    padding: 8,
+  },
+  scanErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FCECEC',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: '#F5C6C6',
+  },
+  scanErrorText: {
+    color: theme.color.error,
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  scanContentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    marginVertical: theme.spacing.lg,
+  },
+  cameraWrapper: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    position: 'relative',
+    marginHorizontal: theme.spacing.lg,
+  },
+  cameraHintBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hintText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  viewfinder: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 220,
+    height: 220,
+    marginTop: -110,
+    marginLeft: -110,
+  },
+  corner: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderColor: theme.color.accent,
+  },
+  cornerTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
+  manualEntryContainer: {
+    paddingHorizontal: theme.spacing.xxl,
+    alignItems: 'center',
+    width: '100%',
+  },
+  manualTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.color.onSurface,
+    marginTop: 8,
+  },
+  manualSubtitle: {
+    fontSize: 13,
+    color: theme.color.onSurfaceSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: theme.spacing.xl,
+    lineHeight: 18,
+  },
+  manualInput: {
+    width: '100%',
+    height: 52,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderWidth: 1.5,
+    borderColor: theme.color.borderStrong,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.lg,
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.color.onSurface,
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  submitBtn: {
+    backgroundColor: theme.color.brandPrimary,
+    width: '100%',
+    height: 52,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.color.brandPrimary,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  switchModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: theme.spacing.xl,
+    padding: 8,
+  },
+  switchModeText: {
+    color: theme.color.brandPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  scanModalFooter: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+    alignItems: 'center',
+    gap: 12,
+  },
+  footerToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  footerToggleText: {
+    color: theme.color.brandPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  cameraFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xxl,
+    backgroundColor: theme.color.surfaceSecondary,
+  },
+  fallbackTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.color.onSurface,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  fallbackSub: {
+    fontSize: 13,
+    color: theme.color.onSurfaceTertiary,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: theme.spacing.lg,
+    lineHeight: 18,
+  },
+  fallbackBtn: {
+    backgroundColor: theme.color.brandPrimary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+  },
+  fallbackBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  devHintBox: {
+    backgroundColor: '#FDF6E2',
+    borderWidth: 1,
+    borderColor: '#F5E0A3',
+    padding: 10,
+    borderRadius: 8,
+    width: '100%',
+  },
+  devHintText: {
+    color: '#8C6B12',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  bookBanner: {
+    marginTop: theme.spacing.xl,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.color.borderStrong,
+    shadowColor: theme.color.brandPrimary,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  bookBannerGradient: {
+    padding: theme.spacing.lg,
+  },
+  bookBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bookBannerTextSection: {
+    flex: 1,
+    paddingRight: theme.spacing.md,
+  },
+  bookBannerEyebrow: {
+    color: theme.color.gold,
+    fontSize: 9,
+    letterSpacing: 1.8,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  bookBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  bookBannerSub: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  bookBannerAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookBannerBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bookBannerBtnText: {
+    color: '#0E5A3A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

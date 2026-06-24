@@ -48,7 +48,7 @@ export default function AdminMembers() {
             testID="members-search"
             value={q}
             onChangeText={setQ}
-            placeholder="Search name, phone, member ID"
+            placeholder="Search name, email, member ID"
             placeholderTextColor={theme.color.onSurfaceTertiary}
             style={styles.searchInput}
             autoCapitalize="none"
@@ -100,7 +100,7 @@ export default function AdminMembers() {
                     ) : null}
                   </View>
                   <Text style={styles.meta} numberOfLines={1}>
-                    {item.member_id} · {item.phone}
+                    {item.member_id} · {item.email || item.phone || 'No contact'}
                   </Text>
                 </View>
                 <View style={styles.right}>

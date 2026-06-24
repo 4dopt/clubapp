@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,26 +27,30 @@ const BG =
 export default function Login() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { token, signIn } = useAuth();
 
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
+  useEffect(() => {
+    if (token) {
+      router.replace('/(tabs)');
+    }
+  }, [token]);
+
+  const [step, setStep] = useState<'email' | 'otp'>('email');
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [otp, setOtp] = useState('');
-  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sendOtp = async () => {
     setError(null);
-    if (phone.trim().length < 6) {
-      setError('Enter a valid phone number');
+    if (!email.trim().includes('@')) {
+      setError('Enter a valid email address');
       return;
     }
     setLoading(true);
     try {
-      const r = await api.requestOtp(phone.trim());
-      setDevOtp(r.dev_otp);
+      await api.requestOtp(email.trim(), name.trim() || undefined);
       setStep('otp');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e: any) {
@@ -58,13 +62,13 @@ export default function Login() {
 
   const verify = async () => {
     setError(null);
-    if (otp.trim().length < 4) {
-      setError('Enter the 4-digit code');
+    if (otp.trim().length < 6) {
+      setError('Enter the 6-digit code');
       return;
     }
     setLoading(true);
     try {
-      const r = await api.verifyOtp(phone.trim(), otp.trim(), name.trim() || undefined);
+      const r = await api.verifyOtp(email.trim(), otp.trim(), name.trim() || undefined);
       await signIn(r.token, r.user);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
@@ -76,7 +80,7 @@ export default function Login() {
   };
 
   return (
-    <Pressable style={styles.root} onPress={Keyboard.dismiss}>
+    <Pressable style={styles.root} onPress={() => { if (Platform.OS !== 'web') Keyboard.dismiss(); }}>
       {/* Hero — top 55% */}
       <View style={styles.hero}>
         <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -108,21 +112,22 @@ export default function Login() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.formWrap, { paddingBottom: insets.bottom + 24 }]}
       >
-        {step === 'phone' ? (
+        {step === 'email' ? (
           <View>
             <Text style={styles.formTitle}>Sign in to your membership</Text>
             <Text style={styles.formSub}>
-              We&apos;ll text you a quick code — no password needed.
+              Enter your email and name. No real email is sent in demo mode.
             </Text>
 
-            <Label icon="call-outline" text="PHONE NUMBER" />
+            <Label icon="mail-outline" text="EMAIL ADDRESS" />
             <TextInput
-              testID="login-phone-input"
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="+1 555 123 4567"
+              testID="login-email-input"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="alex@example.com"
               placeholderTextColor={theme.color.onSurfaceTertiary}
-              keyboardType="phone-pad"
+              keyboardType="email-address"
+              autoCapitalize="none"
               style={styles.input}
               autoFocus
             />
@@ -154,30 +159,24 @@ export default function Login() {
                 </>
               )}
             </Pressable>
-            <Text style={styles.hint}>Demo mode · Any phone works, code is instant</Text>
+            <Text style={styles.hint}>Demo mode · Enter any email & name to verify instantly</Text>
           </View>
         ) : (
           <View>
             <Text style={styles.formTitle}>Enter your code</Text>
-            <Text style={styles.formSub}>Sent to {phone}</Text>
+            <Text style={styles.formSub}>Sent to {email} (Use code: 123456)</Text>
 
             <TextInput
               testID="login-otp-input"
               value={otp}
               onChangeText={setOtp}
-              placeholder="0000"
+              placeholder="000000"
               placeholderTextColor={theme.color.onSurfaceTertiary}
               keyboardType="number-pad"
-              maxLength={4}
+              maxLength={6}
               style={[styles.input, styles.otpInput]}
               autoFocus
             />
-            {devOtp ? (
-              <View style={styles.demoPill} testID="dev-otp-hint">
-                <Ionicons name="information-circle" size={14} color={theme.color.accent} />
-                <Text style={styles.demoPillText}>Demo code: {devOtp}</Text>
-              </View>
-            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
@@ -197,18 +196,18 @@ export default function Login() {
             </Pressable>
 
             <Pressable
-              testID="login-change-phone"
-              onPress={() => { setStep('phone'); setOtp(''); setError(null); }}
+              testID="login-change-email"
+              onPress={() => { setStep('email'); setOtp(''); setError(null); }}
               style={styles.linkBtn}
             >
-              <Text style={styles.link}>Change phone number</Text>
+              <Text style={styles.link}>Change email address</Text>
             </Pressable>
           </View>
         )}
 
         <Pressable
           testID="staff-sign-in"
-          onPress={() => router.push('/(admin)/login')}
+          onPress={() => router.push('/(admin)/staff')}
           style={styles.staffLink}
         >
           <Ionicons name="shield-checkmark-outline" size={14} color={theme.color.onSurfaceSecondary} />
