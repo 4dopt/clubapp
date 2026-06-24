@@ -152,9 +152,47 @@ export default function OrderScreen() {
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
 
-  // Injected JavaScript that appends our custom styles as the web content loads
+  // Injected JavaScript that appends our custom styles and redirects web logs to the React Native debugger console
   const INJECTED_JS = `
     (function() {
+      // 1. Redirect Console Logging to React Native
+      try {
+        var originalLog = console.log;
+        var originalError = console.error;
+        var originalWarn = console.warn;
+        
+        console.log = function() {
+          var args = Array.prototype.slice.call(arguments);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_LOG', data: args.join(' ') }));
+          originalLog.apply(console, arguments);
+        };
+        
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_ERROR', data: args.join(' ') }));
+          originalError.apply(console, arguments);
+        };
+
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WEB_CONSOLE_WARN', data: args.join(' ') }));
+          originalWarn.apply(console, arguments);
+        };
+
+        window.onerror = function(message, source, lineno, colno, error) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'WEB_WINDOW_ERROR',
+            data: message + ' at ' + source + ':' + lineno + ':' + colno
+          }));
+          return false;
+        };
+        
+        console.log("PointOne console redirected to native successfully.");
+      } catch (e) {
+        // Fail-silent in case message handler not ready
+      }
+
+      // 2. Inject Theme Customizations
       try {
         var css = ${JSON.stringify(CUSTOM_CSS)};
         function inject() {
@@ -254,12 +292,38 @@ export default function OrderScreen() {
             thirdPartyCookiesEnabled={true}
             setSupportMultipleWindows={false}
             allowsBackForwardNavigationGestures={true}
+            geolocationEnabled={true}
+            mixedContentMode="always"
             injectedJavaScript={INJECTED_JS}
             injectedJavaScriptBeforeContentLoaded={INJECTED_JS}
             onLoadStart={() => setLoading(true)}
             onLoadEnd={() => setLoading(false)}
             onNavigationStateChange={(navState) => {
               setCanGoBack(navState.canGoBack);
+            }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[WebView Native Error]', nativeEvent);
+            }}
+            onHttpError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[WebView Native HTTP Error]', nativeEvent);
+            }}
+            onMessage={(event) => {
+              try {
+                const message = JSON.parse(event.nativeEvent.data);
+                if (message.type === 'WEB_CONSOLE_LOG') {
+                  console.log('[PointOne Log]', message.data);
+                } else if (message.type === 'WEB_CONSOLE_ERROR') {
+                  console.error('[PointOne Error]', message.data);
+                } else if (message.type === 'WEB_CONSOLE_WARN') {
+                  console.warn('[PointOne Warn]', message.data);
+                } else if (message.type === 'WEB_WINDOW_ERROR') {
+                  console.error('[PointOne Window Error]', message.data);
+                }
+              } catch {
+                console.log('[WebView Msg]', event.nativeEvent.data);
+              }
             }}
             style={styles.webView}
             javaScriptEnabled={true}
