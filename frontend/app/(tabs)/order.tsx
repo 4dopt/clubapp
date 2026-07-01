@@ -1,12 +1,24 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, ScrollView, Modal, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 
+import { useAuth } from '@/src/auth';
+import { api } from '@/src/api';
 import { theme } from '@/src/theme';
 
 type MenuItem = {
@@ -18,6 +30,16 @@ type MenuItem = {
   category: 'mains' | 'sides' | 'drinks';
 };
 
+type CartItem = {
+  item: MenuItem | typeof OFFERS[0];
+  quantity: number;
+};
+
+type DeliveryLocation = {
+  type: 'bay' | 'table';
+  number: string;
+};
+
 const OFFERS = [
   {
     id: 'off-burger-combo',
@@ -26,6 +48,7 @@ const OFFERS = [
     originalPrice: 24.50,
     price: 18.50,
     imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=srgb&fm=jpg&q=85',
+    category: 'mains' as const,
     badge: 'Popular Combo',
   },
   {
@@ -35,6 +58,7 @@ const OFFERS = [
     originalPrice: 15.00,
     price: 12.00,
     imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?crop=entropy&cs=srgb&fm=jpg&q=85',
+    category: 'mains' as const,
     badge: 'Healthy Choice',
   },
   {
@@ -44,6 +68,7 @@ const OFFERS = [
     originalPrice: 20.00,
     price: 15.00,
     imageUrl: 'https://images.unsplash.com/photo-1532634922-8fe0b757fb13?crop=entropy&cs=srgb&fm=jpg&q=85',
+    category: 'drinks' as const,
     badge: 'Range Classic',
   },
 ];
@@ -120,303 +145,762 @@ const MENU_ITEMS: MenuItem[] = [
 
 export default function OrderScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { user, token, refresh } = useAuth();
 
-  const [fullMenuVisible, setFullMenuVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<any | null>(null);
-  const [bayNumber, setBayNumber] = useState('');
+  // Navigation & Location states
+  const [location, setLocation] = useState<DeliveryLocation | null>(null);
+  const [tempLocationType, setTempLocationType] = useState<'bay' | 'table'>('bay');
+  const [tempLocationNumber, setTempLocationNumber] = useState('');
+  
+  // Catalog filtering state
+  const [activeCategory, setActiveCategory] = useState<'all' | 'offers' | 'mains' | 'sides' | 'drinks'>('all');
+  
+  // Shopping Cart state
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartVisible, setCartVisible] = useState(false);
+  const [notes, setNotes] = useState('');
+  
+  // Order placement states
   const [ordering, setOrdering] = useState(false);
-  const [orderReceipt, setOrderReceipt] = useState<any | null>(null);
+  const [orderReceipt, setOrderReceipt] = useState<{
+    id: string;
+    items: { title: string; quantity: number; price: number }[];
+    total: number;
+    pointsEarned: number;
+    locationLabel: string;
+    time: string;
+  } | null>(null);
 
-  const handleSelectItem = (item: any) => {
+  // Cart operations
+  const handleAddToCart = (item: MenuItem | typeof OFFERS[0]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedItem(item);
-    setBayNumber('');
+    setCart(prev => {
+      const idx = prev.findIndex(c => c.item.id === item.id);
+      if (idx > -1) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+        return next;
+      }
+      return [...prev, { item, quantity: 1 }];
+    });
   };
 
+  const handleRemoveFromCart = (item: MenuItem | typeof OFFERS[0]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCart(prev => {
+      const idx = prev.findIndex(c => c.item.id === item.id);
+      if (idx === -1) return prev;
+      if (prev[idx].quantity === 1) {
+        return prev.filter(c => c.item.id !== item.id);
+      }
+      const next = [...prev];
+      next[idx] = { ...next[idx], quantity: next[idx].quantity - 1 };
+      return next;
+    });
+  };
+
+  const getItemQuantity = (itemId: string) => {
+    return cart.find(c => c.item.id === itemId)?.quantity || 0;
+  };
+
+  const cartTotal = cart.reduce((sum, item) => sum + (item.item.price * item.quantity), 0);
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Place Order integration with Supabase Points Earning
   const handlePlaceOrder = async () => {
-    if (!selectedItem) return;
-    if (!bayNumber.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return;
-    }
+    if (cart.length === 0 || !location || !token) return;
     setOrdering(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Simulate ordering API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // 1. Calculate points: $1 spent = 10 loyalty points
+      const pointsEarned = Math.round(cartTotal * 10);
+      const locationLabel = location.type === 'bay' ? `Range Bay ${location.number}` : `Cafe Table ${location.number}`;
+      const itemSummaries = cart.map(c => `${c.item.title} (x${c.quantity})`).join(', ');
+      
+      // 2. Insert transaction to Supabase
+      await api.addPoints(token, pointsEarned, `Cafe Order: ${itemSummaries} (${locationLabel})`);
+      
+      // 3. Refresh Auth session to sync points locally
+      await refresh();
 
-    const id = '#PG-' + Math.floor(100 + Math.random() * 900);
-    setOrderReceipt({
-      id,
-      itemTitle: selectedItem.title,
-      price: selectedItem.price,
-      bay: bayNumber,
-      time: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
-    });
+      // 4. Generate Receipt
+      const ordId = '#ORD-' + Math.floor(1000 + Math.random() * 9000);
+      setOrderReceipt({
+        id: ordId,
+        items: cart.map(c => ({
+          title: c.item.title,
+          quantity: c.quantity,
+          price: c.item.price,
+        })),
+        total: cartTotal,
+        pointsEarned,
+        locationLabel,
+        time: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+      });
 
-    setOrdering(false);
+      // 5. Reset Cart & state
+      setCart([]);
+      setNotes('');
+      setCartVisible(false);
+    } catch (e) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('Error placing order:', e);
+    } finally {
+      setOrdering(false);
+    }
   };
+
+  // Auth Guard Screen
+  if (!user || !token) {
+    return (
+      <View style={[styles.root, styles.center]}>
+        <View style={styles.authPromptCard}>
+          <View style={styles.authIconCircle}>
+            <Ionicons name="restaurant-outline" size={32} color={theme.color.brandPrimary} />
+          </View>
+          <Text style={styles.authTitle}>Club Cafe Ordering</Text>
+          <Text style={styles.authDesc}>
+            Log in to your member account to browse the full menu and order refreshments delivered right to your tee box or range bay.
+          </Text>
+          <Pressable
+            testID="order-login-redirect"
+            onPress={() => router.push('/(auth)/login')}
+            style={({ pressed }) => [styles.authBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.authBtnText}>Sign In / Check In</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // Phase 1: Location Setup Landing Screen
+  if (!location) {
+    const isReady = tempLocationNumber.trim().length > 0;
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={[styles.root, styles.center]}
+      >
+        <View style={styles.locationCard}>
+          <Text style={styles.eyebrow}>DINING & REFRESHMENTS</Text>
+          <Text style={styles.locationTitle}>Club Cafe</Text>
+          <Text style={styles.locationSubtitle}>
+            Please select your location to continue. We deliver freshly prepared food and cold drinks straight to you.
+          </Text>
+
+          <View style={styles.typeSelectorRow}>
+            <Pressable
+              testID="select-type-bay"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setTempLocationType('bay');
+              }}
+              style={[
+                styles.typeOption,
+                tempLocationType === 'bay' && styles.typeOptionActive,
+              ]}
+            >
+              <Ionicons
+                name="golf-outline"
+                size={22}
+                color={tempLocationType === 'bay' ? '#FFFFFF' : theme.color.onSurfaceSecondary}
+              />
+              <Text
+                style={[
+                  styles.typeOptionText,
+                  tempLocationType === 'bay' && styles.typeOptionTextActive,
+                ]}
+              >
+                Driving Range Bay
+              </Text>
+            </Pressable>
+
+            <Pressable
+              testID="select-type-table"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setTempLocationType('table');
+              }}
+              style={[
+                styles.typeOption,
+                tempLocationType === 'table' && styles.typeOptionActive,
+              ]}
+            >
+              <Ionicons
+                name="cafe-outline"
+                size={22}
+                color={tempLocationType === 'table' ? '#FFFFFF' : theme.color.onSurfaceSecondary}
+              />
+              <Text
+                style={[
+                  styles.typeOptionText,
+                  tempLocationType === 'table' && styles.typeOptionTextActive,
+                ]}
+              >
+                Cafe Table / Patio
+              </Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.inputLabel}>
+            {tempLocationType === 'bay' ? 'ENTER RANGE BAY NUMBER (1-50)' : 'ENTER TABLE NUMBER (1-30)'}
+          </Text>
+          
+          <TextInput
+            testID="location-input"
+            keyboardType="number-pad"
+            value={tempLocationNumber}
+            onChangeText={(t) => setTempLocationNumber(t.replace(/[^0-9]/g, ''))}
+            placeholder={tempLocationType === 'bay' ? 'e.g. 14' : 'e.g. 5'}
+            placeholderTextColor={theme.color.onSurfaceTertiary}
+            style={styles.locationInput}
+          />
+
+          <Pressable
+            testID="start-ordering-btn"
+            disabled={!isReady}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setLocation({ type: tempLocationType, number: tempLocationNumber });
+            }}
+            style={({ pressed }) => [
+              styles.locationSubmitBtn,
+              !isReady && styles.disabledBtn,
+              pressed && isReady && styles.pressed,
+            ]}
+          >
+            <Text style={styles.locationSubmitBtnText}>Enter Cafe Menu</Text>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // Phase 2: Menu Catalog Screen
+  const filteredMains = MENU_ITEMS.filter(item => item.category === 'mains');
+  const filteredSides = MENU_ITEMS.filter(item => item.category === 'sides');
+  const filteredDrinks = MENU_ITEMS.filter(item => item.category === 'drinks');
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + theme.spacing.md }]}>
-        <View style={styles.headerTopRow}>
+      {/* Top Navbar */}
+      <View style={[styles.navbar, { paddingTop: insets.top + theme.spacing.md }]}>
+        <View style={styles.navHeaderRow}>
           <View>
-            <Text style={styles.eyebrow}>DINING & REFRESHMENTS</Text>
-            <Text style={styles.title}>Club Cafe</Text>
+            <Text style={styles.navbarEyebrow}>PLAYGOLF AUGUSTA</Text>
+            <Text style={styles.navbarTitle}>Club Cafe</Text>
           </View>
           <Pressable
-            testID="see-full-menu-btn"
+            testID="change-location-btn"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setFullMenuVisible(true);
+              setLocation(null);
             }}
-            style={({ pressed }) => [styles.fullMenuBtn, pressed && styles.pressed]}
+            style={styles.locationBadge}
           >
-            <Ionicons name="restaurant-outline" size={14} color="#FFFFFF" />
-            <Text style={styles.fullMenuBtnText}>See Full Menu</Text>
+            <Ionicons
+              name={location.type === 'bay' ? 'golf' : 'cafe'}
+              size={12}
+              color={theme.color.brandPrimary}
+            />
+            <Text style={styles.locationBadgeText}>
+              {location.type === 'bay' ? `Bay ${location.number}` : `Table ${location.number}`}
+            </Text>
+            <Ionicons name="create-outline" size={11} color={theme.color.brandPrimary} />
           </Pressable>
         </View>
-        <Text style={styles.sub}>Order food & drinks delivered straight to your range bay or tee box</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: insets.bottom + 120 }}>
-        {/* Special Offers Section */}
-        <Text style={styles.sectionTitle}>Special Offers</Text>
-        <Text style={styles.sectionSubtitle}>Exclusive discounts for club members today</Text>
+      {/* Category Pills Bar */}
+      <View style={styles.categoriesBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+          <Pressable
+            testID="cat-all"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveCategory('all');
+            }}
+            style={[styles.catPill, activeCategory === 'all' && styles.catPillActive]}
+          >
+            <Text style={[styles.catPillText, activeCategory === 'all' && styles.catPillTextActive]}>
+              All Items
+            </Text>
+          </Pressable>
 
-        <View style={styles.offersContainer}>
-          {OFFERS.map((offer) => (
-            <Pressable
-              key={offer.id}
-              testID={`offer-card-${offer.id}`}
-              style={({ pressed }) => [styles.offerCard, pressed && styles.pressed]}
-              onPress={() => handleSelectItem(offer)}
-            >
-              <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} contentFit="cover" />
-              <View style={styles.offerBadge}>
-                <Text style={styles.offerBadgeText}>{offer.badge}</Text>
-              </View>
-              <View style={styles.offerContent}>
-                <Text style={styles.offerCardTitle}>{offer.title}</Text>
-                <Text style={styles.offerCardDesc} numberOfLines={2}>{offer.description}</Text>
-                
-                <View style={styles.offerFooter}>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.originalPrice}>${offer.originalPrice.toFixed(2)}</Text>
-                    <Text style={styles.offerPrice}>${offer.price.toFixed(2)}</Text>
+          <Pressable
+            testID="cat-offers"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveCategory('offers');
+            }}
+            style={[styles.catPill, activeCategory === 'offers' && styles.catPillActive]}
+          >
+            <Text style={[styles.catPillText, activeCategory === 'offers' && styles.catPillTextActive]}>
+              ⚡ Special Offers
+            </Text>
+          </Pressable>
+
+          <Pressable
+            testID="cat-mains"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveCategory('mains');
+            }}
+            style={[styles.catPill, activeCategory === 'mains' && styles.catPillActive]}
+          >
+            <Text style={[styles.catPillText, activeCategory === 'mains' && styles.catPillTextActive]}>
+              Burgers & Mains
+            </Text>
+          </Pressable>
+
+          <Pressable
+            testID="cat-sides"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveCategory('sides');
+            }}
+            style={[styles.catPill, activeCategory === 'sides' && styles.catPillActive]}
+          >
+            <Text style={[styles.catPillText, activeCategory === 'sides' && styles.catPillTextActive]}>
+              Sides & Snacks
+            </Text>
+          </Pressable>
+
+          <Pressable
+            testID="cat-drinks"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveCategory('drinks');
+            }}
+            style={[styles.catPill, activeCategory === 'drinks' && styles.catPillActive]}
+          >
+            <Text style={[styles.catPillText, activeCategory === 'drinks' && styles.catPillTextActive]}>
+              Beverages
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+
+      {/* Catalog items list */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.catalogScroll,
+          { paddingBottom: (Platform.OS === 'ios' ? 84 : 64) + 110 },
+        ]}
+      >
+        
+        {/* Special Offers Section */}
+        {(activeCategory === 'all' || activeCategory === 'offers') && (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionHeading}>Augusta Specials</Text>
+            <Text style={styles.sectionSub}>Exclusive pricing for members checking in today</Text>
+            
+            <View style={styles.offersList}>
+              {OFFERS.map((offer) => {
+                const qty = getItemQuantity(offer.id);
+                return (
+                  <View key={offer.id} style={styles.offerCard}>
+                    <Image source={{ uri: offer.imageUrl }} style={styles.offerCardImg} contentFit="cover" />
+                    <View style={styles.offerCardBadge}>
+                      <Text style={styles.offerCardBadgeText}>{offer.badge}</Text>
+                    </View>
+                    <View style={styles.offerCardBody}>
+                      <Text style={styles.offerCardTitle}>{offer.title}</Text>
+                      <Text style={styles.offerCardDesc}>{offer.description}</Text>
+                      
+                      <View style={styles.offerCardFooter}>
+                        <View style={styles.priceContainer}>
+                          <Text style={styles.originalPriceText}>${offer.originalPrice.toFixed(2)}</Text>
+                          <Text style={styles.priceText}>${offer.price.toFixed(2)}</Text>
+                        </View>
+
+                        {qty === 0 ? (
+                          <Pressable
+                            testID={`add-offer-${offer.id}`}
+                            onPress={() => handleAddToCart(offer)}
+                            style={styles.addBtn}
+                          >
+                            <Text style={styles.addBtnText}>Add</Text>
+                            <Ionicons name="add" size={14} color="#FFFFFF" />
+                          </Pressable>
+                        ) : (
+                          <View style={styles.qtyControl}>
+                            <Pressable
+                              testID={`remove-offer-${offer.id}`}
+                              onPress={() => handleRemoveFromCart(offer)}
+                              style={styles.qtyBtn}
+                            >
+                              <Ionicons name="remove" size={14} color={theme.color.brandPrimary} />
+                            </Pressable>
+                            <Text style={styles.qtyText}>{qty}</Text>
+                            <Pressable
+                              testID={`add-offer-more-${offer.id}`}
+                              onPress={() => handleAddToCart(offer)}
+                              style={styles.qtyBtn}
+                            >
+                              <Ionicons name="add" size={14} color={theme.color.brandPrimary} />
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.orderSmallBtn}>
-                    <Text style={styles.orderSmallBtnText}>Add</Text>
-                    <Ionicons name="add" size={14} color="#FFFFFF" />
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Mains Section */}
+        {(activeCategory === 'all' || activeCategory === 'mains') && (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionHeading}>Burgers & Mains</Text>
+            <View style={styles.menuItemsList}>
+              {filteredMains.map((item) => {
+                const qty = getItemQuantity(item.id);
+                return (
+                  <View key={item.id} style={styles.menuItemRow}>
+                    <Image source={{ uri: item.imageUrl }} style={styles.menuItemImg} contentFit="cover" />
+                    <View style={styles.menuItemBody}>
+                      <View>
+                        <Text style={styles.menuItemTitle}>{item.title}</Text>
+                        <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
+                      </View>
+                      <View style={styles.menuItemFooter}>
+                        <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
+                        
+                        {qty === 0 ? (
+                          <Pressable
+                            testID={`add-item-${item.id}`}
+                            onPress={() => handleAddToCart(item)}
+                            style={styles.menuAddBtn}
+                          >
+                            <Ionicons name="add" size={16} color="#FFFFFF" />
+                          </Pressable>
+                        ) : (
+                          <View style={styles.menuQtyControl}>
+                            <Pressable
+                              testID={`remove-item-${item.id}`}
+                              onPress={() => handleRemoveFromCart(item)}
+                              style={styles.menuQtyBtn}
+                            >
+                              <Ionicons name="remove" size={12} color={theme.color.brandPrimary} />
+                            </Pressable>
+                            <Text style={styles.menuQtyText}>{qty}</Text>
+                            <Pressable
+                              testID={`add-item-more-${item.id}`}
+                              onPress={() => handleAddToCart(item)}
+                              style={styles.menuQtyBtn}
+                            >
+                              <Ionicons name="add" size={12} color={theme.color.brandPrimary} />
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-            </Pressable>
-          ))}
-        </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Sides Section */}
+        {(activeCategory === 'all' || activeCategory === 'sides') && (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionHeading}>Sides & Snacks</Text>
+            <View style={styles.menuItemsList}>
+              {filteredSides.map((item) => {
+                const qty = getItemQuantity(item.id);
+                return (
+                  <View key={item.id} style={styles.menuItemRow}>
+                    <Image source={{ uri: item.imageUrl }} style={styles.menuItemImg} contentFit="cover" />
+                    <View style={styles.menuItemBody}>
+                      <View>
+                        <Text style={styles.menuItemTitle}>{item.title}</Text>
+                        <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
+                      </View>
+                      <View style={styles.menuItemFooter}>
+                        <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
+                        
+                        {qty === 0 ? (
+                          <Pressable
+                            testID={`add-item-${item.id}`}
+                            onPress={() => handleAddToCart(item)}
+                            style={styles.menuAddBtn}
+                          >
+                            <Ionicons name="add" size={16} color="#FFFFFF" />
+                          </Pressable>
+                        ) : (
+                          <View style={styles.menuQtyControl}>
+                            <Pressable
+                              testID={`remove-item-${item.id}`}
+                              onPress={() => handleRemoveFromCart(item)}
+                              style={styles.menuQtyBtn}
+                            >
+                              <Ionicons name="remove" size={12} color={theme.color.brandPrimary} />
+                            </Pressable>
+                            <Text style={styles.menuQtyText}>{qty}</Text>
+                            <Pressable
+                              testID={`add-item-more-${item.id}`}
+                              onPress={() => handleAddToCart(item)}
+                              style={styles.menuQtyBtn}
+                            >
+                              <Ionicons name="add" size={12} color={theme.color.brandPrimary} />
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Drinks Section */}
+        {(activeCategory === 'all' || activeCategory === 'drinks') && (
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionHeading}>Beverages</Text>
+            <View style={styles.menuItemsList}>
+              {filteredDrinks.map((item) => {
+                const qty = getItemQuantity(item.id);
+                return (
+                  <View key={item.id} style={styles.menuItemRow}>
+                    <Image source={{ uri: item.imageUrl }} style={styles.menuItemImg} contentFit="cover" />
+                    <View style={styles.menuItemBody}>
+                      <View>
+                        <Text style={styles.menuItemTitle}>{item.title}</Text>
+                        <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
+                      </View>
+                      <View style={styles.menuItemFooter}>
+                        <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
+                        
+                        {qty === 0 ? (
+                          <Pressable
+                            testID={`add-item-${item.id}`}
+                            onPress={() => handleAddToCart(item)}
+                            style={styles.menuAddBtn}
+                          >
+                            <Ionicons name="add" size={16} color="#FFFFFF" />
+                          </Pressable>
+                        ) : (
+                          <View style={styles.menuQtyControl}>
+                            <Pressable
+                              testID={`remove-item-${item.id}`}
+                              onPress={() => handleRemoveFromCart(item)}
+                              style={styles.menuQtyBtn}
+                            >
+                              <Ionicons name="remove" size={12} color={theme.color.brandPrimary} />
+                            </Pressable>
+                            <Text style={styles.menuQtyText}>{qty}</Text>
+                            <Pressable
+                              testID={`add-item-more-${item.id}`}
+                              onPress={() => handleAddToCart(item)}
+                              style={styles.menuQtyBtn}
+                            >
+                              <Ionicons name="add" size={12} color={theme.color.brandPrimary} />
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Full Menu Modal */}
-      <Modal
-        visible={fullMenuVisible}
-        animationType="slide"
-        onRequestClose={() => setFullMenuVisible(false)}
-      >
-        <View style={[styles.menuModalContainer, { paddingTop: insets.top }]}>
-          {/* Menu Modal Header */}
-          <View style={styles.menuModalHeader}>
-            <View>
-              <Text style={styles.menuModalEyebrow}>PLAYGOLF DINING</Text>
-              <Text style={styles.menuModalTitle}>Full Menu</Text>
+      {/* Floating Bottom Cart Bar */}
+      {cart.length > 0 && (
+        <View
+          style={[
+            styles.floatingCartContainer,
+            { bottom: (Platform.OS === 'ios' ? 84 : 64) + theme.spacing.sm },
+          ]}
+        >
+          <Pressable
+            testID="view-cart-btn"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setCartVisible(true);
+            }}
+            style={({ pressed }) => [styles.floatingCartBar, pressed && styles.pressed]}
+          >
+            <View style={styles.floatingCartLeft}>
+              <View style={styles.cartIconCircle}>
+                <Ionicons name="basket" size={18} color={theme.color.brandPrimary} />
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+                </View>
+              </View>
+              <Text style={styles.floatingCartText}>View Basket</Text>
             </View>
-            <Pressable
-              testID="close-menu-modal"
-              onPress={() => setFullMenuVisible(false)}
-              style={styles.menuModalCloseBtn}
-            >
-              <Ionicons name="close" size={24} color={theme.color.onSurface} />
-            </Pressable>
-          </View>
-
-          {/* Menu Items List */}
-          <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: insets.bottom + 40 }}>
-            {/* Category: Mains */}
-            <Text style={styles.menuCatLabel}>BURGERS & MAINS</Text>
-            <View style={styles.menuGrid}>
-              {MENU_ITEMS.filter((item) => item.category === 'mains').map((item) => (
-                <Pressable
-                  key={item.id}
-                  testID={`menu-item-${item.id}`}
-                  style={({ pressed }) => [styles.menuItemCard, pressed && styles.pressed]}
-                  onPress={() => handleSelectItem(item)}
-                >
-                  <Image source={{ uri: item.imageUrl }} style={styles.menuItemImg} contentFit="cover" />
-                  <View style={styles.menuItemBody}>
-                    <Text style={styles.menuItemTitle}>{item.title}</Text>
-                    <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
-                    <View style={styles.menuItemFooter}>
-                      <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
-                      <View style={styles.itemAddIcon}>
-                        <Ionicons name="add" size={14} color="#FFFFFF" />
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Category: Sides */}
-            <Text style={styles.menuCatLabel}>SIDES & SNACKS</Text>
-            <View style={styles.menuGrid}>
-              {MENU_ITEMS.filter((item) => item.category === 'sides').map((item) => (
-                <Pressable
-                  key={item.id}
-                  testID={`menu-item-${item.id}`}
-                  style={({ pressed }) => [styles.menuItemCard, pressed && styles.pressed]}
-                  onPress={() => handleSelectItem(item)}
-                >
-                  <Image source={{ uri: item.imageUrl }} style={styles.menuItemImg} contentFit="cover" />
-                  <View style={styles.menuItemBody}>
-                    <Text style={styles.menuItemTitle}>{item.title}</Text>
-                    <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
-                    <View style={styles.menuItemFooter}>
-                      <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
-                      <View style={styles.itemAddIcon}>
-                        <Ionicons name="add" size={14} color="#FFFFFF" />
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Category: Drinks */}
-            <Text style={styles.menuCatLabel}>COLD DRINKS</Text>
-            <View style={styles.menuGrid}>
-              {MENU_ITEMS.filter((item) => item.category === 'drinks').map((item) => (
-                <Pressable
-                  key={item.id}
-                  testID={`menu-item-${item.id}`}
-                  style={({ pressed }) => [styles.menuItemCard, pressed && styles.pressed]}
-                  onPress={() => handleSelectItem(item)}
-                >
-                  <Image source={{ uri: item.imageUrl }} style={styles.menuItemImg} contentFit="cover" />
-                  <View style={styles.menuItemBody}>
-                    <Text style={styles.menuItemTitle}>{item.title}</Text>
-                    <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
-                    <View style={styles.menuItemFooter}>
-                      <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
-                      <View style={styles.itemAddIcon}>
-                        <Ionicons name="add" size={14} color="#FFFFFF" />
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
+            <Text style={styles.floatingCartTotal}>${cartTotal.toFixed(2)}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      )}
 
-      {/* Checkout Selection Modal */}
+      {/* Cart Basket Checkout Modal */}
       <Modal
-        visible={selectedItem !== null && !orderReceipt}
+        visible={cartVisible}
         transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedItem(null)}
+        animationType="slide"
+        onRequestClose={() => setCartVisible(false)}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalBackdrop}
         >
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedItem(null)} />
-          <View style={styles.checkoutSheet}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCartVisible(false)} />
+          <View style={[styles.checkoutSheet, { paddingBottom: insets.bottom + theme.spacing.xl }]}>
             <View style={styles.modalHandle} />
             
-            {selectedItem && (
-              <>
-                <View style={styles.modalHeaderRow}>
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={styles.modalEyebrow}>YOUR BASKET</Text>
+                <Text style={styles.modalTitle}>Order Details</Text>
+              </View>
+              <Pressable
+                testID="close-cart-modal"
+                onPress={() => setCartVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={theme.color.onSurfaceSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.checkoutItemsScroll} showsVerticalScrollIndicator={false}>
+              {cart.map((cartItem) => (
+                <View key={cartItem.item.id} style={styles.checkoutItemRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.modalEyebrow}>ADD TO ORDER</Text>
-                    <Text style={styles.modalTitle}>{selectedItem.title}</Text>
-                    <Text style={styles.modalDesc}>{selectedItem.description}</Text>
+                    <Text style={styles.checkoutItemTitle}>{cartItem.item.title}</Text>
+                    <Text style={styles.checkoutItemPrice}>${cartItem.item.price.toFixed(2)} each</Text>
                   </View>
-                  <Pressable
-                    testID="close-checkout-modal"
-                    onPress={() => setSelectedItem(null)}
-                    style={styles.modalCloseBtn}
-                  >
-                    <Ionicons name="close" size={20} color={theme.color.onSurfaceSecondary} />
-                  </Pressable>
+
+                  <View style={styles.cartModalQtyControl}>
+                    <Pressable
+                      testID={`remove-item-modal-${cartItem.item.id}`}
+                      onPress={() => handleRemoveFromCart(cartItem.item)}
+                      style={styles.cartModalQtyBtn}
+                    >
+                      <Ionicons name="remove" size={12} color={theme.color.brandPrimary} />
+                    </Pressable>
+                    <Text style={styles.cartModalQtyText}>{cartItem.quantity}</Text>
+                    <Pressable
+                      testID={`add-item-modal-${cartItem.item.id}`}
+                      onPress={() => handleAddToCart(cartItem.item)}
+                      style={styles.cartModalQtyBtn}
+                    >
+                      <Ionicons name="add" size={12} color={theme.color.brandPrimary} />
+                    </Pressable>
+                  </View>
+
+                  <Text style={styles.checkoutItemSubtotal}>
+                    ${(cartItem.item.price * cartItem.quantity).toFixed(2)}
+                  </Text>
                 </View>
+              ))}
 
-                {/* Delivery location input */}
-                <Text style={styles.checkoutLabel}>ENTER RANGE BAY / TIER TABLE NUMBER</Text>
-                <TextInput
-                  testID="bay-number-input"
-                  value={bayNumber}
-                  onChangeText={setBayNumber}
-                  placeholder="e.g. Bay 14, Table 3"
-                  placeholderTextColor={theme.color.onSurfaceTertiary}
-                  style={styles.bayInput}
-                  autoFocus
-                />
+              <View style={styles.divider} />
 
-                <Pressable
-                  testID="place-order-btn"
-                  disabled={ordering || !bayNumber.trim()}
-                  onPress={handlePlaceOrder}
-                  style={({ pressed }) => [
-                    styles.orderConfirmBtn,
-                    (!bayNumber.trim() || ordering) && styles.disabledBtn,
-                    pressed && bayNumber.trim() && { opacity: 0.9 }
-                  ]}
-                >
-                  {ordering ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Text style={styles.orderConfirmBtnText}>
-                        Place Order · ${(selectedItem.price).toFixed(2)}
-                      </Text>
-                      <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                    </>
-                  )}
-                </Pressable>
-              </>
-            )}
+              {/* Delivery Details */}
+              <View style={styles.deliveryDetailsRow}>
+                <View style={styles.deliveryDetailIcon}>
+                  <Ionicons name={location.type === 'bay' ? 'golf' : 'cafe'} size={18} color={theme.color.brandPrimary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.deliveryDetailLabel}>Delivering To</Text>
+                  <Text style={styles.deliveryDetailValue}>
+                    {location.type === 'bay' ? `Range Bay ${location.number}` : `Cafe Patio Table ${location.number}`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Instructions input */}
+              <Text style={styles.checkoutLabel}>SPECIAL COOKING OR DELIVERY NOTES</Text>
+              <TextInput
+                testID="order-notes-input"
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="e.g. No ice in drink, extra salad dressing..."
+                placeholderTextColor={theme.color.onSurfaceTertiary}
+                style={styles.notesInput}
+                multiline
+                numberOfLines={3}
+              />
+
+              {/* Loyalty Reward Preview */}
+              <View style={styles.loyaltyEarnBadge}>
+                <Ionicons name="ribbon-outline" size={18} color={theme.color.brandPrimary} />
+                <Text style={styles.loyaltyEarnText}>
+                  Loyalty Points Earning: <Text style={styles.loyaltyEarnHighlight}>+{Math.round(cartTotal * 10)} pts</Text>
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.checkoutSummary}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Delivery Fee</Text>
+                <Text style={styles.summaryValueFree}>FREE</Text>
+              </View>
+              <View style={[styles.summaryRow, { marginTop: 4 }]}>
+                <Text style={styles.summaryTotalLabel}>Total Amount</Text>
+                <Text style={styles.summaryTotalValue}>${cartTotal.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            <Pressable
+              testID="place-order-basket-btn"
+              disabled={ordering}
+              onPress={handlePlaceOrder}
+              style={({ pressed }) => [
+                styles.orderConfirmBtn,
+                ordering && styles.disabledBtn,
+                pressed && { opacity: 0.9 }
+              ]}
+            >
+              {ordering ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.orderConfirmBtnText}>
+                    Place Order & Pay
+                  </Text>
+                  <Ionicons name="card-outline" size={16} color="#FFFFFF" />
+                </>
+              )}
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Order Receipt Modal */}
+      {/* Success Receipt Modal */}
       <Modal
         visible={orderReceipt !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => {
-          setOrderReceipt(null);
-          setSelectedItem(null);
-          setFullMenuVisible(false);
-        }}
+        onRequestClose={() => setOrderReceipt(null)}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => {
-            setOrderReceipt(null);
-            setSelectedItem(null);
-            setFullMenuVisible(false);
-          }}
-        >
+        <Pressable style={styles.modalBackdrop} onPress={() => setOrderReceipt(null)}>
           <Pressable style={styles.receiptSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.receiptSuccessHeader}>
               <View style={styles.successIconCircle}>
                 <Ionicons name="checkmark" size={28} color="#FFFFFF" />
               </View>
-              <Text style={styles.receiptTitle}>Order Placed Successfully!</Text>
-              <Text style={styles.receiptSubtitle}>Your order will be delivered shortly</Text>
+              <Text style={styles.receiptTitle}>Order Confirmed!</Text>
+              <Text style={styles.receiptSubtitle}>Delivering fresh to your location shortly</Text>
             </View>
 
             {orderReceipt && (
@@ -426,31 +910,32 @@ export default function OrderScreen() {
                   <Text style={styles.receiptValue}>{orderReceipt.id}</Text>
                 </View>
                 <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Item</Text>
-                  <Text style={styles.receiptValue}>{orderReceipt.itemTitle}</Text>
-                </View>
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Total Price</Text>
-                  <Text style={styles.receiptValue}>${orderReceipt.price.toFixed(2)}</Text>
-                </View>
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Delivery Location</Text>
-                  <Text style={styles.receiptValue}>{orderReceipt.bay}</Text>
+                  <Text style={styles.receiptLabel}>Destination</Text>
+                  <Text style={styles.receiptValue}>{orderReceipt.locationLabel}</Text>
                 </View>
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Ordered At</Text>
                   <Text style={styles.receiptValue}>{orderReceipt.time}</Text>
                 </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Total Paid</Text>
+                  <Text style={styles.receiptValue}>${orderReceipt.total.toFixed(2)}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Loyalty Points</Text>
+                  <Text style={styles.receiptValuePoints}>+{orderReceipt.pointsEarned} pts</Text>
+                </View>
+
+                <View style={styles.divider} />
+                
+                <Text style={styles.receiptEstimatedTitle}>ESTIMATED DELIVERY TIME</Text>
+                <Text style={styles.receiptEstimatedTimer}>10 - 15 minutes</Text>
               </View>
             )}
 
             <Pressable
               testID="close-receipt-btn"
-              onPress={() => {
-                setOrderReceipt(null);
-                setSelectedItem(null);
-                setFullMenuVisible(false);
-              }}
+              onPress={() => setOrderReceipt(null)}
               style={({ pressed }) => [styles.receiptDoneBtn, pressed && { opacity: 0.95 }]}
             >
               <Text style={styles.receiptDoneText}>Done</Text>
@@ -464,202 +949,374 @@ export default function OrderScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.color.surface },
-  header: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: theme.color.surface,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  center: { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl },
+  pressed: { opacity: 0.95, transform: [{ scale: 0.98 }] },
+  divider: { height: 1, backgroundColor: theme.color.border, marginVertical: theme.spacing.md },
+
+  // Auth Guard Screen Styles
+  authPromptCard: {
+    backgroundColor: theme.color.surfaceSecondary,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.spacing.xl,
     alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  authIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E9F5EF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  authTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.color.onSurface,
+    letterSpacing: -0.5,
+    marginBottom: theme.spacing.xs,
+  },
+  authDesc: {
+    fontSize: 13,
+    color: theme.color.onSurfaceSecondary,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: theme.spacing.xl,
+  },
+  authBtn: {
+    backgroundColor: theme.color.brandPrimary,
+    borderRadius: theme.radius.pill,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  authBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Location Card Setup Screen Styles
+  locationCard: {
+    backgroundColor: theme.color.surfaceSecondary,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.spacing.xl,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   eyebrow: {
     color: theme.color.brandPrimary,
-    fontSize: 10,
-    letterSpacing: 1.8,
-    fontWeight: '700',
+    fontSize: 9,
+    letterSpacing: 2,
+    fontWeight: '800',
+    textAlign: 'center',
   },
-  title: {
+  locationTitle: {
     color: theme.color.onSurface,
     fontSize: 26,
     fontWeight: '800',
     marginTop: 4,
     letterSpacing: -0.5,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
   },
-  sub: {
+  locationSubtitle: {
+    fontSize: 12,
     color: theme.color.onSurfaceSecondary,
-    fontSize: 13,
-    marginTop: 6,
+    textAlign: 'center',
     lineHeight: 18,
+    marginBottom: theme.spacing.xl,
   },
-  fullMenuBtn: {
+  typeSelectorRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+  },
+  typeOption: {
+    flex: 1,
+    backgroundColor: theme.color.surface,
+    borderWidth: 1.5,
+    borderColor: theme.color.borderStrong,
+    borderRadius: 16,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+    gap: 8,
+  },
+  typeOptionActive: {
     backgroundColor: theme.color.brandPrimary,
+    borderColor: theme.color.brandPrimary,
+  },
+  typeOptionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.color.onSurfaceSecondary,
+  },
+  typeOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  inputLabel: {
+    color: theme.color.onSurfaceSecondary,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: theme.spacing.sm,
+  },
+  locationInput: {
+    backgroundColor: theme.color.surface,
+    borderWidth: 1.5,
+    borderColor: theme.color.borderStrong,
+    borderRadius: 16,
+    height: 54,
+    paddingHorizontal: theme.spacing.lg,
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.color.onSurface,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xl,
+  },
+  locationSubmitBtn: {
+    backgroundColor: theme.color.brandPrimary,
+    borderRadius: theme.radius.pill,
+    height: 52,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  locationSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  disabledBtn: {
+    backgroundColor: theme.color.surfaceTertiary,
+    opacity: 0.6,
+  },
+
+  // Menu Screen Styles
+  navbar: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    backgroundColor: theme.color.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.border,
+  },
+  navHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  navbarEyebrow: {
+    color: theme.color.brandPrimary,
+    fontSize: 9,
+    letterSpacing: 1.8,
+    fontWeight: '800',
+  },
+  navbarTitle: {
+    color: theme.color.onSurface,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginTop: 2,
+  },
+  locationBadge: {
+    backgroundColor: '#E9F5EF',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: theme.radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    shadowColor: theme.color.brandPrimary,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 0.5,
+    borderColor: '#D0EAE0',
   },
-  fullMenuBtnText: {
-    color: '#FFFFFF',
+  locationBadgeText: {
     fontSize: 12,
     fontWeight: '700',
+    color: theme.color.brandPrimary,
   },
-  pressed: {
-    opacity: 0.95,
-    transform: [{ scale: 0.98 }],
+  categoriesBar: {
+    backgroundColor: theme.color.surface,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.border,
   },
-  sectionTitle: {
-    fontSize: 20,
+  categoryScroll: {
+    paddingHorizontal: theme.spacing.lg,
+    gap: theme.spacing.xs,
+  },
+  catPill: {
+    backgroundColor: theme.color.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 6,
+  },
+  catPillActive: {
+    backgroundColor: theme.color.brandPrimary,
+    borderColor: theme.color.brandPrimary,
+  },
+  catPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.color.onSurfaceSecondary,
+  },
+  catPillTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Catalog Scroll Wrappers
+  catalogScroll: {
+    backgroundColor: theme.color.surface,
+  },
+  sectionWrap: {
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+  },
+  sectionHeading: {
+    fontSize: 18,
     fontWeight: '800',
     color: theme.color.onSurface,
-    marginTop: theme.spacing.lg,
     letterSpacing: -0.4,
   },
-  sectionSubtitle: {
-    fontSize: 12,
+  sectionSub: {
+    fontSize: 11,
     color: theme.color.onSurfaceSecondary,
     marginBottom: theme.spacing.md,
   },
-  offersContainer: {
-    gap: theme.spacing.lg,
+
+  // Special Offers List
+  offersList: {
+    gap: theme.spacing.md,
   },
   offerCard: {
     backgroundColor: theme.color.surfaceSecondary,
     borderRadius: 20,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.color.border,
+    overflow: 'hidden',
     position: 'relative',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.02,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
-  offerImage: {
+  offerCardImg: {
     width: '100%',
-    height: 160,
+    height: 140,
   },
-  offerBadge: {
+  offerCardBadge: {
     position: 'absolute',
     top: 12, left: 12,
     backgroundColor: theme.color.gold,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
     borderRadius: theme.radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  offerBadgeText: {
+  offerCardBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  offerContent: {
-    padding: theme.spacing.lg,
+  offerCardBody: {
+    padding: theme.spacing.md,
   },
   offerCardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: theme.color.onSurface,
-    letterSpacing: -0.3,
   },
   offerCardDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.color.onSurfaceSecondary,
-    marginTop: 4,
-    lineHeight: 17,
+    lineHeight: 16,
+    marginTop: 2,
+    marginBottom: theme.spacing.sm,
   },
-  offerFooter: {
+  offerCardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: theme.spacing.md,
-    paddingTop: theme.spacing.md,
     borderTopWidth: 0.5,
-    borderTopColor: theme.color.divider,
+    borderTopColor: theme.color.border,
+    paddingTop: theme.spacing.sm,
   },
-  priceRow: {
+  priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,
   },
-  originalPrice: {
-    fontSize: 12,
+  originalPriceText: {
+    fontSize: 11,
     color: theme.color.onSurfaceTertiary,
     textDecorationLine: 'line-through',
   },
-  offerPrice: {
-    fontSize: 18,
+  priceText: {
+    fontSize: 16,
     fontWeight: '800',
     color: theme.color.accent,
   },
-  orderSmallBtn: {
+  addBtn: {
     backgroundColor: theme.color.brandPrimary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  orderSmallBtnText: {
+  addBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
-
-  // Full Menu Modal Styles
-  menuModalContainer: {
-    flex: 1,
-    backgroundColor: theme.color.surface,
-  },
-  menuModalHeader: {
+  qtyControl: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: theme.color.surface,
+    backgroundColor: '#E9F5EF',
+    borderWidth: 1,
+    borderColor: '#D0EAE0',
+    borderRadius: 12,
+    height: 28,
   },
-  menuModalEyebrow: {
-    color: theme.color.brandPrimary,
-    fontSize: 9,
-    letterSpacing: 2,
-    fontWeight: '800',
+  qtyBtn: {
+    width: 28,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  menuModalTitle: {
-    color: theme.color.onSurface,
-    fontSize: 24,
-    fontWeight: '800',
-    marginTop: 2,
-    letterSpacing: -0.5,
-  },
-  menuModalCloseBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: theme.color.surfaceTertiary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  menuCatLabel: {
-    fontSize: 10,
+  qtyText: {
+    fontSize: 12,
     fontWeight: '800',
     color: theme.color.brandPrimary,
-    letterSpacing: 1.5,
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.md,
+    minWidth: 16,
+    textAlign: 'center',
   },
-  menuGrid: {
-    gap: theme.spacing.md,
+
+  // Mains, Sides, Drinks Item Row Styles
+  menuItemsList: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
-  menuItemCard: {
+  menuItemRow: {
     flexDirection: 'row',
     backgroundColor: theme.color.surfaceSecondary,
     borderWidth: 1,
@@ -668,46 +1325,134 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   menuItemImg: {
-    width: 100,
-    height: 100,
+    width: 90,
+    height: 90,
   },
   menuItemBody: {
     flex: 1,
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
     justifyContent: 'space-between',
   },
   menuItemTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.color.onSurface,
   },
   menuItemDesc: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: theme.color.onSurfaceSecondary,
-    lineHeight: 15,
+    lineHeight: 14,
+    marginTop: 2,
   },
   menuItemFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
   },
   menuItemPrice: {
     fontSize: 13,
     fontWeight: '700',
     color: theme.color.onSurface,
   },
-  itemAddIcon: {
-    width: 22, height: 22, borderRadius: 11,
+  menuAddBtn: {
     backgroundColor: theme.color.brandPrimary,
-    alignItems: 'center', justifyContent: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuQtyControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E9F5EF',
+    borderWidth: 0.5,
+    borderColor: '#D0EAE0',
+    borderRadius: 8,
+    height: 24,
+  },
+  menuQtyBtn: {
+    width: 24,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuQtyText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: theme.color.brandPrimary,
+    minWidth: 12,
+    textAlign: 'center',
   },
 
-  // Checkout overlay sheet
+  // Floating Bottom Cart Styles
+  floatingCartContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    paddingHorizontal: theme.spacing.lg,
+    backgroundColor: 'transparent',
+    zIndex: 99,
+  },
+  floatingCartBar: {
+    backgroundColor: theme.color.brandPrimary,
+    borderRadius: theme.radius.pill,
+    height: 52,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    shadowColor: theme.color.brandPrimary,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  floatingCartLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  cartIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -4, right: -4,
+    backgroundColor: theme.color.accent,
+    width: 16, height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  floatingCartText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  floatingCartTotal: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  // Cart/Checkout Drawer Sheet Styles
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,27,22,0.55)',
+    backgroundColor: 'rgba(15, 27, 22, 0.55)',
     justifyContent: 'flex-end',
+    zIndex: 9999,
   },
   checkoutSheet: {
     backgroundColor: theme.color.surface,
@@ -715,7 +1460,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xxxl,
+    maxHeight: '90%',
   },
   modalHandle: {
     width: 44,
@@ -723,13 +1468,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: theme.color.borderStrong,
     alignSelf: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   modalEyebrow: {
     color: theme.color.brandPrimary,
@@ -744,62 +1489,190 @@ const styles = StyleSheet.create({
     marginTop: 2,
     letterSpacing: -0.4,
   },
-  modalDesc: {
-    fontSize: 12,
-    color: theme.color.onSurfaceSecondary,
-    marginTop: 4,
-    lineHeight: 16,
-  },
   modalCloseBtn: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: theme.color.surfaceTertiary,
-    alignItems: 'center', justifyContent: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkoutItemsScroll: {
+    maxHeight: 280,
+  },
+  checkoutItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: theme.spacing.xs,
+    gap: theme.spacing.sm,
+  },
+  checkoutItemTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.color.onSurface,
+  },
+  checkoutItemPrice: {
+    fontSize: 11,
+    color: theme.color.onSurfaceSecondary,
+    marginTop: 1,
+  },
+  checkoutItemSubtotal: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.color.onSurface,
+    minWidth: 50,
+    textAlign: 'right',
+  },
+  cartModalQtyControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E9F5EF',
+    borderWidth: 0.5,
+    borderColor: '#D0EAE0',
+    borderRadius: 8,
+    height: 24,
+  },
+  cartModalQtyBtn: {
+    width: 24,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartModalQtyText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: theme.color.brandPrimary,
+    minWidth: 14,
+    textAlign: 'center',
+  },
+  deliveryDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: 16,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  deliveryDetailIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  deliveryDetailLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.color.onSurfaceSecondary,
+  },
+  deliveryDetailValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.color.onSurface,
   },
   checkoutLabel: {
     color: theme.color.onSurfaceSecondary,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
-    marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
-  bayInput: {
+  notesInput: {
     backgroundColor: theme.color.surfaceSecondary,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: theme.color.borderStrong,
-    borderRadius: theme.radius.md,
-    height: 52,
-    paddingHorizontal: theme.spacing.lg,
-    fontSize: 16,
+    borderRadius: 12,
+    padding: theme.spacing.md,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.color.onSurface,
+    textAlignVertical: 'top',
+    height: 60,
+    marginBottom: theme.spacing.md,
+  },
+  loyaltyEarnBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF6EF',
+    borderColor: '#D4ECE0',
+    borderWidth: 0.5,
+    borderRadius: 12,
+    padding: 10,
+    gap: 8,
+    marginBottom: theme.spacing.md,
+  },
+  loyaltyEarnText: {
+    fontSize: 11.5,
     fontWeight: '700',
     color: theme.color.onSurface,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xl,
+  },
+  loyaltyEarnHighlight: {
+    color: theme.color.brandPrimary,
+    fontWeight: '800',
+  },
+  checkoutSummary: {
+    backgroundColor: theme.color.surfaceSecondary,
+    borderRadius: 16,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    marginBottom: theme.spacing.lg,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 2,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: theme.color.onSurfaceSecondary,
+    fontWeight: '600',
+  },
+  summaryValue: {
+    fontSize: 12,
+    color: theme.color.onSurface,
+    fontWeight: '700',
+  },
+  summaryValueFree: {
+    fontSize: 11,
+    color: theme.color.brandPrimary,
+    fontWeight: '800',
+  },
+  summaryTotalLabel: {
+    fontSize: 13,
+    color: theme.color.onSurface,
+    fontWeight: '800',
+  },
+  summaryTotalValue: {
+    fontSize: 15,
+    color: theme.color.accent,
+    fontWeight: '800',
   },
   orderConfirmBtn: {
     backgroundColor: theme.color.brandPrimary,
     borderRadius: theme.radius.pill,
-    height: 54,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
     shadowColor: theme.color.brandPrimary,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
-  },
-  disabledBtn: {
-    backgroundColor: theme.color.surfaceTertiary,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   orderConfirmBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.5,
   },
 
   // Receipt Modal Styles
@@ -810,38 +1683,40 @@ const styles = StyleSheet.create({
     width: '90%',
     alignSelf: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 8 },
   },
   receiptSuccessHeader: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   successIconCircle: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: theme.color.accent,
-    alignItems: 'center', justifyContent: 'center',
+    width: 56, height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.color.brandPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: theme.spacing.md,
   },
   receiptTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
     color: theme.color.onSurface,
     textAlign: 'center',
   },
   receiptSubtitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: theme.color.onSurfaceSecondary,
-    marginTop: 4,
+    marginTop: 3,
     textAlign: 'center',
   },
   receiptDetails: {
     backgroundColor: theme.color.surface,
     borderRadius: 16,
     padding: theme.spacing.lg,
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.color.border,
   },
@@ -851,19 +1726,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   receiptLabel: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: theme.color.onSurfaceSecondary,
     fontWeight: '600',
   },
   receiptValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.color.onSurface,
+  },
+  receiptValuePoints: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: theme.color.brandPrimary,
+  },
+  receiptEstimatedTitle: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.color.onSurfaceSecondary,
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  receiptEstimatedTimer: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.color.accent,
+    textAlign: 'center',
+    marginTop: 2,
   },
   receiptDoneBtn: {
     backgroundColor: theme.color.brandPrimary,
     borderRadius: theme.radius.pill,
-    height: 50,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -871,6 +1766,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.5,
   },
 });
