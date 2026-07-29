@@ -23,6 +23,12 @@ CREATE POLICY "Users can update their own profile." ON public.users
 CREATE POLICY "Users can insert their own profile." ON public.users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
+CREATE POLICY "Admins can view all profiles." ON public.users
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can update all profiles." ON public.users
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
 -- Rewards table
 CREATE TABLE public.rewards (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -38,6 +44,15 @@ ALTER TABLE public.rewards ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Rewards are viewable by everyone." ON public.rewards
   FOR SELECT USING (true);
+
+CREATE POLICY "Admins can insert rewards." ON public.rewards
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can update rewards." ON public.rewards
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can delete rewards." ON public.rewards
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
 
 -- Transactions table
 CREATE TABLE public.transactions (
@@ -62,6 +77,15 @@ CREATE POLICY "Users can view their own transactions." ON public.transactions
 
 CREATE POLICY "Users can insert their own transactions." ON public.transactions
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all transactions." ON public.transactions
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can update all transactions." ON public.transactions
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can insert transactions." ON public.transactions
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'admin@playgolf.com');
 
 -- Seeding some default rewards
 INSERT INTO public.rewards (title, description, points_cost, category, image_url) VALUES

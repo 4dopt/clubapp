@@ -26,3 +26,28 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 4. Create RLS policies for admin@playgolf.com
+CREATE POLICY "Admins can view all profiles." ON public.users
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can update all profiles." ON public.users
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can insert rewards." ON public.rewards
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can update rewards." ON public.rewards
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can delete rewards." ON public.rewards
+  FOR DELETE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can view all transactions." ON public.transactions
+  FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can update all transactions." ON public.transactions
+  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
+
+CREATE POLICY "Admins can insert transactions." ON public.transactions
+  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'admin@playgolf.com');

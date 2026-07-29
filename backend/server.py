@@ -451,6 +451,7 @@ async def admin_update_member(user_id: str, payload: AdminUpdateMemberIn, _: dic
         raise HTTPException(status_code=404, detail="Member not found")
     update: dict = {}
     note_parts = []
+    delta = 0
     if payload.name is not None:
         update["name"] = payload.name.strip()
     if payload.points_balance is not None:
@@ -469,16 +470,11 @@ async def admin_update_member(user_id: str, payload: AdminUpdateMemberIn, _: dic
         raise HTTPException(status_code=400, detail="No fields to update")
     await db.users.update_one({"id": user_id}, {"$set": update})
     user.update(update)
-    # log an adjust transaction if balance changed
-    if "points_balance" in update and update["points_balance"] != user.get("points_balance"):
-        pass  # already merged above
-    if payload.points_balance is not None:
-        delta = int(payload.points_balance) - int(await get_old_balance(user_id))
     # simpler: record a manual adjust txn when balance set
     if note_parts:
         txn = Transaction(
             user_id=user_id, type="adjust",
-            points=abs(int(payload.points_balance) - 0) if payload.points_balance is not None else 0,
+            points=delta,
             title="Admin update", description=", ".join(note_parts), by_admin=True,
         )
         await db.transactions.insert_one(txn.dict())

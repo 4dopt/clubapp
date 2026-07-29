@@ -266,28 +266,55 @@ export const api = {
   },
 };
 
+// Helper to verify admin token with Supabase auth
+const verifyAdmin = async (token: string) => {
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user || data.user.email !== 'admin@playgolf.com') {
+    throw new Error('Unauthorized');
+  }
+};
+
 // Real Admin API backed by Supabase
 export const adminApi = {
   login: async (pin: string) => {
     if (pin === '123456') {
-      return { ok: true, admin_token: 'mock-admin-token-123456' };
+      const email = 'admin@playgolf.com';
+      const password = 'AdminPassword123!';
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        return { ok: true, admin_token: data.session.access_token };
+      } catch (err: any) {
+        if (err.status === 400 || err.message?.includes('Invalid login credentials') || err.message?.includes('Email not confirmed')) {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { name: 'Staff Admin' } }
+          });
+          if (error) throw error;
+          return { ok: true, admin_token: data.session!.access_token };
+        }
+        throw err;
+      }
     }
     throw new Error('Invalid staff PIN');
   },
   
   logout: async (token: string) => {
+    await supabase.auth.signOut();
     return { ok: true };
   },
   
   me: async (token: string) => {
-    if (token === 'mock-admin-token-123456') {
-      return { ok: true, role: 'staff' };
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user || data.user.email !== 'admin@playgolf.com') {
+      throw new Error('Invalid token');
     }
-    throw new Error('Invalid token');
+    return { ok: true, role: 'staff' };
   },
   
   stats: async (token: string): Promise<AdminStats> => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     // Fetch all users to compute totals and tier breakdown
     const { data: users, error: usersError } = await supabase
@@ -372,7 +399,7 @@ export const adminApi = {
   },
   
   creditPoints: async (token: string, member_id: string, points: number) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { data: user, error: findError } = await supabase
       .from('users')
@@ -408,7 +435,7 @@ export const adminApi = {
   },
   
   verifyRedemption: async (token: string, redemption_code: string) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { data: txn, error: txnError } = await supabase
       .from('transactions')
@@ -443,7 +470,7 @@ export const adminApi = {
   },
   
   listMembers: async (token: string, query?: string) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     let req = supabase.from('users').select('*');
     if (query) {
@@ -455,7 +482,7 @@ export const adminApi = {
   },
   
   getMember: async (token: string, id: string) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -475,7 +502,7 @@ export const adminApi = {
   },
   
   updateMember: async (token: string, id: string, updates: Partial<User>) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     // Get current user first to compute points difference and log adjustments
     const { data: user, error: fetchError } = await supabase
@@ -528,7 +555,7 @@ export const adminApi = {
   },
   
   listRewards: async (token: string) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { data, error } = await supabase
       .from('rewards')
@@ -539,7 +566,7 @@ export const adminApi = {
   },
   
   createReward: async (token: string, reward: Omit<Reward, 'id'>) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { data, error } = await supabase
       .from('rewards')
@@ -551,7 +578,7 @@ export const adminApi = {
   },
   
   updateReward: async (token: string, id: string, updates: Partial<Reward>) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { data, error } = await supabase
       .from('rewards')
@@ -564,7 +591,7 @@ export const adminApi = {
   },
   
   deleteReward: async (token: string, id: string) => {
-    if (token !== 'mock-admin-token-123456') throw new Error('Unauthorized');
+    await verifyAdmin(token);
     
     const { error } = await supabase
       .from('rewards')

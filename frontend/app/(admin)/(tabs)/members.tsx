@@ -28,13 +28,14 @@ export default function AdminMembers() {
     finally { setLoading(false); }
   }, [adminToken]);
 
-  useEffect(() => { load(); }, [load]);
-  useFocusEffect(useCallback(() => { load(q); }, [load, q]));
-
-  useEffect(() => {
-    const t = setTimeout(() => { load(q.trim() || undefined); }, 300);
-    return () => clearTimeout(t);
-  }, [q, load]);
+  useFocusEffect(
+    useCallback(() => {
+      const t = setTimeout(() => {
+        load(q.trim() || undefined);
+      }, q.trim() ? 300 : 0);
+      return () => clearTimeout(t);
+    }, [load, q])
+  );
 
   return (
     <View style={styles.root}>

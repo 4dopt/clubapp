@@ -199,7 +199,7 @@ export default function MemberDetail() {
                   <Text style={txnStyles.date}>{formatDate(t.created_at)}</Text>
                 </View>
                 <Text style={[txnStyles.amount, { color: t.type === 'earn' ? theme.color.accent : theme.color.onSurfaceSecondary }]}>
-                  {t.type === 'earn' ? '+' : t.type === 'redeem' ? '−' : '±'}{t.points}
+                  {t.type === 'earn' ? '+' : t.type === 'redeem' ? '−' : t.points >= 0 ? '+' : '−'}{Math.abs(t.points).toLocaleString()}
                 </Text>
               </View>
             ))

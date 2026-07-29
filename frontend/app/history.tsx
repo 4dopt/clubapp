@@ -49,7 +49,7 @@ export default function History() {
   };
 
   const totalEarned = txns.filter((t) => t.type === 'earn').reduce((s, t) => s + t.points, 0);
-  const totalRedeemed = txns.filter((t) => t.type === 'redeem').reduce((s, t) => s + t.points, 0);
+  const totalRedeemed = txns.filter((t) => t.type === 'redeem').reduce((s, t) => s + Math.abs(t.points), 0);
 
   return (
     <View style={styles.root}>
@@ -147,7 +147,7 @@ export default function History() {
                     { color: isEarn ? theme.color.accent : theme.color.onSurfaceSecondary },
                   ]}
                 >
-                  {isEarn ? '+' : '−'}{item.points.toLocaleString()}
+                  {isEarn ? '+' : '−'}{Math.abs(item.points).toLocaleString()}
                 </Text>
               </View>
             );
