@@ -1,31 +1,26 @@
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 
 export default function Index() {
-  const { token, loading } = useAuth();
-  const router = useRouter();
+  const { token, user, loading } = useAuth();
 
-  useEffect(() => {
-    if (loading) return;
-    if (token) router.replace('/(tabs)');
-    else router.replace('/(auth)/login');
-  }, [loading, token, router]);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.color.surface }}>
+        <ActivityIndicator color={theme.color.brandPrimary} />
+      </View>
+    );
+  }
 
-  return (
-    <View style={styles.container} testID="splash-screen">
-      <ActivityIndicator color={theme.color.brandPrimary} size="large" />
-    </View>
-  );
+  if (!token) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (user?.role === 'admin') {
+    return <Redirect href="/admin" />;
+  }
+
+  return <Redirect href="/dashboard" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.color.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
