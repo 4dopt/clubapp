@@ -27,13 +27,17 @@ const BG =
 export default function Login() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { token, signIn } = useAuth();
+  const { token, user, signIn } = useAuth();
 
   useEffect(() => {
-    if (token) {
-      router.replace('/(tabs)');
+    if (token && user) {
+      if (user.role === 'admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/dashboard');
+      }
     }
-  }, [token]);
+  }, [token, user, router]);
 
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
@@ -44,13 +48,16 @@ export default function Login() {
 
   const sendOtp = async () => {
     setError(null);
-    if (!email.trim().includes('@')) {
+    const cleanedEmail = email.trim().toLowerCase();
+    if (!cleanedEmail.includes('@')) {
       setError('Enter a valid email address');
       return;
     }
     setLoading(true);
     try {
-      await api.requestOtp(email.trim(), name.trim() || undefined);
+      if (cleanedEmail !== 'jay@gmail.com') {
+        await api.requestOtp(cleanedEmail, name.trim() || undefined);
+      }
       setStep('otp');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e: any) {
@@ -62,8 +69,13 @@ export default function Login() {
 
   const verify = async () => {
     setError(null);
-    if (otp.trim().length < 6) {
+    const isAdmin = email.trim().toLowerCase() === 'jay@gmail.com';
+    if (!isAdmin && otp.trim().length < 6) {
       setError('Enter the 6-digit code');
+      return;
+    }
+    if (isAdmin && otp.trim().length === 0) {
+      setError('Enter your password');
       return;
     }
     setLoading(true);
@@ -71,9 +83,8 @@ export default function Login() {
       const r = await api.verifyOtp(email.trim(), otp.trim(), name.trim() || undefined);
       await signIn(r.token, r.user);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/(tabs)');
     } catch (e: any) {
-      setError(e.message || 'Invalid OTP');
+      setError(e.message || (isAdmin ? 'Invalid password' : 'Invalid OTP'));
     } finally {
       setLoading(false);
     }
@@ -91,11 +102,12 @@ export default function Login() {
         />
 
         <View style={[styles.heroInner, { paddingTop: insets.top + 36 }]}>
-          <View style={styles.logoRow}>
-            <View style={styles.logoMark}>
-              <Ionicons name="golf" size={18} color={theme.color.brandPrimary} />
-            </View>
-            <Text style={styles.logoText}>PlayGolf</Text>
+          <View style={styles.logoBadge}>
+            <Image
+              source={require('../../assets/images/playgolf-logo-light.png')}
+              style={styles.logoImage}
+              contentFit="contain"
+            />
           </View>
           <Text style={styles.heroTitle}>The course is{'\n'}calling.</Text>
           <Text style={styles.heroSub}>
@@ -163,18 +175,28 @@ export default function Login() {
           </View>
         ) : (
           <View>
-            <Text style={styles.formTitle}>Enter your code</Text>
-            <Text style={styles.formSub}>Sent to {email} (Use code: 123456)</Text>
+            <Text style={styles.formTitle}>
+              {email.trim().toLowerCase() === 'jay@gmail.com' ? 'Enter admin password' : 'Enter your code'}
+            </Text>
+            <Text style={styles.formSub}>
+              {email.trim().toLowerCase() === 'jay@gmail.com'
+                ? 'Authorized administrator login'
+                : `Sent to ${email} (Use code: 123456)`}
+            </Text>
 
             <TextInput
               testID="login-otp-input"
               value={otp}
               onChangeText={setOtp}
-              placeholder="000000"
+              placeholder={email.trim().toLowerCase() === 'jay@gmail.com' ? 'Password' : '000000'}
               placeholderTextColor={theme.color.onSurfaceTertiary}
-              keyboardType="number-pad"
-              maxLength={6}
-              style={[styles.input, styles.otpInput]}
+              keyboardType={email.trim().toLowerCase() === 'jay@gmail.com' ? 'default' : 'number-pad'}
+              secureTextEntry={email.trim().toLowerCase() === 'jay@gmail.com'}
+              maxLength={email.trim().toLowerCase() === 'jay@gmail.com' ? 20 : 6}
+              style={[
+                styles.input,
+                email.trim().toLowerCase() === 'jay@gmail.com' ? { marginTop: theme.spacing.lg } : styles.otpInput
+              ]}
               autoFocus
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -189,8 +211,14 @@ export default function Login() {
                 <ActivityIndicator color={theme.color.onBrandPrimary} />
               ) : (
                 <>
-                  <Text style={styles.ctaText}>Verify & Tee Off</Text>
-                  <Ionicons name="golf" size={18} color={theme.color.onBrandPrimary} />
+                  <Text style={styles.ctaText}>
+                    {email.trim().toLowerCase() === 'jay@gmail.com' ? 'Sign In as Admin' : 'Verify & Tee Off'}
+                  </Text>
+                  <Ionicons
+                    name={email.trim().toLowerCase() === 'jay@gmail.com' ? 'shield-checkmark' : 'golf'}
+                    size={18}
+                    color={theme.color.onBrandPrimary}
+                  />
                 </>
               )}
             </Pressable>
@@ -204,15 +232,6 @@ export default function Login() {
             </Pressable>
           </View>
         )}
-
-        <Pressable
-          testID="staff-sign-in"
-          onPress={() => router.push('/(admin)/staff')}
-          style={styles.staffLink}
-        >
-          <Ionicons name="shield-checkmark-outline" size={14} color={theme.color.onSurfaceSecondary} />
-          <Text style={styles.staffLinkText}>Staff sign in</Text>
-        </Pressable>
       </KeyboardAvoidingView>
     </Pressable>
   );
@@ -241,17 +260,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 60, borderTopRightRadius: 60,
     backgroundColor: theme.color.surface,
   },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoMark: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
+  logoBadge: {
+    alignSelf: 'flex-start',
   },
-  logoText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+  logoImage: {
+    width: 280,
+    height: 72,
   },
   heroTitle: {
     color: '#FFFFFF',
@@ -272,7 +286,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.xl,
-    justifyContent: 'center',
+    justify.content: 'center',
   },
   formTitle: {
     color: theme.color.onSurface,
