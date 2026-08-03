@@ -86,3 +86,7 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Generated QR code files
+expo_qr.png
+qr_code.html
