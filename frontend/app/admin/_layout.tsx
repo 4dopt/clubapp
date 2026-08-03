@@ -1,9 +1,9 @@
-import { Redirect } from 'expo-router';
+import { Slot, Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/src/auth';
 import { theme } from '@/src/theme';
 
-export default function Index() {
+export default function AdminLayout() {
   const { token, user, loading } = useAuth();
 
   if (loading) {
@@ -14,13 +14,9 @@ export default function Index() {
     );
   }
 
-  if (!token) {
+  if (!token || user?.role !== 'admin') {
     return <Redirect href="/(auth)/login" />;
   }
 
-  if (user?.role === 'admin') {
-    return <Redirect href="/admin" />;
-  }
-
-  return <Redirect href="/dashboard" />;
+  return <Slot />;
 }

@@ -1,94 +1,50 @@
--- Users table (extends auth.users)
-CREATE TABLE public.users (
-  id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
-  phone text UNIQUE,
-  email text UNIQUE,
-  name text,
-  member_id text UNIQUE,
-  tier text DEFAULT 'Silver' CHECK (tier IN ('Silver', 'Gold', 'Platinum')),
-  points_balance integer DEFAULT 0,
-  lifetime_points integer DEFAULT 0,
-  joined_at timestamp with time zone DEFAULT now(),
-  suspended boolean DEFAULT false
+-- PlayGolf Club Supabase Schema Definition
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  role VARCHAR(20) DEFAULT 'member' CHECK (role IN ('member', 'staff', 'admin')),
+  member_id VARCHAR(10) UNIQUE NOT NULL,
+  tier VARCHAR(20) DEFAULT 'Silver' CHECK (tier IN ('Silver', 'Gold', 'Platinum')),
+  points INTEGER DEFAULT 0 CHECK (points >= 0),
+  points_ytd INTEGER DEFAULT 0 CHECK (points_ytd >= 0),
+  qr_token VARCHAR(100) UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own profile." ON public.users
-  FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Users can update their own profile." ON public.users
-  FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert their own profile." ON public.users
-  FOR INSERT WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Admins can view all profiles." ON public.users
-  FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
-CREATE POLICY "Admins can update all profiles." ON public.users
-  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
--- Rewards table
-CREATE TABLE public.rewards (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  title text NOT NULL,
-  description text,
-  points_cost integer NOT NULL,
-  category text NOT NULL,
-  image_url text,
-  active boolean DEFAULT true
+CREATE TABLE IF NOT EXISTS rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  points_cost INTEGER NOT NULL CHECK (points_cost > 0),
+  category VARCHAR(50) NOT NULL,
+  image_url TEXT NOT NULL,
+  active BOOLEAN DEFAULT true,
+  redemption_type VARCHAR(20) DEFAULT 'qr' CHECK (redemption_type IN ('qr', 'discount')),
+  discount_code VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.rewards ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Rewards are viewable by everyone." ON public.rewards
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins can insert rewards." ON public.rewards
-  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
-CREATE POLICY "Admins can update rewards." ON public.rewards
-  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
-CREATE POLICY "Admins can delete rewards." ON public.rewards
-  FOR DELETE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
--- Transactions table
-CREATE TABLE public.transactions (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES public.users NOT NULL,
-  type text NOT NULL CHECK (type IN ('earn', 'redeem', 'adjust')),
-  points integer NOT NULL,
-  title text NOT NULL,
-  description text,
-  reward_id uuid REFERENCES public.rewards,
-  redemption_code text,
-  used boolean DEFAULT false,
-  used_at timestamp with time zone,
-  created_at timestamp with time zone DEFAULT now(),
-  by_admin boolean DEFAULT false
+CREATE TABLE IF NOT EXISTS reward_redemptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  reward_id UUID NOT NULL REFERENCES rewards(id) ON DELETE CASCADE,
+  reward_title VARCHAR(255) NOT NULL,
+  points_cost INTEGER NOT NULL,
+  redemption_type VARCHAR(20) NOT NULL,
+  discount_code VARCHAR(50),
+  qr_code_token VARCHAR(100),
+  fulfilled BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own transactions." ON public.transactions
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own transactions." ON public.transactions
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Admins can view all transactions." ON public.transactions
-  FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
-CREATE POLICY "Admins can update all transactions." ON public.transactions
-  FOR UPDATE USING (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
-CREATE POLICY "Admins can insert transactions." ON public.transactions
-  FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'admin@playgolf.com');
-
--- Seeding some default rewards
-INSERT INTO public.rewards (title, description, points_cost, category, image_url) VALUES
-('Free Bucket of Balls', 'Get a medium bucket of balls for the driving range.', 500, 'Range', 'https://images.unsplash.com/photo-1592916314725-b4bfab2e3db0?auto=format&fit=crop&q=80&w=600'),
-('18 Holes Green Fee', 'Play 18 holes at no cost.', 5000, 'Course', 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?auto=format&fit=crop&q=80&w=600'),
-('Pro Shop $20 Voucher', 'Use this voucher towards any apparel in the pro shop.', 1000, 'Pro Shop', 'https://images.unsplash.com/photo-1535136104956-68bdebbc8b62?auto=format&fit=crop&q=80&w=600');
+CREATE TABLE IF NOT EXISTS transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  type VARCHAR(20) NOT NULL CHECK (type IN ('earn', 'redeem')),
+  title VARCHAR(255) NOT NULL,
+  points INTEGER NOT NULL,
+  category VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
