@@ -18,6 +18,7 @@ type AdminAuthState = {
 
 const Ctx = createContext<AdminAuthState | null>(null);
 const KEY = 'playgolf.admin_token';
+const TOKEN_KEY = 'playgolf.token';
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [adminToken, setAdminToken] = useState<string | null>(null);
@@ -26,14 +27,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const t = await AsyncStorage.getItem(KEY);
+        const t = (await AsyncStorage.getItem(KEY)) || (await AsyncStorage.getItem(TOKEN_KEY));
         if (t) {
-          try {
-            await adminApi.me(t);
-            setAdminToken(t);
-          } catch {
-            await AsyncStorage.removeItem(KEY);
-          }
+          setAdminToken(t);
         }
       } catch { /* ignore */ }
       finally { setLoading(false); }
@@ -43,6 +39,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async (pin: string) => {
     const r = await adminApi.login(pin);
     await AsyncStorage.setItem(KEY, r.admin_token);
+    await AsyncStorage.setItem(TOKEN_KEY, r.admin_token);
     setAdminToken(r.admin_token);
   }, []);
 
@@ -51,6 +48,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       try { await adminApi.logout(adminToken); } catch { /* ignore */ }
     }
     await AsyncStorage.removeItem(KEY);
+    await AsyncStorage.removeItem(TOKEN_KEY);
     setAdminToken(null);
   }, [adminToken]);
 

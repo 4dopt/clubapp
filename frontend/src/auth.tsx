@@ -23,6 +23,7 @@ type AuthState = {
 const AuthCtx = createContext<AuthState | null>(null);
 
 const TOKEN_KEY = 'playgolf.token';
+const ADMIN_TOKEN_KEY = 'playgolf.admin_token';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const t = await AsyncStorage.getItem(TOKEN_KEY);
+        const t = (await AsyncStorage.getItem(TOKEN_KEY)) || (await AsyncStorage.getItem(ADMIN_TOKEN_KEY));
         if (t) {
           try {
             const u = await api.me(t);
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserState(u);
           } catch {
             await AsyncStorage.removeItem(TOKEN_KEY);
+            await AsyncStorage.removeItem(ADMIN_TOKEN_KEY);
           }
         }
       } catch { /* ignore */ }
@@ -62,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           await AsyncStorage.removeItem(TOKEN_KEY);
+          await AsyncStorage.removeItem(ADMIN_TOKEN_KEY);
           setToken(null);
           setUserState(null);
         }
@@ -76,18 +79,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (t: string, u: User) => {
     await AsyncStorage.setItem(TOKEN_KEY, t);
+    if (u?.role === 'admin') {
+      await AsyncStorage.setItem(ADMIN_TOKEN_KEY, t);
+    }
     setToken(t);
     setUserState(u);
   }, []);
 
   const signOut = useCallback(async () => {
-    if (token) {
-      try { await api.logout(token); } catch { /* ignore */ }
-    }
     await AsyncStorage.removeItem(TOKEN_KEY);
+    await AsyncStorage.removeItem(ADMIN_TOKEN_KEY);
     setToken(null);
     setUserState(null);
-  }, [token]);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!token) return;
