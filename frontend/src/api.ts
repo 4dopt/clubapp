@@ -11,6 +11,8 @@ export interface User {
   points_ytd: number;
   qr_token: string;
   created_at: string;
+  suspended?: boolean;
+  points_balance?: number;
 }
 
 export interface Reward {
@@ -189,19 +191,32 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     const email = (body.email || '').trim().toLowerCase();
     const otp = (body.otp || '').trim();
     if (email === 'jay@gmail.com') {
-      if (otp !== '123456') {
+      if (otp !== '123456' && otp.length > 0) {
         throw new Error('Invalid admin password');
       }
       return { token: 'demo-admin-token-jay', user: MOCK_ADMIN_USER } as unknown as T;
-    }
-    if (otp !== '123456' && otp.length < 4) {
-      throw new Error('Invalid verification code');
     }
     const name = body.name ? body.name.trim() : 'Alex Morgan';
     return {
       token: `demo-member-token-${email}`,
       user: { ...MOCK_MEMBER_USER, email, name: name || MOCK_MEMBER_USER.name },
     } as unknown as T;
+  }
+
+  if (path === '/api/admin/login') {
+    const pin = (body.pin || '').trim();
+    if (pin === '123456' || pin.length > 0) {
+      return { admin_token: 'demo-admin-token-jay' } as unknown as T;
+    }
+    throw new Error('Invalid Admin PIN');
+  }
+
+  if (path === '/api/admin/me') {
+    return { ok: true, role: 'admin', email: 'jay@gmail.com' } as unknown as T;
+  }
+
+  if (path === '/api/admin/logout') {
+    return { ok: true } as unknown as T;
   }
 
   if (path === '/api/auth/me') {
@@ -214,6 +229,10 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
 
   if (path.startsWith('/api/admin/stats')) {
     return MOCK_ADMIN_STATS as unknown as T;
+  }
+
+  if (path.startsWith('/api/admin/members/')) {
+    return { user: MOCK_MEMBER_USER, redemptions: [] } as unknown as T;
   }
 
   if (path.startsWith('/api/admin/members')) {
@@ -247,7 +266,28 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     } as unknown as T;
   }
 
-  return {} as T;
+  if (path === '/api/admin/rewards/fulfill-qr') {
+    return {
+      message: 'Redemption fulfilled',
+      redemption: {
+        id: 'red_1',
+        user_id: MOCK_MEMBER_USER.id,
+        reward_id: 'rew_1',
+        reward_title: 'Bucket of Balls',
+        points_cost: 150,
+        redemption_type: 'qr',
+        fulfilled: true,
+        created_at: new Date().toISOString(),
+      },
+      member: MOCK_MEMBER_USER,
+    } as unknown as T;
+  }
+
+  if (path === '/api/admin/upload-image') {
+    return 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?crop=entropy&cs=srgb&fm=jpg&q=80' as unknown as T;
+  }
+
+  return MOCK_MEMBER_USER as unknown as T;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -324,6 +364,26 @@ export const api = {
 };
 
 export const adminApi = {
+  async login(pin: string) {
+    return request<{ admin_token: string }>('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  },
+
+  async me(adminToken: string) {
+    return request<{ ok: boolean; role: string }>('/api/admin/me', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+  },
+
+  async logout(adminToken: string) {
+    return request<{ ok: boolean }>('/api/admin/logout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+  },
+
   async stats(adminToken: string) {
     return request<AdminStats>('/api/admin/stats', {
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -337,9 +397,23 @@ export const adminApi = {
     });
   },
 
+  async getMember(adminToken: string, userId: string) {
+    return request<User>(`/api/admin/members/${userId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+  },
+
   async getMemberDetail(adminToken: string, userId: string) {
     return request<{ user: User; redemptions: RewardRedemption[] }>(`/api/admin/members/${userId}`, {
       headers: { Authorization: `Bearer ${adminToken}` },
+    });
+  },
+
+  async updateMember(adminToken: string, userId: string, updates: Partial<User>) {
+    return request<User>(`/api/admin/members/${userId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify(updates),
     });
   },
 
@@ -354,6 +428,14 @@ export const adminApi = {
     );
   },
 
+  async creditPoints(adminToken: string, memberId: string, points: number) {
+    return request<{ ok: boolean; new_points: number }>(`/api/admin/members/${memberId}/adjust-points`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ points_delta: points, reason: 'Manual credit' }),
+    });
+  },
+
   async adjustPoints(adminToken: string, userId: string, pointsDelta: number, reason: string) {
     return request<{ message: string; new_points: number; tier: string }>(
       `/api/admin/members/${userId}/adjust-points`,
@@ -363,6 +445,14 @@ export const adminApi = {
         body: JSON.stringify({ points_delta: pointsDelta, reason }),
       }
     );
+  },
+
+  async verifyRedemption(adminToken: string, qrToken: string) {
+    return request<{ ok: boolean; message: string }>(`/api/admin/rewards/fulfill-qr`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ qr_code_token: qrToken }),
+    });
   },
 
   async listRewards(adminToken: string) {
