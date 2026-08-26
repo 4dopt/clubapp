@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justify: 'center',
+    justifyContent: 'center',
     padding: theme.spacing.xl,
   },
   sheet: {
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   header: {
     width: '100%',
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.lg,
   },
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: theme.color.surfaceSecondary,
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
   },
   qrContainer: {
     padding: theme.spacing.lg,
