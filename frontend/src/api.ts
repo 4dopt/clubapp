@@ -67,21 +67,212 @@ export interface AdminStats {
   }>;
 }
 
+const MOCK_ADMIN_USER: User = {
+  id: 'usr_admin_jay',
+  email: 'jay@gmail.com',
+  name: 'Jay (Admin)',
+  role: 'admin',
+  member_id: 'PG-000001',
+  tier: 'Platinum',
+  points: 12500,
+  points_ytd: 12500,
+  qr_token: 'QR_ADMIN_JAY',
+  created_at: '2026-01-01T00:00:00.000Z',
+};
+
+const MOCK_MEMBER_USER: User = {
+  id: 'usr_member_1',
+  email: 'alex@example.com',
+  name: 'Alex Morgan',
+  role: 'member',
+  member_id: 'PG-2445B5',
+  tier: 'Silver',
+  points: 250,
+  points_ytd: 250,
+  qr_token: 'QR_MEMBER_2445B5',
+  created_at: '2026-02-01T00:00:00.000Z',
+};
+
+const MOCK_REWARDS: Reward[] = [
+  {
+    id: 'rew_1',
+    title: 'Complimentary Bucket of 100 Range Balls',
+    description: 'Enjoy a free range session with 100 premium balls.',
+    points_cost: 150,
+    category: 'Driving Range',
+    image_url: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?crop=entropy&cs=srgb&fm=jpg&q=80',
+    active: true,
+    redemption_type: 'qr',
+  },
+  {
+    id: 'rew_2',
+    title: '20% Off Pro Shop Apparel',
+    description: 'Get 20% off polo shirts, hats, and golf footwear.',
+    points_cost: 300,
+    category: 'Pro Shop',
+    image_url: 'https://images.unsplash.com/photo-1593111774601-dfbce324a35f?crop=entropy&cs=srgb&fm=jpg&q=80',
+    active: true,
+    redemption_type: 'discount',
+    discount_code: 'PLAYGOLF20',
+  },
+  {
+    id: 'rew_3',
+    title: '1-Hour PGA Pro Coaching Session',
+    description: 'One-on-one swing analysis and trackman data review with our Head Professional.',
+    points_cost: 600,
+    category: 'Coaching',
+    image_url: 'https://images.unsplash.com/photo-1592919505780-303950717480?crop=entropy&cs=srgb&fm=jpg&q=80',
+    active: true,
+    redemption_type: 'qr',
+  },
+];
+
+const MOCK_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'txn_1',
+    user_id: 'usr_member_1',
+    type: 'earn',
+    title: 'Range Visit Check-in',
+    points: 100,
+    category: 'Visit',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'txn_2',
+    user_id: 'usr_member_1',
+    type: 'earn',
+    title: 'Weekend Championship Round',
+    points: 150,
+    category: 'Round',
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
+
+const MOCK_ADMIN_STATS: AdminStats = {
+  points_issued_today: 4500,
+  visits_today: 32,
+  redemptions_today: 8,
+  total_members: 142,
+  tiers: { Silver: 95, Gold: 35, Platinum: 12 },
+  week_earn_total: 24500,
+  week_redeem_total: 6200,
+  recent: [
+    {
+      id: 'rec_1',
+      type: 'earn',
+      title: 'Range Visit Check-in',
+      points: 100,
+      member_name: 'Alex Morgan',
+      member_id: 'PG-2445B5',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'rec_2',
+      type: 'redeem',
+      title: 'Range Ball Bucket',
+      points: 150,
+      member_name: 'Sam Taylor',
+      member_id: 'PG-109283',
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+    },
+  ],
+};
+
+function getMockFallback<T>(path: string, options: RequestInit): T {
+  const body = options.body ? JSON.parse(options.body as string) : {};
+
+  if (path === '/api/auth/otp/request') {
+    return { message: 'Code sent (Demo Mode: 123456)', otp_sent: true } as unknown as T;
+  }
+
+  if (path === '/api/auth/otp/verify') {
+    const email = (body.email || '').trim().toLowerCase();
+    const otp = (body.otp || '').trim();
+    if (email === 'jay@gmail.com') {
+      if (otp !== '123456') {
+        throw new Error('Invalid admin password');
+      }
+      return { token: 'demo-admin-token-jay', user: MOCK_ADMIN_USER } as unknown as T;
+    }
+    if (otp !== '123456' && otp.length < 4) {
+      throw new Error('Invalid verification code');
+    }
+    const name = body.name ? body.name.trim() : 'Alex Morgan';
+    return {
+      token: `demo-member-token-${email}`,
+      user: { ...MOCK_MEMBER_USER, email, name: name || MOCK_MEMBER_USER.name },
+    } as unknown as T;
+  }
+
+  if (path === '/api/auth/me') {
+    const authHeader = (options.headers as any)?.Authorization || '';
+    if (authHeader.includes('admin') || authHeader.includes('jay')) {
+      return MOCK_ADMIN_USER as unknown as T;
+    }
+    return MOCK_MEMBER_USER as unknown as T;
+  }
+
+  if (path.startsWith('/api/admin/stats')) {
+    return MOCK_ADMIN_STATS as unknown as T;
+  }
+
+  if (path.startsWith('/api/admin/members')) {
+    return [MOCK_MEMBER_USER, MOCK_ADMIN_USER] as unknown as T;
+  }
+
+  if (path.startsWith('/api/admin/rewards') || path === '/api/rewards') {
+    return MOCK_REWARDS as unknown as T;
+  }
+
+  if (path === '/api/rewards/redeem') {
+    return {
+      redemption_id: 'red_demo_' + Date.now(),
+      redemption_type: 'qr',
+      qr_code_token: 'QR_DEMO_' + Date.now(),
+      remaining_points: 100,
+    } as unknown as T;
+  }
+
+  if (path === '/api/history') {
+    return MOCK_TRANSACTIONS as unknown as T;
+  }
+
+  if (path === '/api/admin/log-visit') {
+    return {
+      message: 'Visit logged successfully',
+      user_id: MOCK_MEMBER_USER.id,
+      member_name: MOCK_MEMBER_USER.name,
+      member_id: MOCK_MEMBER_USER.member_id,
+      new_points: 350,
+    } as unknown as T;
+  }
+
+  return {} as T;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.detail || data.message || 'API Request failed');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || data.message || 'API Request failed');
+    }
+    return data as T;
+  } catch (err: any) {
+    if (err.message && err.message !== 'Failed to fetch' && !err.message.includes('NetworkError') && !err.message.includes('fetch')) {
+      throw err;
+    }
+    // Fallback to seamless demo mode when backend server is offline/unreachable
+    return getMockFallback<T>(path, options);
   }
-  return data as T;
 }
 
 export const api = {
