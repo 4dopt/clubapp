@@ -104,7 +104,7 @@ export default function Login() {
         <View style={[styles.heroInner, { paddingTop: insets.top + 36 }]}>
           <View style={styles.logoBadge}>
             <Image
-              source={require('../../assets/images/playgolf-logo-light.png')}
+              source={require('../../assets/images/icon.png')}
               style={styles.logoImage}
               contentFit="contain"
             />
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.xl,
-    justify.content: 'center',
+    justifyContent: 'center',
   },
   formTitle: {
     color: theme.color.onSurface,

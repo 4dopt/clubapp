@@ -6,7 +6,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { tierMeta } from '../theme';
 import type { User } from '../api';
 
-const LOGO = require('../../assets/images/playgolf-logo-light.png');
+const LOGO = require('../../assets/images/icon.png');
 
 interface Props {
   user: User;
@@ -19,49 +19,46 @@ export function MembershipCard({ user, onShowQr }: Props) {
   return (
     <Pressable
       testID="membership-card"
-      style={({ pressed }) => [styles.cardWrap, pressed && { transform: [{ scale: 0.98 }] }]}
       onPress={onShowQr}
+      style={({ pressed }) => [styles.cardContainer, pressed && { transform: [{ scale: 0.98 }] }]}
     >
-      <LinearGradient colors={meta.gradientColors} locations={meta.gradientLocations} style={styles.cardBg}>
-        {/* Subtle decorative circles */}
-        <View style={styles.circleBg1} />
-        <View style={styles.circleBg2} />
+      <LinearGradient
+        colors={meta.cardGradient as [string, string, ...string[]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        {/* Background glow effect */}
+        <View style={styles.glow} />
 
-        {/* Top bar: Club Logo & Tier Badge */}
+        {/* Top Header */}
         <View style={styles.header}>
-          <Image source={LOGO} style={styles.logoImage} contentFit="contain" />
-          <View style={[styles.badge, { backgroundColor: meta.badgeBg, borderColor: meta.badgeBorder }]}>
-            <Text style={[styles.badgeText, { color: meta.badgeColor }]}>{user.tier.toUpperCase()}</Text>
+          <Image source={LOGO} style={styles.logo} contentFit="contain" />
+          <View style={styles.tierBadge}>
+            <Ionicons name={meta.icon as any} size={14} color="#FFFFFF" />
+            <Text style={styles.tierText}>{user.tier.toUpperCase()}</Text>
           </View>
         </View>
 
-        {/* Center: Member Info & QR Code preview */}
+        {/* Middle Content */}
         <View style={styles.body}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>MEMBER</Text>
-            <Text style={styles.memberName} numberOfLines={1}>{user.name}</Text>
-            <Text style={styles.memberId}>ID: {user.member_id}</Text>
-          </View>
-
-          <View style={styles.qrPreviewWrap}>
-            <View style={styles.qrBox}>
-              <QRCode value={user.qr_token || user.member_id} size={54} />
-            </View>
-            <Ionicons name="scan" size={12} color="rgba(255,255,255,0.7)" style={{ marginTop: 4 }} />
-          </View>
+          <Text style={styles.memberName}>{user.name || 'Member'}</Text>
+          <Text style={styles.memberId}>{user.member_id || 'PG-100234'}</Text>
         </View>
 
-        {/* Bottom Bar: Points & Progress */}
+        {/* Bottom Footer */}
         <View style={styles.footer}>
-          <View>
-            <Text style={styles.label}>CURRENT BALANCE</Text>
-            <Text style={styles.ptsVal}>{user.points.toLocaleString()} <Text style={styles.ptsUnit}>PTS</Text></Text>
+          <View style={styles.pointsCol}>
+            <Text style={styles.pointsLabel}>LIFETIME POINTS</Text>
+            <Text style={styles.pointsVal}>{(user.points_ytd || 0).toLocaleString()} PTS</Text>
           </View>
 
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.label}>TIER PROGRESS</Text>
-            <Text style={styles.ytdVal}>{user.points_ytd.toLocaleString()} pts YTD</Text>
-          </View>
+          {onShowQr ? (
+            <View style={styles.qrBadge}>
+              <Ionicons name="qr-code-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.qrBadgeText}>Scan Card</Text>
+            </View>
+          ) : null}
         </View>
       </LinearGradient>
     </Pressable>
@@ -69,117 +66,102 @@ export function MembershipCard({ user, onShowQr }: Props) {
 }
 
 const styles = StyleSheet.create({
-  cardWrap: {
-    width: '100%',
-    borderRadius: 24,
+  cardContainer: {
+    borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#0E5A3A',
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
     elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
   },
-  cardBg: {
-    padding: 22,
+  card: {
+    padding: 24,
     minHeight: 210,
-    justify: 'space-between',
-    position: 'relative',
+    justifyContent: 'space-between',
   },
-  circleBg1: {
+  glow: {
     position: 'absolute',
-    right: -40,
-    top: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  circleBg2: {
-    position: 'absolute',
-    left: -60,
-    bottom: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    top: -50,
+    right: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   header: {
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  logoImage: {
-    width: 140,
-    height: 36,
+  logo: {
+    width: 130,
+    height: 32,
   },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+  tierBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  badgeText: {
-    fontSize: 10,
+  tierText: {
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
   },
   body: {
-    flexDirection: 'row',
-    justify: 'space-between',
-    alignItems: 'center',
-    marginVertical: 14,
-  },
-  label: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
+    marginTop: 20,
   },
   memberName: {
     color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.3,
-    marginTop: 2,
+    letterSpacing: -0.5,
   },
   memberId: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 2,
     letterSpacing: 1,
   },
-  qrPreviewWrap: {
-    alignItems: 'center',
-  },
-  qrBox: {
-    padding: 6,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-  },
   footer: {
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'flex-end',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-    paddingTop: 12,
+    marginTop: 16,
   },
-  ptsVal: {
+  pointsCol: {},
+  pointsLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  pointsVal: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  ptsUnit: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
-  },
-  ytdVal: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
-    fontWeight: '700',
     marginTop: 2,
+  },
+  qrBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  qrBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
