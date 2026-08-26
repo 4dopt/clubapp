@@ -57,31 +57,29 @@ export default function Login() {
     setLoading(true);
     try {
       if (cleanedEmail === 'jay@gmail.com') {
-        // Demo Admin bypass
+        // Admin Demo bypass
         setStep('otp');
       } else {
         // Real Supabase Email OTP
+        const redirectTo = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : undefined;
         const { error: sbError } = await supabase.auth.signInWithOtp({
           email: cleanedEmail,
           options: {
+            shouldCreateUser: true,
+            emailRedirectTo: redirectTo,
             data: {
               full_name: name.trim() || undefined,
             },
           },
         });
         if (sbError) {
-          console.warn('Supabase Email OTP Notice:', sbError.message);
-          // If Supabase hits rate limit (e.g. "Error sending magic link email"), allow fallback test code 123456
-          setStep('otp');
-          setError(`Supabase Mail Limit: If email fails to arrive, use code 123456`);
-          return;
+          throw new Error(sbError.message);
         }
         setStep('otp');
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e: any) {
-      setStep('otp');
-      setError(`Notice: Use code 123456 if email fails to arrive`);
+      setError(e.message || 'Failed to send verification code');
     } finally {
       setLoading(false);
     }
@@ -98,7 +96,7 @@ export default function Login() {
       return;
     }
     if (isAdmin && inputOtp.length === 0) {
-      setError('Enter your password');
+      setError('Enter your admin password');
       return;
     }
     setLoading(true);
@@ -110,61 +108,33 @@ export default function Login() {
         const r = await api.verifyOtp(cleanedEmail, inputOtp, name.trim() || undefined);
         await signIn(r.token, r.user);
       } else {
-        // First try verifying with Supabase
-        let verifiedSession: any = null;
-        let userMetadataName = name.trim() || 'Member';
-
-        if (inputOtp !== '123456') {
-          const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
-            email: cleanedEmail,
-            token: inputOtp,
-            type: 'email',
-          });
-          if (sbError) {
-            throw new Error(sbError.message);
-          }
-          if (sbData.session) {
-            verifiedSession = sbData.session;
-            userMetadataName = sbData.user?.user_metadata?.full_name || userMetadataName;
-          }
+        // Strict Supabase Email OTP Verification
+        const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
+          email: cleanedEmail,
+          token: inputOtp,
+          type: 'email',
+        });
+        if (sbError) {
+          throw new Error(sbError.message);
         }
-
-        // Create or load user object
-        const userObj: User = {
-          id: verifiedSession?.user?.id || 'usr_' + Date.now(),
-          email: verifiedSession?.user?.email || cleanedEmail,
-          name: userMetadataName,
-          role: 'member',
-          member_id: 'PG-' + Math.floor(100000 + Math.random() * 900000),
-          tier: 'Silver',
-          points: 100,
-          points_ytd: 100,
-          qr_token: 'QR_' + (verifiedSession?.user?.id || Date.now()),
-          created_at: verifiedSession?.user?.created_at || new Date().toISOString(),
-        };
-
-        const tokenToUse = verifiedSession?.access_token || `demo-member-token-${cleanedEmail}`;
-        await signIn(tokenToUse, userObj);
+        if (sbData.session) {
+          const userObj: User = {
+            id: sbData.user?.id || 'usr_' + Date.now(),
+            email: sbData.user?.email || cleanedEmail,
+            name: sbData.user?.user_metadata?.full_name || name.trim() || 'Member',
+            role: 'member',
+            member_id: 'PG-' + Math.floor(100000 + Math.random() * 900000),
+            tier: 'Silver',
+            points: 100,
+            points_ytd: 100,
+            qr_token: 'QR_' + (sbData.user?.id || Date.now()),
+            created_at: sbData.user?.created_at || new Date().toISOString(),
+          };
+          await signIn(sbData.session.access_token, userObj);
+        }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      // If code is 123456, allow direct login
-      if (inputOtp === '123456') {
-        const userObj: User = {
-          id: 'usr_' + Date.now(),
-          email: cleanedEmail,
-          name: name.trim() || 'Member',
-          role: 'member',
-          member_id: 'PG-' + Math.floor(100000 + Math.random() * 900000),
-          tier: 'Silver',
-          points: 100,
-          points_ytd: 100,
-          qr_token: 'QR_' + Date.now(),
-          created_at: new Date().toISOString(),
-        };
-        await signIn(`demo-member-token-${cleanedEmail}`, userObj);
-        return;
-      }
       setError(e.message || (isAdmin ? 'Invalid password' : 'Invalid OTP code'));
     } finally {
       setLoading(false);
@@ -252,7 +222,6 @@ export default function Login() {
                 </>
               )}
             </Pressable>
-            <Text style={styles.hint}>Real email OTP via Supabase Auth</Text>
           </View>
         ) : (
           <View>
@@ -367,7 +336,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.xl,
-    justify.content: 'center',
+    justifyContent: 'center',
   },
   formTitle: {
     color: theme.color.onSurface,
