@@ -36,13 +36,13 @@ export default function DashboardIndex() {
     if (!token) return;
     try {
       const [u, r, h] = await Promise.all([
-        api.me(token),
-        api.rewards(token),
-        api.history(token),
+        api.me(token).catch(() => null),
+        api.rewards(token).catch(() => []),
+        api.history(token).catch(() => []),
       ]);
-      setUser(u);
-      setRewards(r);
-      setHistory(h);
+      if (u) setUser(u);
+      setRewards(Array.isArray(r) ? r : []);
+      setHistory(Array.isArray(h) ? h : []);
     } catch {
       // fallback
     } finally {
@@ -79,8 +79,10 @@ export default function DashboardIndex() {
     );
   }
 
-  const featuredRewards = rewards.slice(0, 3);
-  const recentHistory = history.slice(0, 5);
+  const safeRewards = Array.isArray(rewards) ? rewards : [];
+  const safeHistory = Array.isArray(history) ? history : [];
+  const featuredRewards = safeRewards.slice(0, 3);
+  const recentHistory = safeHistory.slice(0, 5);
 
   return (
     <View style={styles.root}>
@@ -90,61 +92,59 @@ export default function DashboardIndex() {
           paddingBottom: insets.bottom + 120,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.color.brandPrimary} />}
-        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header bar */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.welcome}>WELCOME BACK</Text>
-            <Text style={styles.name}>{user.name}</Text>
+            <Text style={styles.welcomeEyebrow}>WELCOME BACK</Text>
+            <Text style={styles.userName}>{user.name}</Text>
           </View>
-          <View style={styles.headerActions}>
-            <Pressable
-              testID="qr-modal-trigger"
-              style={styles.qrBtn}
-              onPress={() => setQrOpen(true)}
-            >
-              <Ionicons name="qr-code-outline" size={20} color={theme.color.brandPrimary} />
-            </Pressable>
-            <Pressable testID="logout-button" style={styles.logoutBtn} onPress={logout}>
-              <Ionicons name="log-out-outline" size={20} color={theme.color.onSurfaceSecondary} />
-            </Pressable>
-          </View>
+          <Pressable testID="member-logout" onPress={logout} style={styles.logoutBtn}>
+            <Ionicons name="log-out-outline" size={20} color={theme.color.onSurfaceSecondary} />
+          </Pressable>
         </View>
 
-        {/* Digital Pass Card */}
+        {/* Member Digital Pass Card */}
         <View style={styles.cardWrap}>
-          <MembershipCard user={user} onShowQr={() => setQrOpen(true)} />
+          <MembershipCard user={user} onPressQr={() => setQrOpen(true)} />
         </View>
 
-        {/* Action Grid */}
-        <View style={styles.actionsGrid}>
-          <Pressable style={styles.actionItem} onPress={() => router.push('/dashboard/rewards')}>
-            <View style={[styles.actionIcon, { backgroundColor: '#EBF6F0' }]}>
-              <Ionicons name="gift" size={22} color={theme.color.brandPrimary} />
+        {/* Quick Action Pills */}
+        <View style={styles.actionsRow}>
+          <Pressable
+            testID="dashboard-action-book"
+            style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.9 }]}
+            onPress={() => router.push('/dashboard/booking')}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: '#E0F2FE' }]}>
+              <Ionicons name="calendar-outline" size={20} color="#0284C7" />
             </View>
-            <Text style={styles.actionLabel}>Rewards</Text>
+            <Text style={styles.actionTitle}>Book Bay</Text>
+            <Text style={styles.actionSub}>TrackMan Simulator</Text>
           </Pressable>
 
-          <Pressable style={styles.actionItem} onPress={() => router.push('/dashboard/booking')}>
-            <View style={[styles.actionIcon, { backgroundColor: '#FEF9E7' }]}>
-              <Ionicons name="golf" size={22} color={theme.color.accent} />
+          <Pressable
+            testID="dashboard-action-rewards"
+            style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.9 }]}
+            onPress={() => router.push('/dashboard/rewards')}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="gift-outline" size={20} color="#D97706" />
             </View>
-            <Text style={styles.actionLabel}>Book Bay</Text>
+            <Text style={styles.actionTitle}>Perks Catalog</Text>
+            <Text style={styles.actionSub}>{safeRewards.length} Rewards</Text>
           </Pressable>
 
-          <Pressable style={styles.actionItem} onPress={() => setQrOpen(true)}>
-            <View style={[styles.actionIcon, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="qr-code" size={22} color="#1E88E5" />
+          <Pressable
+            testID="dashboard-action-card"
+            style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.9 }]}
+            onPress={() => setQrOpen(true)}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: theme.color.brandSoft }]}>
+              <Ionicons name="qr-code-outline" size={20} color={theme.color.brandPrimary} />
             </View>
-            <Text style={styles.actionLabel}>Check In</Text>
-          </Pressable>
-
-          <Pressable style={styles.actionItem} onPress={() => router.push('/dashboard/profile')}>
-            <View style={[styles.actionIcon, { backgroundColor: '#F3E5F5' }]}>
-              <Ionicons name="card" size={22} color="#8E24AA" />
-            </View>
-            <Text style={styles.actionLabel}>My Card</Text>
+            <Text style={styles.actionTitle}>Pass QR</Text>
+            <Text style={styles.actionSub}>Check-in Code</Text>
           </Pressable>
         </View>
 
@@ -153,7 +153,7 @@ export default function DashboardIndex() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Featured Rewards</Text>
             <Pressable onPress={() => router.push('/dashboard/rewards')}>
-              <Text style={styles.seeAll}>See All ({rewards.length})</Text>
+              <Text style={styles.seeAll}>See All ({safeRewards.length})</Text>
             </Pressable>
           </View>
 
@@ -163,7 +163,7 @@ export default function DashboardIndex() {
                 key={item.id}
                 testID={`reward-card-${item.id}`}
                 style={({ pressed }) => [styles.rewardCard, pressed && { opacity: 0.9 }]}
-                onPress={() => router.push(`/reward/${item.id}`)}
+                onPress={() => router.push(`/dashboard/rewards`)}
               >
                 <Image source={{ uri: item.image_url }} style={styles.rewardImage} contentFit="cover" />
                 <LinearGradient
@@ -172,12 +172,12 @@ export default function DashboardIndex() {
                 />
                 <View style={styles.rewardBadges}>
                   <View style={styles.catBadge}>
-                    <Text style={styles.catText}>{item.category.toUpperCase()}</Text>
+                    <Text style={styles.catText}>{(item.category || 'Reward').toUpperCase()}</Text>
                   </View>
                 </View>
                 <View style={styles.rewardContent}>
                   <Text style={styles.rewardTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.rewardPts}>{item.points_cost.toLocaleString()} pts</Text>
+                  <Text style={styles.rewardPts}>{(item.points_cost || 0).toLocaleString()} pts</Text>
                 </View>
               </Pressable>
             ))}
@@ -209,7 +209,12 @@ export default function DashboardIndex() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.histTitle}>{item.title}</Text>
-                    <Text style={styles.histSub}>{item.category || (isEarn ? 'Check-in' : 'Reward')}</Text>
+                    <Text style={styles.histDate}>
+                      {new Date(item.created_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Text>
                   </View>
                   <Text
                     style={[
@@ -217,7 +222,7 @@ export default function DashboardIndex() {
                       { color: isEarn ? theme.color.brandPrimary : theme.color.accent },
                     ]}
                   >
-                    {isEarn ? '+' : '−'}{item.points} pts
+                    {isEarn ? '+' : '-'}{item.points} pts
                   </Text>
                 </View>
               );
@@ -226,7 +231,6 @@ export default function DashboardIndex() {
         </View>
       </ScrollView>
 
-      {/* QR Modal */}
       <QrModal visible={qrOpen} onClose={() => setQrOpen(false)} user={user} />
     </View>
   );
@@ -237,124 +241,160 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.lg,
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
-  welcome: {
+  welcomeEyebrow: {
     color: theme.color.brandPrimary,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
   },
-  name: {
+  userName: {
     color: theme.color.onSurface,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  headerActions: { flexDirection: 'row', gap: 10 },
-  qrBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.color.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   logoutBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    padding: 8,
+    borderRadius: theme.radius.pill,
     backgroundColor: theme.color.surfaceSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.color.border,
   },
   cardWrap: {
-    paddingHorizontal: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
-
-  actionsGrid: {
+  actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.xl,
-    marginTop: theme.spacing.xl,
+    gap: 10,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
   },
-  actionItem: { alignItems: 'center', gap: 6 },
-  actionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  actionCard: {
+    flex: 1,
+    backgroundColor: theme.color.surfaceSecondary,
+    borderColor: theme.color.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: 12,
+  },
+  actionIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
-  actionLabel: { color: theme.color.onSurface, fontSize: 12, fontWeight: '700' },
-
-  section: { marginTop: theme.spacing.xxl },
+  actionTitle: {
+    color: theme.color.onSurface,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  actionSub: {
+    color: theme.color.onSurfaceSecondary,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  section: {
+    marginTop: theme.spacing.md,
+  },
   sectionHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-    paddingHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: 12,
   },
   sectionTitle: {
     color: theme.color.onSurface,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
-  seeAll: { color: theme.color.brandPrimary, fontSize: 13, fontWeight: '700' },
-
-  hList: { paddingHorizontal: theme.spacing.xl, gap: theme.spacing.md },
+  seeAll: {
+    color: theme.color.brandPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  hList: {
+    paddingHorizontal: theme.spacing.lg,
+    gap: 12,
+  },
   rewardCard: {
     width: 220,
-    height: 160,
+    height: 140,
     borderRadius: theme.radius.lg,
     overflow: 'hidden',
     justifyContent: 'space-between',
-    padding: theme.spacing.md,
-    backgroundColor: theme.color.surfaceSecondary,
+    padding: 12,
   },
-  rewardImage: { ...StyleSheet.absoluteFillObject },
-  rewardBadges: { flexDirection: 'row' },
+  rewardImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  rewardBadges: {
+    flexDirection: 'row',
+  },
   catBadge: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: theme.radius.pill,
   },
-  catText: { color: '#FFFFFF', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  rewardContent: { gap: 2 },
-  rewardTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-  rewardPts: { color: '#FCD34D', fontSize: 13, fontWeight: '700' },
-
+  catText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  rewardContent: {},
+  rewardTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rewardPts: {
+    color: theme.color.brandPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   historyList: {
-    paddingHorizontal: theme.spacing.xl,
-    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    gap: 10,
   },
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: 12,
     backgroundColor: theme.color.surfaceSecondary,
-    padding: theme.spacing.md,
+    padding: 12,
     borderRadius: theme.radius.md,
-    borderWidth: 1,
     borderColor: theme.color.border,
+    borderWidth: 1,
   },
   histIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: theme.radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  histTitle: { color: theme.color.onSurface, fontSize: 14, fontWeight: '700' },
-  histSub: { color: theme.color.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
-  histPts: { fontSize: 14, fontWeight: '800' },
+  histTitle: {
+    color: theme.color.onSurface,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  histDate: {
+    color: theme.color.onSurfaceSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  histPts: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });
