@@ -17,8 +17,9 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
-import { api } from '@/src/api';
+import { api, type User } from '@/src/api';
 import { useAuth } from '@/src/auth';
+import { supabase } from '@/src/supabase';
 import { theme } from '@/src/theme';
 
 const BG =
@@ -55,13 +56,27 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      if (cleanedEmail !== 'jay@gmail.com') {
-        await api.requestOtp(cleanedEmail, name.trim() || undefined);
+      if (cleanedEmail === 'jay@gmail.com') {
+        // Demo Admin bypass
+        setStep('otp');
+      } else {
+        // Real Supabase Email OTP
+        const { error: sbError } = await supabase.auth.signInWithOtp({
+          email: cleanedEmail,
+          options: {
+            data: {
+              full_name: name.trim() || undefined,
+            },
+          },
+        });
+        if (sbError) {
+          throw new Error(sbError.message);
+        }
+        setStep('otp');
       }
-      setStep('otp');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e: any) {
-      setError(e.message || 'Failed to send OTP');
+      setError(e.message || 'Failed to send OTP code');
     } finally {
       setLoading(false);
     }
@@ -69,9 +84,10 @@ export default function Login() {
 
   const verify = async () => {
     setError(null);
-    const isAdmin = email.trim().toLowerCase() === 'jay@gmail.com';
+    const cleanedEmail = email.trim().toLowerCase();
+    const isAdmin = cleanedEmail === 'jay@gmail.com';
     if (!isAdmin && otp.trim().length < 6) {
-      setError('Enter the 6-digit code');
+      setError('Enter the 6-digit code sent to your email');
       return;
     }
     if (isAdmin && otp.trim().length === 0) {
@@ -80,11 +96,41 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const r = await api.verifyOtp(email.trim(), otp.trim(), name.trim() || undefined);
-      await signIn(r.token, r.user);
+      if (isAdmin) {
+        if (otp.trim() !== '123456') {
+          throw new Error('Invalid admin password');
+        }
+        const r = await api.verifyOtp(cleanedEmail, otp.trim(), name.trim() || undefined);
+        await signIn(r.token, r.user);
+      } else {
+        // Real Supabase Email OTP Verification
+        const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
+          email: cleanedEmail,
+          token: otp.trim(),
+          type: 'email',
+        });
+        if (sbError) {
+          throw new Error(sbError.message);
+        }
+        if (sbData.session) {
+          const userObj: User = {
+            id: sbData.user?.id || 'usr_' + Date.now(),
+            email: sbData.user?.email || cleanedEmail,
+            name: sbData.user?.user_metadata?.full_name || name.trim() || 'Member',
+            role: 'member',
+            member_id: 'PG-' + Math.floor(100000 + Math.random() * 900000),
+            tier: 'Silver',
+            points: 100,
+            points_ytd: 100,
+            qr_token: 'QR_' + (sbData.user?.id || Date.now()),
+            created_at: sbData.user?.created_at || new Date().toISOString(),
+          };
+          await signIn(sbData.session.access_token, userObj);
+        }
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      setError(e.message || (isAdmin ? 'Invalid password' : 'Invalid OTP'));
+      setError(e.message || (isAdmin ? 'Invalid password' : 'Invalid OTP code'));
     } finally {
       setLoading(false);
     }
@@ -128,7 +174,7 @@ export default function Login() {
           <View>
             <Text style={styles.formTitle}>Sign in to your membership</Text>
             <Text style={styles.formSub}>
-              Enter your email and name. No real email is sent in demo mode.
+              Enter your email address to receive your 6-digit verification code.
             </Text>
 
             <Label icon="mail-outline" text="EMAIL ADDRESS" />
@@ -171,7 +217,7 @@ export default function Login() {
                 </>
               )}
             </Pressable>
-            <Text style={styles.hint}>Demo mode · Enter any email & name to verify instantly</Text>
+            <Text style={styles.hint}>Real email OTP via Supabase Auth</Text>
           </View>
         ) : (
           <View>
@@ -181,7 +227,7 @@ export default function Login() {
             <Text style={styles.formSub}>
               {email.trim().toLowerCase() === 'jay@gmail.com'
                 ? 'Authorized administrator login'
-                : `Sent to ${email} (Use code: 123456)`}
+                : `Sent to ${email} (Check your inbox for 6-digit code)`}
             </Text>
 
             <TextInput
