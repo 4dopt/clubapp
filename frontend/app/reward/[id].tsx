@@ -16,26 +16,28 @@ export default function RewardDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user: authUser } = useAuth();
 
   const [reward, setReward] = useState<Reward | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(authUser || null);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(false);
   const [result, setResult] = useState<{ discount_code?: string; qr_code_token?: string; redemption_id?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const currentUser = user || authUser;
+
   useEffect(() => {
     if (!token || !id) return;
-    Promise.all([api.me(token), api.rewards(token)])
+    Promise.all([api.me(token).catch(() => authUser), api.rewards(token).catch(() => [])])
       .then(([u, list]) => {
-        setUser(u);
-        const found = list.find((r) => r.id === id);
+        if (u) setUser(u);
+        const found = (Array.isArray(list) ? list : []).find((r) => r.id === id);
         setReward(found || null);
       })
-      .catch(() => {})
+      .catch(() => { if (authUser) setUser(authUser); })
       .finally(() => setLoading(false));
-  }, [token, id]);
+  }, [token, id, authUser]);
 
   const redeem = async () => {
     if (!token || !reward || !user) return;
@@ -53,7 +55,7 @@ export default function RewardDetail() {
     }
   };
 
-  if (loading || !reward || !user) {
+  if (loading || !reward || !currentUser) {
     return (
       <View style={[styles.root, styles.center]}>
         <ActivityIndicator color={theme.color.brandPrimary} />
@@ -61,7 +63,7 @@ export default function RewardDetail() {
     );
   }
 
-  const canAfford = user.points >= reward.points_cost;
+  const canAfford = (currentUser?.points ?? 0) >= reward.points_cost;
 
   return (
     <View style={styles.root}>

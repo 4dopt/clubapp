@@ -9,13 +9,19 @@ import { theme } from '@/src/theme';
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
-  const [user, setUser] = useState<User | null>(null);
+  const { token, user: authUser } = useAuth();
+  const [user, setUser] = useState<User | null>(authUser || null);
   const [qrOpen, setQrOpen] = useState(false);
 
+  const currentUser = user || authUser;
+
   useEffect(() => {
-    if (token) api.me(token).then(setUser).catch(() => {});
-  }, [token]);
+    if (token) {
+      api.me(token)
+        .then((u) => { if (u) setUser(u); })
+        .catch(() => { if (authUser) setUser(authUser); });
+    }
+  }, [token, authUser]);
 
   return (
     <View style={styles.root}>
@@ -23,16 +29,16 @@ export default function Profile() {
         <Text style={styles.eyebrow}>DIGITAL MEMBERSHIP CARD</Text>
         <Text style={styles.title}>Member Pass</Text>
 
-        {user ? (
+        {currentUser ? (
           <View style={{ marginTop: theme.spacing.lg }}>
-            <MembershipCard user={user} onShowQr={() => setQrOpen(true)} />
+            <MembershipCard user={currentUser} onShowQr={() => setQrOpen(true)} />
             <Pressable onPress={() => setQrOpen(true)} style={styles.btn}>
               <Text style={styles.btnText}>Open Fullscreen QR Code</Text>
             </Pressable>
           </View>
         ) : null}
       </ScrollView>
-      <QrModal visible={qrOpen} onClose={() => setQrOpen(false)} user={user} />
+      <QrModal visible={qrOpen} onClose={() => setQrOpen(false)} user={currentUser} />
     </View>
   );
 }

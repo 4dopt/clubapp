@@ -15,12 +15,14 @@ const CATEGORIES = ['all', 'range', 'course', 'proshop', 'cafe', 'lessons'];
 export default function RewardsCatalog() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user: authUser } = useAuth();
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(authUser || null);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [category, setCategory] = useState('all');
   const [loading, setLoading] = useState(true);
+
+  const currentUser = user || authUser;
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -30,10 +32,12 @@ export default function RewardsCatalog() {
         api.rewards(token).catch(() => []),
       ]);
       if (u) setUser(u);
+      else if (authUser) setUser(authUser);
       setRewards(Array.isArray(r) ? r : []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  }, [token]);
+    } catch {
+      if (authUser) setUser(authUser);
+    } finally { setLoading(false); }
+  }, [token, authUser]);
 
   useEffect(() => { load(); }, [load]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -50,9 +54,9 @@ export default function RewardsCatalog() {
           <Text style={styles.eyebrow}>PERKS & REDEMPTION</Text>
           <Text style={styles.title}>Rewards</Text>
         </View>
-        {user ? (
+        {currentUser ? (
           <View style={styles.ptsBadge}>
-            <Text style={styles.ptsVal}>{(user.points || 0).toLocaleString()}</Text>
+            <Text style={styles.ptsVal}>{currentUser.points.toLocaleString()}</Text>
             <Text style={styles.ptsLabel}>PTS</Text>
           </View>
         ) : null}
@@ -62,49 +66,61 @@ export default function RewardsCatalog() {
       <FlatList
         horizontal
         data={CATEGORIES}
-        keyExtractor={(item) => item}
+        keyExtractor={(c) => c}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.catList}
-        renderItem={({ item }) => {
-          const active = category === item;
-          return (
-            <Pressable
-              onPress={() => setCategory(item)}
-              style={[styles.catPill, active && styles.catPillActive]}
-            >
-              <Text style={[styles.catPillText, active && styles.catPillTextActive]}>
-                {item.toUpperCase()}
-              </Text>
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <Pressable
+            testID={`cat-filter-${item}`}
+            style={[styles.catChip, category === item && styles.catChipActive]}
+            onPress={() => setCategory(item)}
+          >
+            <Text style={[styles.catText, category === item && styles.catTextActive]}>
+              {item.toUpperCase()}
+            </Text>
+          </Pressable>
+        )}
       />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={theme.color.brandPrimary} size="large" />
-        </View>
+        <View style={styles.center}><ActivityIndicator color={theme.color.brandPrimary} /></View>
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[
-            styles.grid,
-            { paddingBottom: insets.bottom + 100 },
-          ]}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Image source={{ uri: item.image_url }} style={styles.cardImage} contentFit="cover" />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardCat}>{(item.category || 'Reward').toUpperCase()}</Text>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-                <View style={styles.cardFooter}>
-                  <Text style={styles.cardPts}>{(item.points_cost || 0).toLocaleString()} pts</Text>
+          keyExtractor={(r) => r.id}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: insets.bottom + 120,
+          }}
+          numColumns={2}
+          columnWrapperStyle={{ gap: theme.spacing.md, marginBottom: theme.spacing.md }}
+          renderItem={({ item }) => {
+            const canAfford = (currentUser?.points ?? 0) >= item.points_cost;
+            return (
+              <Pressable
+                testID={`reward-catalog-item-${item.id}`}
+                style={({ pressed }) => [styles.gridCard, pressed && { opacity: 0.9 }]}
+                onPress={() => router.push(`/reward/${item.id}`)}
+              >
+                <Image source={{ uri: item.image_url }} style={styles.cardImage} contentFit="cover" />
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardCat}>{item.category.toUpperCase()}</Text>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+
+                  <View style={styles.cardFooter}>
+                    <Text style={[styles.cardCost, !canAfford && { color: theme.color.onSurfaceTertiary }]}>
+                      {item.points_cost.toLocaleString()} pts
+                    </Text>
+                    {canAfford ? (
+                      <View style={styles.affordBadge}>
+                        <Text style={styles.affordText}>Redeem</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            </View>
-          )}
+              </Pressable>
+            );
+          }}
         />
       )}
     </View>
@@ -113,114 +129,56 @@ export default function RewardsCatalog() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.color.surface },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
-  eyebrow: {
-    color: theme.color.brandPrimary,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  title: {
-    color: theme.color.onSurface,
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
+  eyebrow: { color: theme.color.brandPrimary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  title: { color: theme.color.onSurface, fontSize: 32, fontWeight: '800', letterSpacing: -1, marginTop: 2 },
   ptsBadge: {
-    backgroundColor: theme.color.brandSoft,
+    backgroundColor: theme.color.accentSoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: theme.radius.pill,
     alignItems: 'center',
   },
-  ptsVal: {
-    color: theme.color.brandPrimary,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  ptsLabel: {
-    color: theme.color.brandPrimary,
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  catList: {
-    paddingHorizontal: theme.spacing.lg,
-    gap: 8,
-    marginBottom: theme.spacing.md,
-    maxHeight: 36,
-  },
-  catPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  ptsVal: { color: theme.color.brandPrimary, fontWeight: '800', fontSize: 16 },
+  ptsLabel: { color: theme.color.brandPrimary, fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+
+  catList: { paddingHorizontal: theme.spacing.lg, gap: 8, paddingBottom: theme.spacing.md },
+  catChip: {
+    paddingHorizontal: 16, paddingVertical: 8,
     borderRadius: theme.radius.pill,
     backgroundColor: theme.color.surfaceSecondary,
-    borderColor: theme.color.border,
-    borderWidth: 1,
+    borderWidth: 1, borderColor: theme.color.border,
   },
-  catPillActive: {
-    backgroundColor: theme.color.brandPrimary,
-    borderColor: theme.color.brandPrimary,
-  },
-  catPillText: {
-    color: theme.color.onSurfaceSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  catPillTextActive: {
-    color: theme.color.onBrandPrimary,
-  },
-  grid: {
-    paddingHorizontal: theme.spacing.lg,
-    gap: 14,
-  },
-  card: {
+  catChipActive: { backgroundColor: theme.color.brandPrimary, borderColor: theme.color.brandPrimary },
+  catText: { color: theme.color.onSurfaceSecondary, fontSize: 11, fontWeight: '700' },
+  catTextActive: { color: '#FFFFFF' },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  gridCard: {
+    flex: 1,
     backgroundColor: theme.color.surfaceSecondary,
     borderRadius: theme.radius.lg,
     overflow: 'hidden',
-    borderColor: theme.color.border,
     borderWidth: 1,
+    borderColor: theme.color.border,
   },
-  cardImage: {
-    height: 140,
-    width: '100%',
+  cardImage: { width: '100%', height: 110, backgroundColor: theme.color.surfaceTertiary },
+  cardBody: { padding: theme.spacing.md, gap: 4 },
+  cardCat: { color: theme.color.brandPrimary, fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  cardTitle: { color: theme.color.onSurface, fontSize: 14, fontWeight: '700', height: 38 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  cardCost: { color: theme.color.accent, fontSize: 13, fontWeight: '800' },
+  affordBadge: {
+    backgroundColor: theme.color.brandPrimary,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: theme.radius.pill,
   },
-  cardBody: {
-    padding: 14,
-  },
-  cardCat: {
-    color: theme.color.brandPrimary,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  cardTitle: {
-    color: theme.color.onSurface,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cardDesc: {
-    color: theme.color.onSurfaceSecondary,
-    fontSize: 12,
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  cardPts: {
-    color: theme.color.brandPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
+  affordText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
 });

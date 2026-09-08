@@ -228,6 +228,7 @@ export default function Login() {
                 </>
               )}
             </Pressable>
+            <Text style={styles.hint}>Real email OTP via Supabase Auth</Text>
           </View>
         ) : (
           <View>

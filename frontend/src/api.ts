@@ -239,7 +239,7 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     return [MOCK_MEMBER_USER, MOCK_ADMIN_USER] as unknown as T;
   }
 
-  if (path.startsWith('/api/admin/rewards') || path === '/api/rewards') {
+  if (path.startsWith('/api/admin/rewards') || path.startsWith('/api/rewards')) {
     return MOCK_REWARDS as unknown as T;
   }
 
@@ -252,7 +252,7 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     } as unknown as T;
   }
 
-  if (path === '/api/history') {
+  if (path.startsWith('/api/history')) {
     return MOCK_TRANSACTIONS as unknown as T;
   }
 
@@ -307,7 +307,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
     return data as T;
   } catch (err: any) {
-    if (err.message && err.message !== 'Failed to fetch' && !err.message.includes('NetworkError') && !err.message.includes('fetch')) {
+    if (
+      err.message === 'Invalid Admin PIN' ||
+      err.message === 'Invalid admin password' ||
+      err.message === 'Invalid verification code' ||
+      err.message === 'Invalid OTP code'
+    ) {
       throw err;
     }
     // Fallback to seamless demo mode when backend server is offline/unreachable
@@ -360,6 +365,10 @@ export const api = {
     return request<Transaction[]>('/api/history', {
       headers: { Authorization: `Bearer ${token}` },
     });
+  },
+
+  async transactions(token: string) {
+    return this.history(token);
   },
 };
 
