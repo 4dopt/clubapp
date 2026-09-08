@@ -179,12 +179,12 @@ export default function DashboardIndex() {
                 />
                 <View style={styles.rewardBadges}>
                   <View style={styles.catBadge}>
-                    <Text style={styles.catText}>{item.category.toUpperCase()}</Text>
+                    <Text style={styles.catText}>{(item.category || 'Perk').toUpperCase()}</Text>
                   </View>
                 </View>
                 <View style={styles.rewardContent}>
                   <Text style={styles.rewardTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.rewardPts}>{item.points_cost.toLocaleString()} pts</Text>
+                  <Text style={styles.rewardPts}>{(item.points_cost || 0).toLocaleString()} pts</Text>
                 </View>
               </Pressable>
             ))}

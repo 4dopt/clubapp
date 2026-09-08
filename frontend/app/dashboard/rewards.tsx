@@ -104,7 +104,7 @@ export default function RewardsCatalog() {
               >
                 <Image source={{ uri: item.image_url }} style={styles.cardImage} contentFit="cover" />
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardCat}>{item.category.toUpperCase()}</Text>
+                  <Text style={styles.cardCat}>{(item.category || 'Perk').toUpperCase()}</Text>
                   <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
 
                   <View style={styles.cardFooter}>

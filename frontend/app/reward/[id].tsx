@@ -81,14 +81,14 @@ export default function RewardDetail() {
 
         <View style={styles.content}>
           <View style={styles.catBadge}>
-            <Text style={styles.catText}>{reward.category.toUpperCase()}</Text>
+            <Text style={styles.catText}>{(reward.category || 'Reward').toUpperCase()}</Text>
           </View>
 
           <Text style={styles.title}>{reward.title}</Text>
 
           <View style={styles.costRow}>
             <Ionicons name="gift" size={20} color={theme.color.brandPrimary} />
-            <Text style={styles.costText}>{reward.points_cost.toLocaleString()} points</Text>
+            <Text style={styles.costText}>{(reward.points_cost || 0).toLocaleString()} points</Text>
           </View>
 
           <Text style={styles.sectionHeader}>Description</Text>

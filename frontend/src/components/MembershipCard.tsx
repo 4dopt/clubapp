@@ -15,7 +15,10 @@ interface Props {
 }
 
 export function MembershipCard({ user, onShowQr, onPressQr }: Props) {
-  const meta = tierMeta[user.tier] || tierMeta.Silver;
+  const tierName = user?.tier && tierMeta[user.tier as keyof typeof tierMeta] ? user.tier : 'Silver';
+  const meta = tierMeta[tierName as keyof typeof tierMeta] || tierMeta.Silver;
+  const gradientColors = meta?.gradient || ['#15793F', '#0E5A3A', '#093A26'];
+  const iconName = tierName === 'Platinum' ? 'ribbon-outline' : tierName === 'Gold' ? 'trophy-outline' : 'shield-checkmark-outline';
   const handlePress = onShowQr || onPressQr;
 
   return (
@@ -25,7 +28,7 @@ export function MembershipCard({ user, onShowQr, onPressQr }: Props) {
       style={({ pressed }) => [styles.cardContainer, pressed && { transform: [{ scale: 0.98 }] }]}
     >
       <LinearGradient
-        colors={meta.cardGradient as [string, string, ...string[]]}
+        colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.card}
@@ -37,25 +40,25 @@ export function MembershipCard({ user, onShowQr, onPressQr }: Props) {
         <View style={styles.header}>
           <Image source={LOGO} style={styles.logo} contentFit="contain" />
           <View style={styles.tierBadge}>
-            <Ionicons name={meta.icon as any} size={14} color="#FFFFFF" />
-            <Text style={styles.tierText}>{(user.tier || 'Member').toUpperCase()}</Text>
+            <Ionicons name={iconName} size={14} color="#FFFFFF" />
+            <Text style={styles.tierText}>{(tierName || 'Silver').toUpperCase()}</Text>
           </View>
         </View>
 
         {/* Middle Content */}
         <View style={styles.body}>
-          <Text style={styles.memberName}>{user.name || 'Member'}</Text>
-          <Text style={styles.memberId}>{user.member_id || 'PG-100234'}</Text>
+          <Text style={styles.memberName}>{user?.name || 'Member'}</Text>
+          <Text style={styles.memberId}>{user?.member_id || 'PG-100234'}</Text>
         </View>
 
         {/* Bottom Footer */}
         <View style={styles.footer}>
           <View style={styles.pointsCol}>
             <Text style={styles.pointsLabel}>LIFETIME POINTS</Text>
-            <Text style={styles.pointsVal}>{(user.points_ytd || user.points || 0).toLocaleString()} PTS</Text>
+            <Text style={styles.pointsVal}>{(user?.points_ytd ?? user?.points ?? 0).toLocaleString()} PTS</Text>
           </View>
 
-          {handlePress ? (
+          {onShowQr ? (
             <View style={styles.qrBadge}>
               <Ionicons name="qr-code-outline" size={16} color="#FFFFFF" />
               <Text style={styles.qrBadgeText}>Scan Card</Text>

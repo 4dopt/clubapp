@@ -11,6 +11,8 @@ import { AuthProvider } from '@/src/auth';
 import { AdminAuthProvider } from '@/src/admin-auth';
 import { theme } from '@/src/theme';
 
+import { ErrorBoundary } from '@/src/components/ErrorBoundary';
+
 try {
   SplashScreen.preventAutoHideAsync().catch(() => {});
 } catch (e) {
@@ -29,23 +31,25 @@ export default function RootLayout() {
   if (!loaded && !error && Platform.OS !== 'web') return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.color.surface }}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <AdminAuthProvider>
-            <StatusBar style="dark" />
-            <View style={{ flex: 1, backgroundColor: theme.color.surface }}>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: theme.color.surface },
-                  animation: 'fade',
-                }}
-              />
-            </View>
-          </AdminAuthProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.color.surface }}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <AdminAuthProvider>
+              <StatusBar style="dark" />
+              <View style={{ flex: 1, backgroundColor: theme.color.surface }}>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: theme.color.surface },
+                    animation: 'fade',
+                  }}
+                />
+              </View>
+            </AdminAuthProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
