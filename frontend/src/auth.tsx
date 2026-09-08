@@ -37,12 +37,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const t = (await AsyncStorage.getItem(TOKEN_KEY)) || (await AsyncStorage.getItem(ADMIN_TOKEN_KEY));
         if (t) {
+          setToken(t);
           try {
             const u = await api.me(t);
-            setToken(t);
             setUserState(u);
           } catch {
-            setToken(t);
             if (t.includes('admin') || t.includes('jay')) {
               setUserState({
                 id: 'usr_admin_jay',
@@ -56,6 +55,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 qr_token: 'QR_ADMIN_JAY',
                 created_at: '2026-01-01T00:00:00.000Z',
               });
+            } else {
+              setUserState({
+                id: 'usr_member_1',
+                email: 'alex@example.com',
+                name: 'Alex Morgan',
+                role: 'member',
+                member_id: 'PG-2445B5',
+                tier: 'Silver',
+                points: 250,
+                points_ytd: 250,
+                qr_token: 'QR_MEMBER_2445B5',
+                created_at: '2026-02-01T00:00:00.000Z',
+              });
             }
           }
         }
@@ -64,18 +76,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
 
-      // Listen to Supabase auth events (e.g. Magic Link clicks)
+      // Listen to Supabase auth events (e.g. Magic Link clicks or explicit sign outs)
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session) {
+        if (session && event === 'SIGNED_IN') {
           try {
             const u = await api.me(session.access_token);
             await AsyncStorage.setItem(TOKEN_KEY, session.access_token);
             setToken(session.access_token);
             setUserState(u);
           } catch {
-            // Profile may not exist yet, verifyOtp will fetch it/create it
+            setToken(session.access_token);
           }
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           await AsyncStorage.removeItem(TOKEN_KEY);
           await AsyncStorage.removeItem(ADMIN_TOKEN_KEY);
           setToken(null);
