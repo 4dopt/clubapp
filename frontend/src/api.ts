@@ -181,7 +181,14 @@ const MOCK_ADMIN_STATS: AdminStats = {
 };
 
 function getMockFallback<T>(path: string, options: RequestInit): T {
-  const body = options.body ? JSON.parse(options.body as string) : {};
+  let body: any = {};
+  if (options && options.body && typeof options.body === 'string') {
+    try {
+      body = JSON.parse(options.body);
+    } catch {
+      body = {};
+    }
+  }
 
   if (path === '/api/auth/otp/request') {
     return { message: 'Code sent (Demo Mode: 123456)', otp_sent: true } as unknown as T;
@@ -348,8 +355,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ) {
       throw err;
     }
-    // Fallback to seamless demo mode when backend server is offline/unreachable
-    return getMockFallback<T>(path, options);
+    // Fallback to seamless demo mode when backend server is offline/unreachable or fetch fails
+    try {
+      return getMockFallback<T>(path, options);
+    } catch {
+      return getMockFallback<T>(path, {});
+    }
   }
 }
 
