@@ -31,13 +31,14 @@ export default function AdminScan() {
     setError(null);
     setSuccess(null);
 
-    // If string is 6-digit member ID
-    if (/^\d{6}$/.test(data.trim())) {
-      await processMemberId(data.trim());
-    } else if (data.trim().startsWith('rw_')) {
-      await processRewardQr(data.trim());
+    const cleaned = data.trim();
+
+    if (cleaned.startsWith('rw_') || cleaned.startsWith('red_') || cleaned.includes('REWARD')) {
+      await processRewardQr(cleaned);
+    } else if (/^\d{6}$/.test(cleaned) || /^PG-/i.test(cleaned) || cleaned.startsWith('QR_') || cleaned.length >= 4) {
+      await processMemberId(cleaned);
     } else {
-      setError(`Unrecognized QR format: ${data}`);
+      setError(`Unrecognized QR format: ${cleaned}`);
       setTimeout(() => setScanned(false), 3000);
     }
   };

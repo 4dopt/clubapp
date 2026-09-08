@@ -1,6 +1,7 @@
-import { Modal, View, Text, StyleSheet, Pressable } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
+import { Image } from 'expo-image';
 import { theme } from '../theme';
 import type { User } from '../api';
 
@@ -12,6 +13,9 @@ interface Props {
 
 export function QrModal({ visible, onClose, user }: Props) {
   if (!user) return null;
+
+  const qrValue = user.member_id || user.qr_token || 'PG-100234';
+  const qrImageUri = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrValue)}`;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -26,13 +30,17 @@ export function QrModal({ visible, onClose, user }: Props) {
 
           <View style={styles.qrContainer}>
             <View style={styles.qrFrame}>
-              <QRCode value={user.qr_token || user.member_id} size={220} />
+              {Platform.OS === 'web' ? (
+                <Image source={{ uri: qrImageUri }} style={{ width: 220, height: 220 }} contentFit="contain" />
+              ) : (
+                <QRCode value={qrValue} size={220} />
+              )}
             </View>
           </View>
 
           <View style={styles.meta}>
-            <Text style={styles.name}>{user.name}</Text>
-            <Text style={styles.sub}>Member ID: {user.member_id}</Text>
+            <Text style={styles.name}>{user.name || 'Member'}</Text>
+            <Text style={styles.sub}>Member ID: {user.member_id || 'PG-100234'}</Text>
             <Text style={styles.hint}>
               Show this QR code to the staff at the range or clubhouse to check in and earn points.
             </Text>
