@@ -60,20 +60,24 @@ export default function Login() {
         // Admin Demo bypass
         setStep('otp');
       } else {
-        // Real Supabase Email OTP
-        const redirectTo = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : undefined;
-        const { error: sbError } = await supabase.auth.signInWithOtp({
-          email: cleanedEmail,
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: redirectTo,
-            data: {
-              full_name: name.trim() || undefined,
+        // Real Supabase Email OTP with local network fallback
+        try {
+          const redirectTo = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : undefined;
+          const { error: sbError } = await supabase.auth.signInWithOtp({
+            email: cleanedEmail,
+            options: {
+              shouldCreateUser: true,
+              emailRedirectTo: redirectTo,
+              data: {
+                full_name: name.trim() || undefined,
+              },
             },
-          },
-        });
-        if (sbError) {
-          console.warn('Supabase signInWithOtp notice:', sbError.message);
+          });
+          if (sbError) {
+            console.warn('Supabase signInWithOtp notice:', sbError.message);
+          }
+        } catch (sbErr) {
+          console.warn('Supabase network notice, using local OTP mode:', sbErr);
         }
         setStep('otp');
       }
@@ -108,19 +112,23 @@ export default function Login() {
         const r = await api.verifyOtp(cleanedEmail, inputOtp, name.trim() || undefined);
         await signIn(r.token, r.user);
       } else {
-        // Attempt Supabase Email OTP Verification first
+        // Attempt Supabase Email OTP Verification with fallback
         let verifiedSession: any = null;
         let userMetadataName = name.trim() || 'Member';
 
-        const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
-          email: cleanedEmail,
-          token: inputOtp,
-          type: 'email',
-        });
+        try {
+          const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
+            email: cleanedEmail,
+            token: inputOtp,
+            type: 'email',
+          });
 
-        if (!sbError && sbData?.session) {
-          verifiedSession = sbData.session;
-          userMetadataName = sbData.user?.user_metadata?.full_name || userMetadataName;
+          if (!sbError && sbData?.session) {
+            verifiedSession = sbData.session;
+            userMetadataName = sbData.user?.user_metadata?.full_name || userMetadataName;
+          }
+        } catch (sbErr) {
+          console.warn('Supabase verifyOtp notice, using fallback member login:', sbErr);
         }
 
         const userObj: User = {
