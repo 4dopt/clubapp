@@ -44,8 +44,17 @@ export default function AdminMemberDetail() {
   const logVisit = async () => {
     if (!adminToken || !member) return;
     try {
-      const res = await adminApi.logVisit(adminToken, member.member_id);
-      Alert.alert('Visit Logged', `+100 pts added for ${res.member_name}`);
+      const res = await adminApi.logVisit(adminToken, member.member_id || member.id);
+      setMember((prev) =>
+        prev
+          ? {
+              ...prev,
+              points: res.new_points ?? (prev.points + 100),
+              points_ytd: (prev.points_ytd ?? prev.points) + 100,
+            }
+          : prev
+      );
+      Alert.alert('Visit Logged', `+100 pts added for ${res.member_name || member.name}`);
       await load();
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to log visit');

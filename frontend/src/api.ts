@@ -231,6 +231,20 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     return MOCK_ADMIN_STATS as unknown as T;
   }
 
+  if (path.includes('/adjust-points')) {
+    const delta = typeof body.points_delta === 'number' ? body.points_delta : 0;
+    MOCK_MEMBER_USER.points = Math.max(0, (MOCK_MEMBER_USER.points || 0) + delta);
+    MOCK_MEMBER_USER.points_ytd = Math.max(0, (MOCK_MEMBER_USER.points_ytd || 0) + delta);
+    if (MOCK_MEMBER_USER.points >= 5000) MOCK_MEMBER_USER.tier = 'Platinum';
+    else if (MOCK_MEMBER_USER.points >= 1500) MOCK_MEMBER_USER.tier = 'Gold';
+    else MOCK_MEMBER_USER.tier = 'Silver';
+    return {
+      message: 'Points adjusted successfully',
+      new_points: MOCK_MEMBER_USER.points,
+      tier: MOCK_MEMBER_USER.tier,
+    } as unknown as T;
+  }
+
   if (path.startsWith('/api/admin/members/')) {
     return { user: MOCK_MEMBER_USER, redemptions: [] } as unknown as T;
   }
@@ -248,7 +262,7 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
       redemption_id: 'red_demo_' + Date.now(),
       redemption_type: 'qr',
       qr_code_token: 'QR_DEMO_' + Date.now(),
-      remaining_points: 100,
+      remaining_points: MOCK_MEMBER_USER.points,
     } as unknown as T;
   }
 
@@ -257,12 +271,31 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
   }
 
   if (path === '/api/admin/log-visit') {
+    const targetId = (body.member_id || body.user_id || '').trim();
+    // Credit +100 points
+    MOCK_MEMBER_USER.points = (MOCK_MEMBER_USER.points || 0) + 100;
+    MOCK_MEMBER_USER.points_ytd = (MOCK_MEMBER_USER.points_ytd || 0) + 100;
+    if (MOCK_MEMBER_USER.points >= 5000) MOCK_MEMBER_USER.tier = 'Platinum';
+    else if (MOCK_MEMBER_USER.points >= 1500) MOCK_MEMBER_USER.tier = 'Gold';
+
+    MOCK_ADMIN_STATS.visits_today += 1;
+    MOCK_ADMIN_STATS.points_issued_today += 100;
+    MOCK_ADMIN_STATS.recent.unshift({
+      id: 'rec_' + Date.now(),
+      type: 'earn',
+      title: 'Range Visit Check-in',
+      points: 100,
+      member_name: MOCK_MEMBER_USER.name,
+      member_id: MOCK_MEMBER_USER.member_id,
+      created_at: new Date().toISOString(),
+    });
+
     return {
       message: 'Visit logged successfully',
       user_id: MOCK_MEMBER_USER.id,
       member_name: MOCK_MEMBER_USER.name,
       member_id: MOCK_MEMBER_USER.member_id,
-      new_points: 350,
+      new_points: MOCK_MEMBER_USER.points,
     } as unknown as T;
   }
 

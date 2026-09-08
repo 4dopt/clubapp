@@ -31,30 +31,51 @@ export default function AdminScan() {
     setError(null);
     setSuccess(null);
 
-    const cleaned = data.trim();
+    let cleaned = (data || '').trim();
+
+    // Support JSON encoded QR payloads
+    if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(cleaned);
+        cleaned = parsed.member_id || parsed.id || parsed.qr_token || parsed.code || cleaned;
+      } catch {
+        /* fallthrough */
+      }
+    }
 
     if (cleaned.startsWith('rw_') || cleaned.startsWith('red_') || cleaned.includes('REWARD')) {
       await processRewardQr(cleaned);
-    } else if (/^\d{6}$/.test(cleaned) || /^PG-/i.test(cleaned) || cleaned.startsWith('QR_') || cleaned.length >= 4) {
+    } else if (cleaned.length >= 1) {
       await processMemberId(cleaned);
     } else {
-      setError(`Unrecognized QR format: ${cleaned}`);
-      setTimeout(() => setScanned(false), 3000);
+      setError(`Invalid QR Code: empty string`);
+      setTimeout(() => setScanned(false), 1500);
     }
   };
 
-  const processMemberId = async (memberId: string) => {
+  const processMemberId = async (rawMemberId: string) => {
     if (!adminToken) return;
     setLoading(true);
+    setError(null);
+
+    // Normalize member ID (strip QR_ prefix if present)
+    let memberId = rawMemberId.trim();
+    if (memberId.startsWith('QR_MEMBER_')) {
+      memberId = 'PG-' + memberId.replace('QR_MEMBER_', '');
+    } else if (memberId.startsWith('QR_')) {
+      memberId = memberId.replace(/^QR_/, '');
+    }
+
     try {
       const res = await adminApi.logVisit(adminToken, memberId);
-      setSuccess(`Check-in logged for ${res.member_name} (${res.member_id})! +100 pts added.`);
+      setSuccess(`✓ Check-in logged for ${res.member_name} (${res.member_id})! +100 pts added.`);
       setTimeout(() => {
         router.push(`/admin/member/${res.user_id}`);
-      }, 1500);
+        setScanned(false);
+      }, 1200);
     } catch (e: any) {
       setError(e.message || 'Member check-in failed');
-      setScanned(false);
+      setTimeout(() => setScanned(false), 1500);
     } finally {
       setLoading(false);
     }
@@ -63,12 +84,14 @@ export default function AdminScan() {
   const processRewardQr = async (qrToken: string) => {
     if (!adminToken) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await adminApi.fulfillRewardQr(adminToken, qrToken);
-      setSuccess(`Fulfilled "${res.redemption.reward_title}" for ${res.member.name}!`);
+      setSuccess(`✓ Fulfilled "${res.redemption.reward_title}" for ${res.member.name}!`);
+      setTimeout(() => setScanned(false), 2000);
     } catch (e: any) {
       setError(e.message || 'Fulfillment failed');
-      setScanned(false);
+      setTimeout(() => setScanned(false), 1500);
     } finally {
       setLoading(false);
     }
@@ -76,11 +99,13 @@ export default function AdminScan() {
 
   const submitManualMember = () => {
     if (!manualId.trim()) return;
+    setScanned(true);
     processMemberId(manualId.trim());
   };
 
   const submitManualReward = () => {
     if (!rewardCode.trim()) return;
+    setScanned(true);
     processRewardQr(rewardCode.trim());
   };
 
@@ -94,14 +119,14 @@ export default function AdminScan() {
 
         <View style={styles.modeToggle}>
           <Pressable
-            onPress={() => { setMode('checkin'); setError(null); setSuccess(null); }}
+            onPress={() => { setMode('checkin'); setError(null); setSuccess(null); setScanned(false); }}
             style={[styles.modeBtn, mode === 'checkin' && styles.modeBtnActive]}
           >
             <Ionicons name="person" size={16} color={mode === 'checkin' ? '#FFFFFF' : '#7B8E85'} />
             <Text style={[styles.modeText, mode === 'checkin' && styles.modeTextActive]}>Member Check-In</Text>
           </Pressable>
           <Pressable
-            onPress={() => { setMode('reward'); setError(null); setSuccess(null); }}
+            onPress={() => { setMode('reward'); setError(null); setSuccess(null); setScanned(false); }}
             style={[styles.modeBtn, mode === 'reward' && styles.modeBtnActive]}
           >
             <Ionicons name="gift" size={16} color={mode === 'reward' ? '#FFFFFF' : '#7B8E85'} />
@@ -168,10 +193,9 @@ export default function AdminScan() {
               <TextInput
                 value={manualId}
                 onChangeText={setManualId}
-                placeholder="Enter 6-digit Member ID (e.g. 104928)"
+                placeholder="Enter Member ID (e.g. PG-2445B5 or 2445B5)"
                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                keyboardType="number-pad"
-                maxLength={6}
+                autoCapitalize="characters"
                 style={styles.input}
                 testID="manual-member-id-input"
               />
@@ -186,6 +210,7 @@ export default function AdminScan() {
                 onChangeText={setRewardCode}
                 placeholder="Enter Reward Redemption Token (rw_...)"
                 placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                autoCapitalize="none"
                 style={styles.input}
                 testID="manual-reward-token-input"
               />
