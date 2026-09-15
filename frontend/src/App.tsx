@@ -16,6 +16,8 @@ import { AdminScan } from './pages/AdminScan';
 import { AdminMembers } from './pages/AdminMembers';
 import { AdminRewards } from './pages/AdminRewards';
 
+import { InstallPwaPrompt } from './components/InstallPwaPrompt';
+
 function ProtectedRoute({ children, roleRequired }: { children: React.ReactNode; roleRequired?: 'admin' | 'member' }) {
   const { user, loading } = useAuth();
 
@@ -125,6 +127,7 @@ function AppRoutes() {
         </Routes>
       </main>
 
+      <InstallPwaPrompt />
       <BottomNav />
     </div>
   );
