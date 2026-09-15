@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminApi } from './api';
 
 type AdminAuthState = {
@@ -25,21 +24,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const t = (await AsyncStorage.getItem(KEY)) || (await AsyncStorage.getItem(TOKEN_KEY));
-        if (t) {
-          setAdminToken(t);
-        }
-      } catch { /* ignore */ }
-      finally { setLoading(false); }
-    })();
+    try {
+      const t = localStorage.getItem(KEY) || localStorage.getItem(TOKEN_KEY);
+      if (t) {
+        setAdminToken(t);
+      }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   }, []);
 
   const signIn = useCallback(async (pin: string) => {
     const r = await adminApi.login(pin);
-    await AsyncStorage.setItem(KEY, r.admin_token);
-    await AsyncStorage.setItem(TOKEN_KEY, r.admin_token);
+    localStorage.setItem(KEY, r.admin_token);
+    localStorage.setItem(TOKEN_KEY, r.admin_token);
     setAdminToken(r.admin_token);
   }, []);
 
@@ -47,8 +44,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     if (adminToken) {
       try { await adminApi.logout(adminToken); } catch { /* ignore */ }
     }
-    await AsyncStorage.removeItem(KEY);
-    await AsyncStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(TOKEN_KEY);
     setAdminToken(null);
   }, [adminToken]);
 

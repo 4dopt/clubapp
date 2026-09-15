@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, type User } from './api';
 import { supabase } from './supabase';
 
@@ -35,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const t = (await AsyncStorage.getItem(TOKEN_KEY)) || (await AsyncStorage.getItem(ADMIN_TOKEN_KEY));
+        const t = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(ADMIN_TOKEN_KEY);
         if (t) {
           setToken(t);
           try {
@@ -76,22 +75,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
 
-      // Listen to Supabase auth events (e.g. Magic Link clicks or explicit sign outs)
+      // Listen to Supabase auth events
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session && event === 'SIGNED_IN') {
-          try {
-            const u = await api.me(session.access_token);
-            await AsyncStorage.setItem(TOKEN_KEY, session.access_token);
-            setToken(session.access_token);
-            setUserState(u);
-          } catch {
-            setToken(session.access_token);
+        try {
+          if (session && event === 'SIGNED_IN') {
+            try {
+              const u = await api.me(session.access_token);
+              localStorage.setItem(TOKEN_KEY, session.access_token);
+              setToken(session.access_token);
+              setUserState(u);
+            } catch {
+              setToken(session.access_token);
+            }
+          } else if (event === 'SIGNED_OUT') {
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(ADMIN_TOKEN_KEY);
+            setToken(null);
+            setUserState(null);
           }
-        } else if (event === 'SIGNED_OUT') {
-          await AsyncStorage.removeItem(TOKEN_KEY);
-          await AsyncStorage.removeItem(ADMIN_TOKEN_KEY);
-          setToken(null);
-          setUserState(null);
+        } catch (err) {
+          console.warn('onAuthStateChange error handled:', err);
         }
       });
       subscription = data.subscription;
@@ -103,17 +106,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (t: string, u: User) => {
-    await AsyncStorage.setItem(TOKEN_KEY, t);
+    localStorage.setItem(TOKEN_KEY, t);
     if (u?.role === 'admin') {
-      await AsyncStorage.setItem(ADMIN_TOKEN_KEY, t);
+      localStorage.setItem(ADMIN_TOKEN_KEY, t);
     }
     setToken(t);
     setUserState(u);
   }, []);
 
   const signOut = useCallback(async () => {
-    await AsyncStorage.removeItem(TOKEN_KEY);
-    await AsyncStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
     setToken(null);
     setUserState(null);
   }, []);

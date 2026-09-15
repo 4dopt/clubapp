@@ -1,124 +1,61 @@
-import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import QRCode from 'react-native-qrcode-svg';
-import { Image } from 'expo-image';
-import { theme } from '../theme';
-import type { User } from '../api';
+import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { X, Sparkles, ShieldCheck } from 'lucide-react';
+import { User } from '../api';
 
 interface Props {
-  visible: boolean;
+  user: User;
   onClose: () => void;
-  user: User | null;
 }
 
-export function QrModal({ visible, onClose, user }: Props) {
-  if (!user) return null;
-
-  const qrValue = user.member_id || user.qr_token || 'PG-100234';
-  const qrImageUri = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrValue)}`;
-
+export function QrModal({ user, onClose }: Props) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Member Digital Pass</Text>
-            <Pressable testID="close-qr-modal" onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={20} color={theme.color.onSurfaceSecondary} />
-            </Pressable>
-          </View>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            background: 'var(--bg-subtle)',
+            border: 'none',
+            color: 'var(--slate-dark)',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <X size={18} />
+        </button>
 
-          <View style={styles.qrContainer}>
-            <View style={styles.qrFrame}>
-              {Platform.OS === 'web' ? (
-                <Image source={{ uri: qrImageUri }} style={{ width: 220, height: 220 }} contentFit="contain" />
-              ) : (
-                <QRCode value={qrValue} size={220} />
-              )}
-            </View>
-          </View>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--brand-green-subtle)', color: 'var(--brand-green)', padding: '4px 12px', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: 800, marginBottom: '12px' }}>
+          <Sparkles size={14} /> Member Digital Pass
+        </div>
 
-          <View style={styles.meta}>
-            <Text style={styles.name}>{user.name || 'Member'}</Text>
-            <Text style={styles.sub}>Member ID: {user.member_id || 'PG-100234'}</Text>
-            <Text style={styles.hint}>
-              Show this QR code to the staff at the range or clubhouse to check in and earn points.
-            </Text>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+        <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+          {user.name}
+        </h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+          ID: {user.member_id} &bull; {user.tier} Tier Member
+        </p>
+
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '16px', display: 'inline-block', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)', marginBottom: '20px' }}>
+          <QRCodeSVG value={user.qr_token || user.member_id} size={200} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--brand-green)', fontSize: '0.8rem', fontWeight: 700 }}>
+          <ShieldCheck size={16} /> Verified Active Membership
+        </div>
+
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+          Scan at the Driving Range bay scanner or Pro Shop desk to log visits and earn points automatically.
+        </p>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
-    padding: theme.spacing.xl,
-  },
-  sheet: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.xl,
-    alignItems: 'center',
-  },
-  header: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  title: {
-    color: theme.color.onSurface,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.color.surfaceSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrContainer: {
-    padding: theme.spacing.lg,
-    backgroundColor: theme.color.brandPrimary,
-    borderRadius: theme.radius.lg,
-    shadowColor: theme.color.brandPrimary,
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  qrFrame: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: theme.radius.md,
-  },
-  meta: {
-    alignItems: 'center',
-    marginTop: theme.spacing.xl,
-  },
-  name: {
-    color: theme.color.onSurface,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  sub: {
-    color: theme.color.brandPrimary,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  hint: {
-    color: theme.color.onSurfaceSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: theme.spacing.md,
-    lineHeight: 18,
-  },
-});

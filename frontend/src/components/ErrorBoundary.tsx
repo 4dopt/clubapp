@@ -1,6 +1,4 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { theme } from '../theme';
 
 interface Props {
   children: ReactNode;
@@ -28,61 +26,25 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.subtitle}>
-            An unexpected display error occurred. Tap below to reload your dashboard.
-          </Text>
-          <Pressable
-            style={styles.button}
-            onPress={() => {
+        <div style={{ padding: '40px 20px', textAlign: 'center', backgroundColor: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+          <h2 style={{ fontSize: '1.4rem', color: '#fff', marginBottom: '8px' }}>Something went wrong</h2>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px', maxWidth: '320px', lineHeight: 1.4 }}>
+            An unexpected error occurred. Tap below to reload your PlayGolf app.
+          </p>
+          <button
+            onClick={() => {
               this.setState({ hasError: false, error: null });
-              if (typeof window !== 'undefined') {
-                window.location.reload();
-              }
+              window.location.reload();
             }}
+            className="btn-primary"
+            style={{ width: 'auto', padding: '12px 24px' }}
           >
-            <Text style={styles.buttonText}>Reload App</Text>
-          </Pressable>
-        </View>
+            Reload App
+          </button>
+        </div>
       );
     }
 
     return this.props.children;
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.color.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.xl,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: theme.color.onSurface,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: theme.color.onSurfaceSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-    maxWidth: 320,
-    lineHeight: 20,
-  },
-  button: {
-    backgroundColor: theme.color.brandPrimary,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: theme.radius.pill,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 15,
-  },
-});

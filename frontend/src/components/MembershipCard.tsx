@@ -1,172 +1,136 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import QRCode from 'react-native-qrcode-svg';
-import { tierMeta } from '../theme';
-import type { User } from '../api';
-
-const LOGO = require('../../assets/images/icon.png');
+import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { QrCode, RotateCw, Wifi, ShieldCheck, Sparkles, Copy, Check } from 'lucide-react';
+import { User } from '../api';
 
 interface Props {
   user: User;
-  onShowQr?: () => void;
-  onPressQr?: () => void;
+  onOpenQrModal?: () => void;
 }
 
-export function MembershipCard({ user, onShowQr, onPressQr }: Props) {
-  const tierName = user?.tier && tierMeta[user.tier as keyof typeof tierMeta] ? user.tier : 'Silver';
-  const meta = tierMeta[tierName as keyof typeof tierMeta] || tierMeta.Silver;
-  const gradientColors = meta?.gradient || ['#15793F', '#0E5A3A', '#093A26'];
-  const iconName = tierName === 'Platinum' ? 'ribbon-outline' : tierName === 'Gold' ? 'trophy-outline' : 'shield-checkmark-outline';
-  const handlePress = onShowQr || onPressQr;
+export function MembershipCard({ user, onOpenQrModal }: Props) {
+  const [flipped, setFlipped] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const getTierClass = (tier: string) => {
+    switch (tier.toLowerCase()) {
+      case 'gold':
+        return 'card-tier-gold';
+      case 'platinum':
+        return 'card-tier-platinum';
+      default:
+        return 'card-tier-silver';
+    }
+  };
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const id = user.member_id || 'PG-000000';
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <Pressable
-      testID="membership-card"
-      onPress={handlePress}
-      style={({ pressed }) => [styles.cardContainer, pressed && { transform: [{ scale: 0.98 }] }]}
-    >
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
+    <div className="membership-card-container">
+      <div 
+        className={`membership-card ${getTierClass(user.tier)} ${flipped ? 'is-flipped' : ''}`}
+        onClick={() => setFlipped(!flipped)}
       >
-        {/* Background glow effect */}
-        <View style={styles.glow} />
+        {/* Dynamic Specular Lighting & Holographic Sheen */}
+        <div className="card-light-specular" />
+        <div className="card-shine" />
+        <div className="card-mesh-pattern" />
 
-        {/* Top Header */}
-        <View style={styles.header}>
-          <Image source={LOGO} style={styles.logo} contentFit="contain" />
-          <View style={styles.tierBadge}>
-            <Ionicons name={iconName} size={14} color="#FFFFFF" />
-            <Text style={styles.tierText}>{(tierName || 'Silver').toUpperCase()}</Text>
-          </View>
-        </View>
+        {/* FRONT OF CARD */}
+        <div className="card-face card-front">
+          {/* Header Row: Club Logo & Tier Pill */}
+          <div className="card-header">
+            <div className="card-brand">
+              <div className="brand-emblem">
+                <Sparkles size={14} className="emblem-sparkle" />
+              </div>
+              <div className="brand-text">
+                <span className="brand-title">PLAYGOLF</span>
+                <span className="brand-subtitle">EXECUTIVE CLUB</span>
+              </div>
+            </div>
+            <div className="tier-pill-wrapper">
+              <span className="tier-pill">{user.tier} MEMBER</span>
+            </div>
+          </div>
 
-        {/* Middle Content */}
-        <View style={styles.body}>
-          <Text style={styles.memberName}>{user?.name || 'Member'}</Text>
-          <Text style={styles.memberId}>{user?.member_id || 'PG-100234'}</Text>
-        </View>
+          {/* Middle Row: Gold EMV Smart Chip & Contactless RFID Waves */}
+          <div className="card-chip-row">
+            <div className="card-chip">
+              <div className="chip-line horizontal" />
+              <div className="chip-line vertical" />
+            </div>
+            <Wifi size={18} className="rfid-waves" />
+          </div>
 
-        {/* Bottom Footer */}
-        <View style={styles.footer}>
-          <View style={styles.pointsCol}>
-            <Text style={styles.pointsLabel}>LIFETIME POINTS</Text>
-            <Text style={styles.pointsVal}>{(user?.points_ytd ?? user?.points ?? 0).toLocaleString()} PTS</Text>
-          </View>
+          {/* Member Details */}
+          <div className="card-details">
+            <div className="card-member-id-container">
+              <span className="card-member-id">{user.member_id || 'PG-000000'}</span>
+              <button 
+                type="button" 
+                className="copy-id-btn" 
+                onClick={handleCopyId}
+                title="Copy Member ID"
+              >
+                {copied ? <Check size={12} style={{ color: '#34d399' }} /> : <Copy size={12} />}
+              </button>
+            </div>
+            <div className="card-holder-name">{user.name}</div>
+          </div>
 
-          {onShowQr ? (
-            <View style={styles.qrBadge}>
-              <Ionicons name="qr-code-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.qrBadgeText}>Scan Card</Text>
-            </View>
-          ) : null}
-        </View>
-      </LinearGradient>
-    </Pressable>
+          {/* Footer Row: Points Balance & Scan Action */}
+          <div className="card-footer">
+            <div className="points-badge">
+              <div className="points-label">Available Balance</div>
+              <div className="points-val">
+                {(user.points || user.points_balance || 0).toLocaleString()} <span className="points-unit">PTS</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="card-scan-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenQrModal) onOpenQrModal();
+                else setFlipped(true);
+              }}
+            >
+              <QrCode size={15} />
+              <span>Scan Pass</span>
+            </button>
+          </div>
+        </div>
+
+        {/* BACK OF CARD */}
+        <div className="card-face card-back">
+          <div className="card-back-header">
+            <ShieldCheck size={16} className="text-emerald-400" />
+            <span>Encrypted Digital Pass</span>
+          </div>
+
+          <div className="qr-container">
+            <div className="qr-frame">
+              <QRCodeSVG value={user.qr_token || user.member_id || 'PG-000000'} size={115} />
+            </div>
+          </div>
+
+          <div className="card-back-footer">
+            <div className="instructions">Present at Driving Range & Pro Shop</div>
+            <div className="flip-hint">
+              <RotateCw size={12} /> Tap card to flip
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-const styles = StyleSheet.create({
-  cardContainer: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-  },
-  card: {
-    padding: 24,
-    minHeight: 210,
-    justifyContent: 'space-between',
-  },
-  glow: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  logo: {
-    width: 130,
-    height: 32,
-  },
-  tierBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  tierText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  body: {
-    marginTop: 20,
-  },
-  memberName: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  memberId: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 16,
-  },
-  pointsCol: {},
-  pointsLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  pointsVal: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  qrBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  qrBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
