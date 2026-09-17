@@ -1,4 +1,5 @@
 import { API_BASE } from './config';
+import { logVisitInSupabaseOrStore, adjustMemberPointsInSupabase } from './supabaseService';
 
 export interface User {
   id: string;
@@ -279,11 +280,29 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
 
   if (path === '/api/admin/log-visit') {
     const targetId = (body.member_id || body.user_id || '').trim();
-    // Credit +100 points
-    MOCK_MEMBER_USER.points = (MOCK_MEMBER_USER.points || 0) + 100;
-    MOCK_MEMBER_USER.points_ytd = (MOCK_MEMBER_USER.points_ytd || 0) + 100;
-    if (MOCK_MEMBER_USER.points >= 5000) MOCK_MEMBER_USER.tier = 'Platinum';
-    else if (MOCK_MEMBER_USER.points >= 1500) MOCK_MEMBER_USER.tier = 'Gold';
+    const cleanId = targetId.replace('QR_MEMBER_', '');
+
+    let targetMember = MOCK_MEMBER_USER;
+    if (targetId && !targetId.includes('2445B5') && !targetId.includes('alex')) {
+      targetMember = {
+        id: 'usr_' + Date.now(),
+        email: `member_${cleanId.toLowerCase()}@club.com`,
+        name: `Scanned Member (${cleanId.slice(0, 10)})`,
+        role: 'member',
+        member_id: cleanId.startsWith('PG-') ? cleanId : `PG-${cleanId.slice(0, 6)}`,
+        tier: 'Silver',
+        points: 250,
+        points_ytd: 250,
+        qr_token: targetId,
+        created_at: new Date().toISOString(),
+      };
+    }
+
+    targetMember.points = (targetMember.points || 0) + 100;
+    targetMember.points_ytd = (targetMember.points_ytd || 0) + 100;
+    if (targetMember.points >= 5000) targetMember.tier = 'Platinum';
+    else if (targetMember.points >= 1000) targetMember.tier = 'Gold';
+    else targetMember.tier = 'Silver';
 
     MOCK_ADMIN_STATS.visits_today += 1;
     MOCK_ADMIN_STATS.points_issued_today += 100;
@@ -292,17 +311,18 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
       type: 'earn',
       title: 'Range Visit Check-in',
       points: 100,
-      member_name: MOCK_MEMBER_USER.name,
-      member_id: MOCK_MEMBER_USER.member_id,
+      member_name: targetMember.name,
+      member_id: targetMember.member_id,
       created_at: new Date().toISOString(),
     });
 
     return {
       message: 'Visit logged successfully',
-      user_id: MOCK_MEMBER_USER.id,
-      member_name: MOCK_MEMBER_USER.name,
-      member_id: MOCK_MEMBER_USER.member_id,
-      new_points: MOCK_MEMBER_USER.points,
+      user_id: targetMember.id,
+      member_name: targetMember.name,
+      member_id: targetMember.member_id,
+      new_points: targetMember.points,
+      tier: targetMember.tier,
     } as unknown as T;
   }
 
@@ -475,6 +495,13 @@ export const adminApi = {
   },
 
   async logVisit(adminToken: string, memberId: string) {
+    try {
+      const sbRes = await logVisitInSupabaseOrStore(memberId, 100);
+      if (sbRes && sbRes.ok) {
+        return sbRes;
+      }
+    } catch { /* ignore fallback */ }
+
     return request<{ message: string; user_id: string; member_name: string; member_id: string; new_points: number }>(
       '/api/admin/log-visit',
       {
@@ -486,14 +513,17 @@ export const adminApi = {
   },
 
   async creditPoints(adminToken: string, memberId: string, points: number) {
-    return request<{ ok: boolean; new_points: number }>(`/api/admin/members/${memberId}/adjust-points`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ points_delta: points, reason: 'Manual credit' }),
-    });
+    return this.adjustPoints(adminToken, memberId, points, 'Manual staff credit');
   },
 
   async adjustPoints(adminToken: string, userId: string, pointsDelta: number, reason: string) {
+    try {
+      const sbRes = await adjustMemberPointsInSupabase(userId, pointsDelta, reason);
+      if (sbRes && sbRes.ok) {
+        return { message: 'Points adjusted in database', new_points: sbRes.new_points, tier: sbRes.tier };
+      }
+    } catch { /* ignore fallback */ }
+
     return request<{ message: string; new_points: number; tier: string }>(
       `/api/admin/members/${userId}/adjust-points`,
       {
