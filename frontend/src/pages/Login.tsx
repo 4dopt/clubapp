@@ -238,7 +238,7 @@ export function Login() {
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '12px', height: '48px', fontSize: '0.95rem' }}>
-              {loading ? 'Authenticating...' : <>Sign In with Supabase <LogIn size={18} /></>}
+              {loading ? 'Signing In...' : <>Sign In <LogIn size={18} /></>}
             </button>
           </form>
         )}
