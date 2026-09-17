@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { api, type User } from './api';
 import { supabase } from './supabase';
+import { fetchProfileFromSupabase } from './supabaseService';
 
 type AuthState = {
   token: string | null;
@@ -80,10 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           if (session && event === 'SIGNED_IN') {
             try {
-              const u = await api.me(session.access_token);
+              let u = await fetchProfileFromSupabase(session.user.id);
+              if (!u) {
+                u = await api.me(session.access_token);
+              }
               localStorage.setItem(TOKEN_KEY, session.access_token);
               setToken(session.access_token);
-              setUserState(u);
+              if (u) setUserState(u);
             } catch {
               setToken(session.access_token);
             }

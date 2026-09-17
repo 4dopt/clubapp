@@ -15,6 +15,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminScan } from './pages/AdminScan';
 import { AdminMembers } from './pages/AdminMembers';
 import { AdminRewards } from './pages/AdminRewards';
+import { AdminBookings } from './pages/AdminBookings';
 
 import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 
@@ -115,6 +116,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute roleRequired="admin">
                 <AdminRewards />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/bookings"
+            element={
+              <ProtectedRoute roleRequired="admin">
+                <AdminBookings />
               </ProtectedRoute>
             }
           />

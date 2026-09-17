@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Search, Award, Plus, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Search, Award, Plus, Edit, LogOut } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, User } from '../api';
 
 export function AdminMembers() {
-  const { token } = useAuth();
+  const { token, signOut } = useAuth();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<User[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -12,6 +14,11 @@ export function AdminMembers() {
   const [adjustPoints, setAdjustPoints] = useState(100);
   const [reason, setReason] = useState('Manual staff adjustment');
   const [message, setMessage] = useState('');
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (token) {
@@ -39,13 +46,34 @@ export function AdminMembers() {
 
   return (
     <div style={{ background: '#090d16', color: '#f8fafc', minHeight: '100vh', padding: '20px 20px 40px 20px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Users style={{ color: '#38bdf8' }} /> Staff Member Roster & Points
-        </h2>
-        <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-          Search active members, credit rewards, and adjust loyalty points balance
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users style={{ color: '#38bdf8' }} /> Staff Member Roster & Points
+          </h2>
+          <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+            Search active members, credit rewards, and adjust loyalty points balance
+          </p>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            color: '#f87171',
+            padding: '8px 14px',
+            borderRadius: 'var(--radius-full)',
+            fontSize: '0.8rem',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+          }}
+        >
+          <LogOut size={16} /> Sign Out
+        </button>
       </div>
 
       {message && (

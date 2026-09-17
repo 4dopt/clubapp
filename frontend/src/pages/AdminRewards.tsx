@@ -1,19 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { Gift, Plus, Edit2, Search, CheckCircle, Tag, Eye, EyeOff, Sparkles, Image as ImageIcon } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Gift, Plus, Edit2, Search, CheckCircle, Tag, Eye, EyeOff, Sparkles, Image as ImageIcon, Upload, X, LogOut } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, Reward } from '../api';
 
 export function AdminRewards() {
-  const { token } = useAuth();
+  const { token, signOut } = useAuth();
+  const navigate = useNavigate();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [message, setMessage] = useState('');
 
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
   // Add / Edit Modal States
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
+
+  // Device Image Upload States
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -44,6 +56,27 @@ export function AdminRewards() {
     setImageUrl('https://images.unsplash.com/photo-1535131749006-b7f58c99034b?crop=entropy&cs=srgb&fm=jpg&q=80');
     setActive(true);
     setEditingReward(null);
+    setShowUrlInput(false);
+  };
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setImageUrl(result);
+      }
+      setUploadingImage(false);
+    };
+    reader.onerror = () => {
+      setUploadingImage(false);
+      setMessage('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleOpenAdd = () => {
@@ -142,7 +175,7 @@ export function AdminRewards() {
   return (
     <div style={{ background: '#090d16', color: '#f8fafc', minHeight: '100vh', padding: '20px 20px 40px 20px' }}>
       {/* Header Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Gift style={{ color: '#10b981' }} /> Reward Catalog Management
@@ -152,13 +185,33 @@ export function AdminRewards() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="btn-primary"
-          style={{ width: 'auto', padding: '10px 16px', fontSize: '0.8rem', background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)' }}
-        >
-          <Plus size={16} /> New Reward
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={handleOpenAdd}
+            className="btn-primary"
+            style={{ width: 'auto', padding: '10px 16px', fontSize: '0.8rem', background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)' }}
+          >
+            <Plus size={16} /> New Reward
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#f87171',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={16} /> Sign Out
+          </button>
+        </div>
       </div>
 
       {message && (
@@ -399,15 +452,91 @@ export function AdminRewards() {
               )}
 
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Image URL</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="https://images.unsplash.com/..."
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
-                />
+                <label className="form-label" style={{ color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Reward Image (Upload from Device)</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {showUrlInput ? 'Upload File from Device' : 'Or Enter Web Link'}
+                  </button>
+                </label>
+
+                {!showUrlInput ? (
+                  <div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={handleImageFileUpload}
+                      style={{ display: 'none' }}
+                    />
+
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
+                      {imageUrl ? (
+                        <div style={{ position: 'relative', width: '90px', height: '65px', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.4)', flexShrink: 0 }}>
+                          <img src={imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button
+                            type="button"
+                            onClick={() => setImageUrl('')}
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              background: 'rgba(0, 0, 0, 0.75)',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '20px',
+                              height: '20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                            title="Remove image"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          flex: 1,
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: '2px dashed rgba(16, 185, 129, 0.4)',
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          color: '#10b981',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <Upload size={18} />
+                        {uploadingImage ? 'Loading Image...' : imageUrl ? 'Choose Different Image' : 'Select Image File from Device'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="https://images.unsplash.com/..."
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
+                  />
+                )}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '14px 0' }}>

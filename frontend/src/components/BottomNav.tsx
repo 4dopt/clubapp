@@ -21,6 +21,11 @@ export function BottomNav() {
           <span>Scanner</span>
         </NavLink>
 
+        <NavLink to="/admin/bookings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Calendar size={20} />
+          <span>Bookings</span>
+        </NavLink>
+
         <NavLink to="/admin/members" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Users size={20} />
           <span>Members</span>

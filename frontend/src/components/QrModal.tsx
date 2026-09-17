@@ -44,8 +44,15 @@ export function QrModal({ user, onClose }: Props) {
           ID: {user.member_id} &bull; {user.tier} Tier Member
         </p>
 
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '16px', display: 'inline-block', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)', marginBottom: '20px' }}>
-          <QRCodeSVG value={user.qr_token || user.member_id} size={200} />
+        <div style={{ background: '#ffffff', padding: '20px', borderRadius: '16px', display: 'inline-block', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)', marginBottom: '20px' }}>
+          <QRCodeSVG 
+            value={user.qr_token || user.member_id || 'PG-000000'} 
+            size={220} 
+            level="M"
+            marginSize={1}
+            bgColor="#ffffff"
+            fgColor="#090d16"
+          />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--brand-green)', fontSize: '0.8rem', fontWeight: 700 }}>

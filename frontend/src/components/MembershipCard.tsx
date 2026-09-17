@@ -118,7 +118,14 @@ export function MembershipCard({ user, onOpenQrModal }: Props) {
 
           <div className="qr-container">
             <div className="qr-frame">
-              <QRCodeSVG value={user.qr_token || user.member_id || 'PG-000000'} size={115} />
+              <QRCodeSVG 
+                value={user.qr_token || user.member_id || 'PG-000000'} 
+                size={115}
+                level="M"
+                marginSize={1}
+                bgColor="#ffffff"
+                fgColor="#090d16"
+              />
             </div>
           </div>
 

@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Shield, QrCode, Users, Gift, TrendingUp, UserPlus, Award, Zap, Activity } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Shield, QrCode, Users, Gift, TrendingUp, UserPlus, Award, Zap, Activity, LogOut, Calendar } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, AdminStats, User } from '../api';
 
 export function AdminDashboard() {
-  const { token } = useAuth();
+  const { token, signOut } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [quickMemberId, setQuickMemberId] = useState('');
   const [quickLogMessage, setQuickLogMessage] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (token) {
@@ -37,7 +43,7 @@ export function AdminDashboard() {
   return (
     <div style={{ background: '#090d16', color: '#f8fafc', minHeight: '100vh', padding: '20px 20px 40px 20px' }}>
       {/* Admin Top Header Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: 800, border: '1px solid rgba(16, 185, 129, 0.3)', marginBottom: '6px' }}>
             <Shield size={12} /> STAFF OPERATIONS TERMINAL
@@ -47,24 +53,44 @@ export function AdminDashboard() {
           </h2>
         </div>
 
-        <Link
-          to="/admin/scan"
-          style={{
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            color: '#ffffff',
-            padding: '10px 16px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '0.8rem',
-            fontWeight: 800,
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-          }}
-        >
-          <QrCode size={18} /> Camera Scanner
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Link
+            to="/admin/scan"
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#ffffff',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+            }}
+          >
+            <QrCode size={18} /> Camera Scanner
+          </Link>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#f87171',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={16} /> Sign Out
+          </button>
+        </div>
       </div>
 
       {quickLogMessage && (
@@ -167,7 +193,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Member Management Shortcuts & Point Reward Tools */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         <Link
           to="/admin/members"
           style={{
@@ -186,6 +212,26 @@ export function AdminDashboard() {
           </div>
           <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>Member Directory</span>
           <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Search members & credit points balance</span>
+        </Link>
+
+        <Link
+          to="/admin/bookings"
+          style={{
+            background: 'rgba(15, 23, 42, 0.85)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '16px',
+            padding: '16px',
+            textDecoration: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+          }}
+        >
+          <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '8px', borderRadius: '10px', width: 'fit-content' }}>
+            <Calendar size={20} />
+          </div>
+          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>Bookings Terminal</span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Check-in members & view reservations</span>
         </Link>
 
         <Link

@@ -43,24 +43,24 @@ export function Rewards() {
   if (!user) return null;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div style={{ padding: '20px 20px 32px 20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Gift style={{ color: '#d97706' }} /> Rewards Catalog
           </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Redeem your points for balls, gear & coaching
           </p>
         </div>
 
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#b45309', padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: '0.8rem', fontWeight: 800 }}>
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#b45309', padding: '7px 14px', borderRadius: 'var(--radius-full)', fontSize: '0.8rem', fontWeight: 800, boxShadow: 'var(--shadow-sm)' }}>
           {(user.points || user.points_balance || 0).toLocaleString()} PTS
         </div>
       </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <AlertCircle size={16} /> {error}
         </div>
       )}
@@ -68,7 +68,7 @@ export function Rewards() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--slate-grey)' }}>Loading rewards...</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {rewards.map((r) => {
             const canAfford = (user.points || user.points_balance || 0) >= r.points_cost;
 
@@ -85,21 +85,21 @@ export function Rewards() {
                   boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                <div style={{ height: '140px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ height: '150px', position: 'relative', overflow: 'hidden' }}>
                   <img src={r.image_url} alt={r.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', padding: '4px 10px', borderRadius: 'var(--radius-full)', color: '#b45309', fontWeight: 800, fontSize: '0.8rem', boxShadow: 'var(--shadow-sm)' }}>
+                  <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', padding: '4px 12px', borderRadius: 'var(--radius-full)', color: '#b45309', fontWeight: 800, fontSize: '0.8rem', boxShadow: 'var(--shadow-sm)' }}>
                     {r.points_cost} PTS
                   </div>
-                  <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: 'rgba(15, 23, 42, 0.8)', padding: '2px 8px', borderRadius: '4px', color: '#ffffff', fontSize: '0.7rem', fontWeight: 600 }}>
+                  <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: 'rgba(15, 23, 42, 0.82)', backdropFilter: 'blur(6px)', padding: '3px 10px', borderRadius: '6px', color: '#ffffff', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em' }}>
                     {r.category}
                   </div>
                 </div>
 
-                <div style={{ padding: '16px' }}>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                <div style={{ padding: '18px 20px' }}>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
                     {r.title}
                   </h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px', lineHeight: 1.4 }}>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.45 }}>
                     {r.description}
                   </p>
 
@@ -108,8 +108,10 @@ export function Rewards() {
                     disabled={!canAfford || redeeming === r.id}
                     className={`btn-primary ${canAfford ? '' : 'btn-secondary'}`}
                     style={{
-                      opacity: canAfford ? 1 : 0.6,
+                      height: '46px',
+                      opacity: canAfford ? 1 : 0.65,
                       cursor: canAfford ? 'pointer' : 'not-allowed',
+                      fontWeight: 800,
                     }}
                   >
                     {redeeming === r.id ? (

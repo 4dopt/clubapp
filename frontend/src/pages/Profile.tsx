@@ -29,7 +29,7 @@ export function Profile() {
   const progressPercent = user.tier === 'Platinum' ? 100 : Math.min(100, Math.round((currentPoints / nextTierPoints) * 100));
 
   return (
-    <div style={{ padding: '20px 20px 40px 20px' }}>
+    <div style={{ padding: '20px 20px 32px 20px' }}>
       {/* Profile Header Card */}
       <div
         style={{
