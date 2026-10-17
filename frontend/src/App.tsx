@@ -9,6 +9,10 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Rewards } from './pages/Rewards';
 import { Booking } from './pages/Booking';
+import { BookingDrivingRange } from './pages/BookingDrivingRange';
+import { BookingNineHoles } from './pages/BookingNineHoles';
+import { BookingPuttCrazy } from './pages/BookingPuttCrazy';
+import { BookingDarts } from './pages/BookingDarts';
 import { Profile } from './pages/Profile';
 
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -99,6 +103,38 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <Booking />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/driving-range"
+            element={
+              <ProtectedRoute>
+                <BookingDrivingRange />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/nine-holes"
+            element={
+              <ProtectedRoute>
+                <BookingNineHoles />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/putt-crazy"
+            element={
+              <ProtectedRoute>
+                <BookingPuttCrazy />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/darts-interactive"
+            element={
+              <ProtectedRoute>
+                <BookingDarts />
               </ProtectedRoute>
             }
           />
