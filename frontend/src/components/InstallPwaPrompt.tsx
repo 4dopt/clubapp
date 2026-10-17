@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Download, Share, X, Smartphone, CheckCircle, Info } from 'lucide-react';
+import { useAuth } from '../auth';
 
 export function InstallPwaPrompt() {
+  const { user } = useAuth();
+  const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    // Check if app is already running in standalone mode (installed)
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true;
@@ -17,24 +20,20 @@ export function InstallPwaPrompt() {
       return;
     }
 
-    // Check if dismissed recently
     const dismissedAt = localStorage.getItem('playgolf_pwa_dismissed');
     if (dismissedAt) {
       const hoursSinceDismiss = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
       if (hoursSinceDismiss < 24) {
-        return; // Respect 24-hour dismissal
+        return;
       }
     }
 
-    // Detect iOS
     const ua = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(ua) && !(window as any).MSStream;
     setIsIos(isIosDevice);
 
-    // ALWAYS show the prompt banner so user can see it!
     setShowPrompt(true);
 
-    // Handle beforeinstallprompt for Chrome/Edge/Android/Desktop
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -50,7 +49,6 @@ export function InstallPwaPrompt() {
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      // Trigger native browser install prompt
       try {
         deferredPrompt.prompt();
         const choiceResult = await deferredPrompt.userChoice;
@@ -58,11 +56,10 @@ export function InstallPwaPrompt() {
           setShowPrompt(false);
         }
         setDeferredPrompt(null);
-      } catch (err) {
+      } catch {
         setShowGuideModal(true);
       }
     } else {
-      // Show instruction modal if native prompt is not direct
       setShowGuideModal(true);
     }
   };
@@ -72,93 +69,122 @@ export function InstallPwaPrompt() {
     localStorage.setItem('playgolf_pwa_dismissed', Date.now().toString());
   };
 
-  if (!showPrompt) return null;
+  // Don't obstruct login screen or live QR camera scanner
+  if (!showPrompt || !user || location.pathname === '/login' || location.pathname === '/admin/scan') {
+    return null;
+  }
 
   return (
     <>
-      {/* Floating Bottom Install Banner */}
+      {/* Sleek Compact Floating Install Pill Banner */}
       <div
         style={{
           position: 'fixed',
-          bottom: '80px',
-          left: '16px',
-          right: '16px',
-          maxWidth: '440px',
+          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          left: '12px',
+          right: '12px',
+          maxWidth: '456px',
           margin: '0 auto',
-          zIndex: 9990,
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          border: '1.5px solid rgba(52, 211, 153, 0.4)',
-          borderRadius: '16px',
-          padding: '16px',
-          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(52, 211, 153, 0.2)',
+          zIndex: 45,
+          background: 'rgba(15, 23, 42, 0.96)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(52, 211, 153, 0.35)',
+          borderRadius: '14px',
+          padding: '10px 12px',
+          boxShadow: '0 10px 28px rgba(0, 0, 0, 0.35)',
           color: '#f8fafc',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '12px',
-                background: 'rgba(52, 211, 153, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#34d399',
-                flexShrink: 0,
-              }}
-            >
-              <Smartphone size={24} />
-            </div>
-            <div>
-              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
-                Add PlayGolf to Home Screen
-              </h4>
-              <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.3' }}>
-                Instant 1-tap access to your digital membership & rewards card!
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleDismiss}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', minWidth: 0, flex: 1 }}>
+          <div
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#64748b',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-            title="Dismiss"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div style={{ marginTop: '14px' }}>
-          <button
-            onClick={handleInstallClick}
-            style={{
-              width: '100%',
-              padding: '11px 16px',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#ffffff',
-              border: 'none',
+              width: '36px',
+              height: '36px',
               borderRadius: '10px',
-              fontWeight: 700,
-              fontSize: '0.88rem',
+              background: 'rgba(52, 211, 153, 0.16)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+              color: '#34d399',
+              flexShrink: 0,
             }}
           >
-            <Download size={16} /> Add App to Home Screen
+            <Smartphone size={18} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h4
+              style={{
+                margin: 0,
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: '#ffffff',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              Add PlayGolf to Home Screen
+            </h4>
+            <p
+              style={{
+                margin: '1px 0 0',
+                fontSize: '0.7rem',
+                color: '#94a3b8',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              1-tap access to your digital member card
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <button
+            onClick={handleInstallClick}
+            style={{
+              padding: '7px 12px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '9px',
+              fontWeight: 700,
+              fontSize: '0.76rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+            }}
+          >
+            <Download size={13} /> Install
+          </button>
+
+          <button
+            onClick={handleDismiss}
+            aria-label="Dismiss install prompt"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title="Dismiss"
+          >
+            <X size={15} />
           </button>
         </div>
       </div>
@@ -172,39 +198,53 @@ export function InstallPwaPrompt() {
             zIndex: 99999,
             background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '16px',
           }}
+          onClick={() => setShowGuideModal(false)}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               background: '#0f172a',
               border: '1px solid rgba(52, 211, 153, 0.4)',
               borderRadius: '20px',
-              padding: '24px',
+              padding: '22px 20px',
               maxWidth: '400px',
               width: '100%',
               color: '#ffffff',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontWeight: 700 }}>
-                <Info size={20} />
-                <span>How to Add to Home Screen</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontWeight: 700, fontSize: '0.95rem' }}>
+                <Info size={18} />
+                <span>Add to Home Screen</span>
               </div>
               <button
                 onClick={() => setShowGuideModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             {isIos ? (
-              <div style={{ fontSize: '0.88rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+              <div style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: '1.6' }}>
                 <p style={{ marginTop: 0 }}>Follow these 2 quick steps in Safari on iOS:</p>
                 <ol style={{ paddingLeft: '20px', margin: '12px 0' }}>
                   <li style={{ marginBottom: '8px' }}>
@@ -216,7 +256,7 @@ export function InstallPwaPrompt() {
                 </ol>
               </div>
             ) : (
-              <div style={{ fontSize: '0.88rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+              <div style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: '1.6' }}>
                 <p style={{ marginTop: 0 }}>To add PlayGolf to your home screen/desktop:</p>
                 <ul style={{ paddingLeft: '20px', margin: '12px 0', listStyleType: 'circle' }}>
                   <li style={{ marginBottom: '8px' }}>
@@ -232,14 +272,15 @@ export function InstallPwaPrompt() {
             <button
               onClick={() => setShowGuideModal(false)}
               style={{
-                marginTop: '16px',
+                marginTop: '14px',
                 width: '100%',
+                minHeight: '44px',
                 padding: '10px',
                 background: '#1e293b',
                 color: '#ffffff',
                 border: '1px solid #334155',
                 borderRadius: '10px',
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
             >

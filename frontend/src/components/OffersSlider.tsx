@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowRight, Flame, Award, ShoppingBag, Clock, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { ArrowRight, Flame, Award, ShoppingBag, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface FeaturedOffer {
   id: string;
@@ -35,7 +35,7 @@ export function OffersSlider() {
       subtitle: 'Double Loyalty Boost',
       description: 'Earn double loyalty points on 100-ball range buckets reserved for Saturday or Sunday.',
       imageUrl: '/promos/promo_range.jpg',
-      icon: <Flame size={16} color="#ffffff" />,
+      icon: <Flame size={14} color="#ffffff" />,
       linkTo: 'https://yourgolfbooking.com/venues/playgolf-northwick-park/booking/bays',
       btnText: 'Reserve Range Bay',
       expiresIn: 'Ends Sunday',
@@ -51,7 +51,7 @@ export function OffersSlider() {
       subtitle: 'PGA Coaching Perk',
       description: 'Get 30 mins complimentary swing data & trajectory analysis with any 1-hour PGA pro session.',
       imageUrl: '/promos/promo_trackman.jpg',
-      icon: <Award size={16} color="#ffffff" />,
+      icon: <Award size={14} color="#ffffff" />,
       linkTo: '/booking',
       btnText: 'Book PGA Session',
       expiresIn: '5 Slots Left',
@@ -67,7 +67,7 @@ export function OffersSlider() {
       subtitle: 'New Seasonal Gear',
       description: 'Use discount code PLAYGOLF20 on all new seasonal polos, hats, and footwear in store.',
       imageUrl: '/promos/promo_proshop.jpg',
-      icon: <ShoppingBag size={16} color="#ffffff" />,
+      icon: <ShoppingBag size={14} color="#ffffff" />,
       linkTo: '/rewards',
       btnText: 'Claim Discount',
       expiresIn: 'Valid This Week',
@@ -77,8 +77,9 @@ export function OffersSlider() {
   const handleScroll = () => {
     if (!sliderRef.current) return;
     const scrollLeft = sliderRef.current.scrollLeft;
-    const width = sliderRef.current.offsetWidth;
-    const index = Math.round(scrollLeft / (width * 0.85));
+    const firstCard = sliderRef.current.children[0] as HTMLElement | undefined;
+    const cardWidth = firstCard ? firstCard.offsetWidth + 14 : sliderRef.current.offsetWidth * 0.85;
+    const index = Math.round(scrollLeft / cardWidth);
     setActiveIndex(Math.min(offers.length - 1, Math.max(0, index)));
   };
 
@@ -87,7 +88,7 @@ export function OffersSlider() {
     const targetCard = sliderRef.current.children[index] as HTMLElement;
     if (targetCard) {
       sliderRef.current.scrollTo({
-        left: targetCard.offsetLeft - 20,
+        left: targetCard.offsetLeft - 16,
         behavior: 'smooth',
       });
       setActiveIndex(index);
@@ -95,17 +96,18 @@ export function OffersSlider() {
   };
 
   return (
-    <div style={{ marginTop: '24px', marginBottom: '16px' }}>
+    <div style={{ marginTop: '20px', marginBottom: '12px' }}>
       {/* Section Header */}
       <div
         style={{
-          padding: '0 20px 14px 20px',
+          padding: '0 16px 12px 16px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: '8px',
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
             <span
               style={{
@@ -115,11 +117,12 @@ export function OffersSlider() {
                 background: '#10b981',
                 boxShadow: '0 0 8px #10b981',
                 display: 'inline-block',
+                flexShrink: 0,
               }}
             />
             <span
               style={{
-                fontSize: '0.68rem',
+                fontSize: '0.66rem',
                 fontWeight: 800,
                 letterSpacing: '0.08em',
                 color: 'var(--brand-green)',
@@ -131,12 +134,10 @@ export function OffersSlider() {
           </div>
           <h3
             style={{
-              fontSize: '1.1rem',
+              fontSize: '1.05rem',
               fontWeight: 800,
               color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
+              margin: 0,
             }}
           >
             Featured Club Promotions
@@ -144,7 +145,7 @@ export function OffersSlider() {
         </div>
 
         {/* Carousel Prev / Next Controls */}
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
           <button
             onClick={() => scrollToOffer(Math.max(0, activeIndex - 1))}
             disabled={activeIndex === 0}
@@ -164,7 +165,7 @@ export function OffersSlider() {
               transition: 'all 0.2s ease',
             }}
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={17} />
           </button>
           <button
             onClick={() => scrollToOffer(Math.min(offers.length - 1, activeIndex + 1))}
@@ -185,7 +186,7 @@ export function OffersSlider() {
               transition: 'all 0.2s ease',
             }}
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={17} />
           </button>
         </div>
       </div>
@@ -194,33 +195,34 @@ export function OffersSlider() {
       <div
         ref={sliderRef}
         onScroll={handleScroll}
+        className="hide-scrollbar"
         style={{
           display: 'flex',
-          gap: '16px',
+          gap: '14px',
           overflowX: 'auto',
-          padding: '4px 20px 16px 20px',
+          padding: '4px 16px 14px 16px',
           scrollSnapType: 'x mandatory',
           WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'none',
         }}
       >
         {offers.map((offer) => (
           <div
             key={offer.id}
             style={{
-              flex: '0 0 320px',
+              flex: '0 0 calc(100% - 28px)',
+              maxWidth: '336px',
+              minWidth: '266px',
               scrollSnapAlign: 'start',
               position: 'relative',
-              borderRadius: '24px',
+              borderRadius: '22px',
               overflow: 'hidden',
-              boxShadow: '0 16px 36px -10px rgba(15, 23, 42, 0.25)',
+              boxShadow: '0 12px 28px -8px rgba(15, 23, 42, 0.22)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              minHeight: '260px',
+              minHeight: '248px',
               background: '#0f172a',
               border: '1px solid rgba(255, 255, 255, 0.15)',
-              transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease',
             }}
           >
             {/* Background Hero Image */}
@@ -232,7 +234,6 @@ export function OffersSlider() {
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 filter: 'brightness(0.9) contrast(1.05)',
-                transition: 'transform 0.5s ease',
               }}
             />
 
@@ -241,7 +242,7 @@ export function OffersSlider() {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.65) 45%, rgba(15, 23, 42, 0.95) 100%)',
+                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.68) 45%, rgba(15, 23, 42, 0.96) 100%)',
               }}
             />
 
@@ -250,30 +251,32 @@ export function OffersSlider() {
               style={{
                 position: 'relative',
                 zIndex: 2,
-                padding: '16px 18px',
+                padding: '14px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                gap: '8px',
               }}
             >
               {/* Badge Pill */}
               <div
                 style={{
                   background: offer.badgeGradient,
-                  padding: '6px 12px',
+                  padding: '5px 10px',
                   borderRadius: '9999px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '5px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {offer.icon}
                 <span
                   style={{
-                    fontSize: '0.65rem',
+                    fontSize: '0.62rem',
                     fontWeight: 800,
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.05em',
                     color: '#ffffff',
                     textTransform: 'uppercase',
                   }}
@@ -289,14 +292,15 @@ export function OffersSlider() {
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '4px 10px',
+                  padding: '4px 9px',
                   borderRadius: '9999px',
-                  fontSize: '0.65rem',
+                  fontSize: '0.62rem',
                   fontWeight: 700,
                   color: '#f8fafc',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <Clock size={11} style={{ color: '#60a5fa' }} />
@@ -309,8 +313,8 @@ export function OffersSlider() {
               style={{
                 position: 'relative',
                 zIndex: 2,
-                padding: '16px 18px 18px 18px',
-                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.85) 40%, rgba(15, 23, 42, 0.98) 100%)',
+                padding: '14px 16px 16px 16px',
+                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.85) 35%, rgba(15, 23, 42, 0.98) 100%)',
               }}
             >
               {/* Chip Tag */}
@@ -320,12 +324,12 @@ export function OffersSlider() {
                   background: offer.chipBg,
                   color: offer.chipColor,
                   border: `1px solid ${offer.chipColor}40`,
-                  padding: '3px 9px',
+                  padding: '3px 8px',
                   borderRadius: '6px',
-                  fontSize: '0.68rem',
+                  fontSize: '0.65rem',
                   fontWeight: 800,
                   letterSpacing: '0.04em',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                 }}
               >
                 {offer.chipTag}
@@ -333,7 +337,7 @@ export function OffersSlider() {
 
               <h4
                 style={{
-                  fontSize: '1.15rem',
+                  fontSize: '1.08rem',
                   fontWeight: 800,
                   color: '#ffffff',
                   marginBottom: '4px',
@@ -346,10 +350,10 @@ export function OffersSlider() {
 
               <p
                 style={{
-                  fontSize: '0.78rem',
+                  fontSize: '0.76rem',
                   color: '#cbd5e1',
                   lineHeight: 1.45,
-                  marginBottom: '16px',
+                  marginBottom: '14px',
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
@@ -372,14 +376,13 @@ export function OffersSlider() {
                     gap: '8px',
                     background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
                     color: '#ffffff',
-                    padding: '11px 18px',
-                    borderRadius: '14px',
+                    padding: '11px 16px',
+                    borderRadius: '12px',
                     fontSize: '0.82rem',
                     fontWeight: 800,
                     textDecoration: 'none',
                     boxShadow: '0 4px 14px rgba(4, 120, 87, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                     width: '100%',
-                    transition: 'all 0.2s ease',
                     border: '1px solid rgba(255,255,255,0.2)',
                   }}
                 >
@@ -395,14 +398,13 @@ export function OffersSlider() {
                     gap: '8px',
                     background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
                     color: '#ffffff',
-                    padding: '11px 18px',
-                    borderRadius: '14px',
+                    padding: '11px 16px',
+                    borderRadius: '12px',
                     fontSize: '0.82rem',
                     fontWeight: 800,
                     textDecoration: 'none',
                     boxShadow: '0 4px 14px rgba(4, 120, 87, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                     width: '100%',
-                    transition: 'all 0.2s ease',
                     border: '1px solid rgba(255,255,255,0.2)',
                   }}
                 >
@@ -415,7 +417,7 @@ export function OffersSlider() {
       </div>
 
       {/* Slider Carousel Indicator Dots */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
         {offers.map((_, idx) => (
           <button
             key={idx}
@@ -425,8 +427,8 @@ export function OffersSlider() {
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              width: activeIndex === idx ? '24px' : '8px',
-              height: '8px',
+              width: activeIndex === idx ? '22px' : '7px',
+              height: '7px',
               borderRadius: '4px',
               background: activeIndex === idx ? 'linear-gradient(90deg, #047857, #10b981)' : '#cbd5e1',
               transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -437,4 +439,3 @@ export function OffersSlider() {
     </div>
   );
 }
-

@@ -2,6 +2,7 @@
 
 /* ==========================================================================
    PlayGolf Modern Professional Light Theme & Executive Metallic Card
+   Mobile-First Responsive Stylesheet
    ========================================================================== */
 
 :root {
@@ -53,34 +54,67 @@
 
 html, body {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-main);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
 
-/* App Viewport Container */
+/* Utility to hide scrollbars on horizontal carousels & filter chips */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* App Viewport Container (Mobile-First 480px Shell) */
 .app-viewport {
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
-  box-shadow: 0 0 40px rgba(15, 23, 42, 0.08);
-  border-left: 1px solid var(--border-color);
-  border-right: 1px solid var(--border-color);
+  background-color: #f8fafc;
   position: relative;
-  padding-bottom: 75px; /* Bottom Nav Offset */
+  overflow-x: hidden;
+}
+
+.app-viewport.has-bottom-nav {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-viewport.is-admin {
+  background-color: #090d16;
+  color: #f8fafc;
+}
+
+@media (min-width: 481px) {
+  .app-viewport {
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.08);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+  }
+  .app-viewport.is-admin {
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 45px rgba(0, 0, 0, 0.35);
+  }
 }
 
 @media (min-width: 768px) {
@@ -93,6 +127,7 @@ html, body {
 h1, h2, h3, h4, .font-heading {
   font-family: var(--font-heading);
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 /* Header Navbar */
@@ -100,14 +135,15 @@ h1, h2, h3, h4, .font-heading {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border-color);
-  padding: 14px 20px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .brand-logo {
@@ -116,7 +152,7 @@ h1, h2, h3, h4, .font-heading {
   gap: 10px;
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   color: var(--brand-green);
   text-decoration: none;
 }
@@ -131,9 +167,10 @@ h1, h2, h3, h4, .font-heading {
   border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
-/* Bottom Navigation Bar (PWA Light Style) */
+/* Bottom Navigation Bar (Mobile Ergonomic + Safe Area) */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -141,7 +178,8 @@ h1, h2, h3, h4, .font-heading {
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  height: 68px;
+  min-height: 64px;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -150,281 +188,531 @@ h1, h2, h3, h4, .font-heading {
   align-items: center;
   justify-content: space-around;
   z-index: 50;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) 8px;
+  box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.04);
+}
+
+.bottom-nav.bottom-nav-admin {
+  background: rgba(9, 13, 22, 0.96);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
 }
 
 .nav-item {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   color: var(--slate-grey);
   text-decoration: none;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   transition: all 0.2s ease;
-  width: 20%;
+  border-radius: 12px;
+  padding: 4px 2px;
+  position: relative;
+}
+
+.nav-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .nav-item.active {
   color: var(--brand-green);
 }
 
+.bottom-nav-admin .nav-item {
+  color: #64748b;
+}
+
+.bottom-nav-admin .nav-item.active {
+  color: #10b981;
+}
+
 .nav-item.active svg {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   filter: drop-shadow(0 2px 6px rgba(4, 120, 87, 0.25));
 }
 
+.bottom-nav-admin .nav-item.active svg {
+  filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.35));
+}
+
 /* ==========================================================================
-   Executive Gradient Metallic Digital Membership Card
+   Executive 3D Metallic Digital Membership Card (Green / Silver / Gold / Platinum)
    ========================================================================== */
 
 .membership-card-container {
-  perspective: 1200px;
-  margin: 16px 20px;
+  perspective: 1050px;
+  -webkit-perspective: 1050px;
+  margin: 14px 16px 20px 16px;
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
+  padding: 6px 0;
 }
 
 .membership-card {
+  --rx: 4deg;
+  --ry: -5deg;
+  --shadow-x: 8px;
+  --shadow-y: 24px;
+
   width: 100%;
-  height: 226px;
+  height: 242px;
   border-radius: 22px;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
-  box-shadow: 0 16px 38px -8px rgba(15, 23, 42, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  -webkit-transform-style: preserve-3d;
+  transform: rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, box-shadow;
 }
 
-.membership-card:hover {
-  transform: translateY(-4px) rotateX(4deg) rotateY(-4deg);
-  box-shadow: 0 24px 48px -10px rgba(15, 23, 42, 0.55), inset 0 1.5px 2px rgba(255, 255, 255, 0.6);
+/* Tier-Specific Deep 3D Drop Shadows */
+.membership-card.card-tier-green {
+  box-shadow:
+    var(--shadow-x) var(--shadow-y) 38px -10px rgba(6, 15, 28, 0.65),
+    0 10px 24px -6px rgba(4, 120, 87, 0.32);
+}
+
+.membership-card.card-tier-silver {
+  box-shadow:
+    var(--shadow-x) var(--shadow-y) 38px -10px rgba(15, 23, 42, 0.65),
+    0 10px 24px -6px rgba(71, 85, 105, 0.38);
+}
+
+.membership-card.card-tier-gold {
+  box-shadow:
+    var(--shadow-x) var(--shadow-y) 40px -10px rgba(41, 19, 3, 0.68),
+    0 10px 24px -6px rgba(180, 83, 9, 0.38);
+}
+
+.membership-card.card-tier-platinum {
+  box-shadow:
+    var(--shadow-x) var(--shadow-y) 42px -8px rgba(2, 6, 23, 0.78),
+    0 10px 26px -6px rgba(13, 148, 136, 0.35);
+}
+
+.membership-card.is-interacting {
+  transition:
+    transform 0.12s ease-out,
+    box-shadow 0.15s ease-out;
 }
 
 .membership-card.is-flipped {
-  transform: rotateY(180deg);
+  transform: rotateY(calc(180deg + var(--ry))) rotateX(calc(var(--rx) * -1)) translateZ(0);
 }
 
-.membership-card.is-flipped:hover {
-  transform: rotateY(180deg) translateY(-4px);
+/* 3D Physical Card Edge Extrusion Layer (Creates tangible 3D slab thickness) */
+.card-edge-3d {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  transform: translateZ(-5px);
+  -webkit-transform: translateZ(-5px);
+  pointer-events: none;
 }
 
-/* Card Faces */
+.card-tier-green .card-edge-3d {
+  background: linear-gradient(135deg, #10b981 0%, #064e3b 50%, #022c22 100%);
+  box-shadow: 0 2px 0 rgba(110, 231, 183, 0.35), 0 5px 14px rgba(0, 0, 0, 0.7);
+}
+
+.card-tier-silver .card-edge-3d {
+  background: linear-gradient(135deg, #f1f5f9 0%, #64748b 50%, #1e293b 100%);
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.45), 0 5px 14px rgba(15, 23, 42, 0.7);
+}
+
+.card-tier-gold .card-edge-3d {
+  background: linear-gradient(135deg, #fde047 0%, #92400e 50%, #451a03 100%);
+  box-shadow: 0 2px 0 rgba(254, 240, 138, 0.45), 0 5px 14px rgba(41, 19, 3, 0.75);
+}
+
+.card-tier-platinum .card-edge-3d {
+  background: linear-gradient(135deg, #5eead4 0%, #1e293b 50%, #020617 100%);
+  box-shadow: 0 2px 0 rgba(94, 234, 212, 0.4), 0 5px 14px rgba(0, 0, 0, 0.85);
+}
+
+/* Card Faces (Preserve 3D so inner elements float in Z-space) */
 .card-face {
   position: absolute;
   inset: 0;
   border-radius: 22px;
-  padding: 20px 22px;
+  padding: 18px 20px;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  overflow: hidden;
 }
 
 .card-front {
   z-index: 2;
+  transform: rotateY(0deg) translateZ(2px);
+  -webkit-transform: rotateY(0deg) translateZ(2px);
 }
 
 .card-back {
-  transform: rotateY(180deg);
+  transform: rotateY(180deg) translateZ(2px);
+  -webkit-transform: rotateY(180deg) translateZ(2px);
   z-index: 1;
-  background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
   align-items: center;
   justify-content: space-between;
+  padding: 14px 18px 12px 18px;
 }
 
-/* Metallic Gradient Finishes (Dynamic Multi-stop Depth) */
-.card-tier-silver {
-  background: linear-gradient(135deg, #091428 0%, #152744 32%, #0b3c33 68%, #047857 100%);
-  border: 1.5px solid rgba(110, 231, 183, 0.35);
-}
-
-.card-tier-gold {
-  background: linear-gradient(135deg, #1f0d03 0%, #3e1e07 28%, #854d0e 60%, #d97706 85%, #f59e0b 100%);
-  border: 1.5px solid rgba(253, 224, 71, 0.45);
-}
-
-.card-tier-platinum {
-  background: linear-gradient(135deg, #04060c 0%, #0f172a 30%, #1e1b4b 58%, #064e3b 82%, #10b981 100%);
-  border: 1.5px solid rgba(167, 243, 208, 0.45);
-}
-
-/* Specular Light Flare & Metallic Sheen Layer */
-.card-light-specular {
+/* Clipped Surface Finishes Container (Rich Anodized Metal without plastic glare) */
+.card-surface-effects {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 55%);
+  inset: 0;
+  border-radius: 22px;
+  overflow: hidden;
   pointer-events: none;
-  z-index: 1;
+  transform: translateZ(0px);
+  -webkit-transform: translateZ(0px);
+  z-index: 0;
 }
 
-.card-shine {
+/* 1. GREEN CARD (<= 500 PTS — Classic Emerald Club) */
+.card-tier-green .card-front .card-surface-effects {
+  background: linear-gradient(135deg, #07131e 0%, #0b2434 28%, #073b2f 64%, #046c4e 88%, #059669 100%);
+}
+
+/* 2. SILVER CARD (> 500 PTS — Brushed Gunmetal & Sterling Silver) */
+.card-tier-silver .card-front .card-surface-effects {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 28%, #334155 58%, #475569 84%, #64748b 100%);
+}
+
+/* 3. GOLD CARD (>= 1000 PTS — Deep Bronze & 24K Sovereign Gold) */
+.card-tier-gold .card-front .card-surface-effects {
+  background: linear-gradient(135deg, #180c04 0%, #361b07 28%, #713f12 58%, #b45309 82%, #d97706 100%);
+}
+
+/* 4. PLATINUM CARD (>= 5000 PTS — Obsidian Carbon & Midnight Teal) */
+.card-tier-platinum .card-front .card-surface-effects {
+  background: linear-gradient(135deg, #030712 0%, #0f172a 32%, #1e1b4b 62%, #064e3b 86%, #0d9488 100%);
+}
+
+.card-back .card-surface-effects {
+  background: linear-gradient(145deg, #050811 0%, #0f172a 55%, #091e1a 100%);
+}
+
+/* Golf Course Topographic Fairway Contour Lines */
+.card-topo-pattern {
   position: absolute;
-  top: -60%;
-  left: -60%;
-  width: 220%;
-  height: 220%;
-  background: linear-gradient(
-    115deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.05) 45%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.05) 55%,
-    transparent 65%
-  );
-  pointer-events: none;
-  z-index: 1;
-  animation: metallicSheen 8s infinite ease-in-out;
+  inset: -20%;
+  background-image:
+    repeating-radial-gradient(
+      circle at 85% 25%,
+      transparent 0,
+      transparent 18px,
+      rgba(255, 255, 255, 0.03) 19px,
+      transparent 20px
+    ),
+    repeating-radial-gradient(
+      circle at 15% 85%,
+      transparent 0,
+      transparent 24px,
+      rgba(255, 255, 255, 0.025) 25px,
+      transparent 26px
+    );
+  opacity: 0.85;
 }
 
-@keyframes metallicSheen {
-  0% { transform: translate(-30%, -30%) rotate(0deg); }
-  50% { transform: translate(15%, 15%) rotate(5deg); }
-  100% { transform: translate(-30%, -30%) rotate(0deg); }
-}
-
-/* Guilloche Mesh Fine Pattern Overlay */
+/* Fine Micro-Dot Mesh */
 .card-mesh-pattern {
   position: absolute;
   inset: 0;
-  background-image: 
-    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0),
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 16px 16px, 24px 24px;
-  pointer-events: none;
-  opacity: 0.8;
-  z-index: 1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 0);
+  background-size: 15px 15px;
+  opacity: 0.5;
 }
 
-/* Card Header Components */
+/* Etched Tier Watermark Crest on Right Side */
+.card-watermark-crest {
+  position: absolute;
+  right: -10px;
+  bottom: 10px;
+  width: 146px;
+  height: 146px;
+  color: rgba(255, 255, 255, 0.075);
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+.card-tier-silver .card-watermark-crest {
+  color: rgba(226, 232, 240, 0.11);
+}
+
+.card-tier-gold .card-watermark-crest {
+  color: rgba(254, 240, 138, 0.11);
+}
+
+.card-tier-platinum .card-watermark-crest {
+  color: rgba(94, 234, 212, 0.11);
+}
+
+/* Clean Metallic Edge Rim */
+.card-rim-bevel {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  border: 1.5px solid rgba(110, 231, 183, 0.35);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.35),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.card-tier-silver .card-rim-bevel {
+  border-color: rgba(226, 232, 240, 0.45);
+}
+
+.card-tier-gold .card-rim-bevel {
+  border-color: rgba(253, 224, 71, 0.48);
+}
+
+.card-tier-platinum .card-rim-bevel {
+  border-color: rgba(94, 234, 212, 0.45);
+}
+
+/* ==========================================================================
+   3D Elevated Front Content Layers (True Parallax Z-Translation)
+   ========================================================================== */
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   position: relative;
   z-index: 3;
+  transform: translateZ(22px);
+  -webkit-transform: translateZ(22px);
 }
 
 .card-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  min-width: 0;
 }
 
-.brand-emblem {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  display: flex;
+.card-logo-badge {
+  background: #ffffff;
+  padding: 4px 10px;
+  border-radius: 10px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px #ffffff;
 }
 
-.emblem-sparkle {
-  color: #ffffff;
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-title {
-  font-size: 0.95rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: #ffffff;
-  line-height: 1;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-}
-
-.brand-subtitle {
-  font-size: 0.52rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 2px;
+.card-brand-logo {
+  height: 28px;
+  width: auto;
+  max-width: 115px;
+  object-fit: contain;
+  display: block;
 }
 
 .tier-pill-wrapper {
   position: relative;
+  flex-shrink: 0;
 }
 
 .tier-pill {
-  padding: 5px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
   border-radius: var(--radius-full);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.38);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
-/* Card Chip & RFID Waves Row */
+.card-tier-silver .tier-pill {
+  border-color: rgba(226, 232, 240, 0.6);
+  color: #f8fafc;
+}
+
+.card-tier-gold .tier-pill {
+  border-color: rgba(253, 224, 71, 0.65);
+  color: #fef9c3;
+}
+
+.card-tier-platinum .tier-pill {
+  border-color: rgba(94, 234, 212, 0.6);
+  color: #ccfbf1;
+}
+
+.tier-pill-icon {
+  color: #34d399;
+}
+
+.card-tier-silver .tier-pill-icon {
+  color: #e2e8f0;
+}
+
+.card-tier-gold .tier-pill-icon {
+  color: #fde047;
+}
+
+.card-tier-platinum .tier-pill-icon {
+  color: #5eead4;
+}
+
+/* Sculpted 3D EMV Smart Chip & RFID Waves Row */
 .card-chip-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 4px;
+  justify-content: space-between;
+  margin-top: 2px;
   position: relative;
   z-index: 3;
+  transform: translateZ(32px);
+  -webkit-transform: translateZ(32px);
+}
+
+.card-chip-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
 
 .card-chip {
-  width: 42px;
-  height: 30px;
-  background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
-  border-radius: 6px;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  width: 44px;
+  height: 31px;
+  background: linear-gradient(135deg, #fef9c3 0%, #facc15 35%, #ca8a04 72%, #fde047 100%);
+  border-radius: 7px;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(113, 63, 18, 0.7);
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(254, 240, 138, 0.85);
 }
 
-.card-chip .chip-line.horizontal {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.35);
+/* Silver Card gets a Brushed Sterling Silver Chip */
+.card-tier-silver .card-chip {
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 40%, #94a3b8 75%, #f1f5f9 100%);
+  border-color: #ffffff;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px #ffffff;
 }
 
-.card-chip .chip-line.vertical {
+.card-tier-silver .chip-pad,
+.card-tier-silver .chip-core {
+  border-color: rgba(51, 65, 85, 0.42);
+}
+
+.card-tier-silver .chip-core {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.75), rgba(148, 163, 184, 0.45));
+}
+
+.chip-pad {
   position: absolute;
-  left: 45%;
+  border: 1px solid rgba(113, 63, 18, 0.42);
+}
+
+.chip-pad-tl {
   top: 0;
+  left: 0;
+  width: 36%;
+  height: 46%;
+  border-top: none;
+  border-left: none;
+}
+
+.chip-pad-tr {
+  top: 0;
+  right: 0;
+  width: 36%;
+  height: 46%;
+  border-top: none;
+  border-right: none;
+}
+
+.chip-pad-bl {
   bottom: 0;
-  width: 1px;
-  background: rgba(0, 0, 0, 0.35);
+  left: 0;
+  width: 36%;
+  height: 46%;
+  border-bottom: none;
+  border-left: none;
+}
+
+.chip-pad-br {
+  bottom: 0;
+  right: 0;
+  width: 36%;
+  height: 46%;
+  border-bottom: none;
+  border-right: none;
+}
+
+.chip-core {
+  position: absolute;
+  top: 24%;
+  left: 28%;
+  width: 44%;
+  height: 52%;
+  border-radius: 3px;
+  border: 1px solid rgba(113, 63, 18, 0.5);
+  background: linear-gradient(145deg, rgba(254, 249, 195, 0.65), rgba(202, 138, 4, 0.35));
 }
 
 .rfid-waves {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   transform: rotate(90deg);
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
 }
 
-/* Member ID & Name Details */
+.card-flip-pill {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Floating 3D Embossed Member ID & Holder Name Details */
 .card-details {
   position: relative;
   z-index: 3;
+  min-width: 0;
+  transform: translateZ(28px);
+  -webkit-transform: translateZ(28px);
 }
 
 .card-member-id-container {
@@ -435,48 +723,67 @@ h1, h2, h3, h4, .font-heading {
 
 .card-member-id {
   font-family: 'Share Tech Mono', 'Courier New', monospace;
-  font-size: 1.18rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
   color: #ffffff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7), 0 -1px 1px rgba(255, 255, 255, 0.25);
+  text-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.85),
+    0 6px 12px rgba(0, 0, 0, 0.45),
+    0 -1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .copy-id-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.32);
   color: #ffffff;
-  border-radius: 6px;
-  padding: 4px;
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
 }
 
-.copy-id-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
+.copy-id-btn:active {
+  transform: scale(0.92);
+}
+
+.card-holder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .card-holder-name {
   font-size: 0.9rem;
-  font-weight: 700;
-  color: #ffffff;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.96);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-top: 2px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.1em;
+  text-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.78),
+    0 -1px 0 rgba(255, 255, 255, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Card Footer */
+/* Card Footer (Floating 3D Elements — No Laminated Box) */
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 8px;
   position: relative;
   z-index: 3;
+  transform: translateZ(30px);
+  -webkit-transform: translateZ(30px);
 }
 
 .points-badge {
@@ -485,111 +792,209 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .points-label {
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.56rem;
+  color: rgba(255, 255, 255, 0.82);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.points-award-icon {
+  color: #6ee7b7;
+}
+
+.card-tier-silver .points-award-icon {
+  color: #e2e8f0;
+}
+
+.card-tier-gold .points-award-icon {
+  color: #fde047;
+}
+
+.card-tier-platinum .points-award-icon {
+  color: #5eead4;
 }
 
 .points-val {
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.26rem;
+  font-weight: 900;
   color: #ffffff;
   line-height: 1.1;
   letter-spacing: -0.01em;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.75);
 }
 
 .points-unit {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #6ee7b7;
   font-weight: 800;
 }
 
+.card-tier-silver .points-unit {
+  color: #cbd5e1;
+}
+
+.card-tier-gold .points-unit {
+  color: #fde047;
+}
+
+.card-tier-platinum .points-unit {
+  color: #5eead4;
+}
+
 .card-scan-btn {
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #ffffff;
-  padding: 7px 15px;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  border: 1px solid #ffffff;
+  color: #064e3b;
+  padding: 9px 15px;
   border-radius: var(--radius-full);
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 800;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  transition: all 0.25 ease;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.42),
+    inset 0 1px 1px #ffffff;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-tier-silver .card-scan-btn {
+  color: #0f172a;
+}
+
+.card-tier-gold .card-scan-btn {
+  color: #78350f;
+}
+
+.card-tier-platinum .card-scan-btn {
+  color: #0f766e;
 }
 
 .card-scan-btn:hover {
-  background: rgba(255, 255, 255, 0.35);
-  transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5);
 }
 
-/* Back of Card Styling */
+.card-scan-btn:active {
+  transform: scale(0.96);
+}
+
+/* Back of Card Styling (3D Elevated) */
+.card-magnetic-stripe {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: linear-gradient(90deg, #020617 0%, #1e293b 50%, #020617 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  opacity: 0.65;
+}
+
 .card-back-header {
+  position: relative;
+  z-index: 3;
+  transform: translateZ(20px);
+  -webkit-transform: translateZ(20px);
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.66rem;
+  font-weight: 800;
   color: #ffffff;
-  letter-spacing: 0.05em;
-  margin-top: 4px;
+  letter-spacing: 0.08em;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.back-shield-icon {
+  color: #34d399;
+}
+
+.card-back-id-tag {
+  font-family: monospace;
+  color: #6ee7b7;
+  font-weight: 700;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .qr-container {
+  position: relative;
+  z-index: 3;
+  transform: translateZ(28px);
+  -webkit-transform: translateZ(28px);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 6px 0;
+  margin: 2px 0;
 }
 
 .qr-frame {
   background: #ffffff;
-  padding: 10px;
+  padding: 8px;
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.55),
+    0 0 0 3px rgba(52, 211, 153, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-back-footer {
+  position: relative;
+  z-index: 3;
+  transform: translateZ(20px);
+  -webkit-transform: translateZ(20px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 2px;
 }
 
 .instructions {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #ffffff;
   font-weight: 700;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .flip-hint {
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.64rem;
+  color: rgba(209, 250, 229, 0.78);
   display: flex;
   align-items: center;
   gap: 4px;
+  font-weight: 600;
 }
+
 
 
 /* Professional Buttons */
 .btn-primary {
   width: 100%;
-  padding: 14px 20px;
+  min-height: 46px;
+  padding: 12px 18px;
   background: linear-gradient(135deg, var(--brand-green), var(--brand-green-light));
   color: #ffffff;
   border: none;
   border-radius: var(--radius-md);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
+  font-family: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -599,21 +1004,21 @@ h1, h2, h3, h4, .font-heading {
   transition: all 0.2s ease;
 }
 
-.btn-primary:hover {
-  opacity: 0.96;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(4, 120, 87, 0.32);
+.btn-primary:active {
+  transform: scale(0.99);
 }
 
 .btn-secondary {
   width: 100%;
-  padding: 12px 18px;
+  min-height: 44px;
+  padding: 11px 16px;
   background: #ffffff;
   color: var(--slate-dark);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -623,9 +1028,9 @@ h1, h2, h3, h4, .font-heading {
   transition: all 0.2s ease;
 }
 
-.btn-secondary:hover {
+.btn-secondary:active {
   background: var(--bg-subtle);
-  border-color: var(--border-hover);
+  transform: scale(0.99);
 }
 
 .btn-gold {
@@ -634,7 +1039,7 @@ h1, h2, h3, h4, .font-heading {
   box-shadow: 0 4px 14px rgba(217, 119, 6, 0.25);
 }
 
-/* Modern Form Controls */
+/* Modern Form Controls - 16px font size prevents iOS Safari auto-zoom on focus */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -643,19 +1048,20 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .form-label {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--slate-dark);
 }
 
 .form-input {
   width: 100%;
-  padding: 14px 16px;
+  min-height: 48px;
+  padding: 12px 14px;
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -666,29 +1072,68 @@ h1, h2, h3, h4, .font-heading {
   box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.12);
 }
 
-/* Modals */
+/* Modals (Mobile Safe & Scrollable) */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(15, 23, 42, 0.5);
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 16px;
   animation: fadeIn 0.2s ease;
 }
 
 .modal-content {
   background: #ffffff;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 24px;
+  border-radius: 22px;
+  padding: 22px 20px;
   width: 100%;
   max-width: 420px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow-lg);
   position: relative;
+}
+
+/* HTML5-QRCode Scanner Mobile Dark Styling */
+[id^="qr-reader"] {
+  border: none !important;
+}
+[id^="qr-reader"] video {
+  border-radius: 12px !important;
+  object-fit: cover !important;
+}
+[id^="qr-reader"] button {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 10px 16px !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  cursor: pointer !important;
+  margin: 6px 4px !important;
+}
+[id^="qr-reader"] select {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  margin: 6px 0 !important;
+  max-width: 100% !important;
+}
+[id^="qr-reader"] a {
+  color: #94a3b8 !important;
+  font-size: 0.75rem !important;
+  text-decoration: underline !important;
 }
 
 /* Animations */

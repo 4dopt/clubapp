@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  CheckCircle2, 
-  Target, 
-  Flag, 
-  Sparkles, 
-  CircleDot, 
+import {
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Target,
+  Flag,
+  Sparkles,
+  CircleDot,
   Award,
   ExternalLink,
   ShieldCheck,
   QrCode,
   Clock,
   Ticket,
-  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../auth';
-import { 
-  BookingItem, 
-  getStoredBookings, 
-  createBooking 
+import {
+  BookingItem,
+  getStoredBookings,
+  createBooking,
 } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
 
@@ -40,8 +39,8 @@ export function Booking() {
     {
       id: 'driving-range',
       name: 'Driving Range',
-      subtitle: 'TopTracer & Trackman Simulator Bays',
-      icon: <Target size={24} />,
+      subtitle: 'TrackMan Range Bays',
+      icon: <Target size={22} />,
       accentColor: '#047857',
       bgGradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
       externalUrl: 'https://yourgolfbooking.com/venues/playgolf-northwick-park/booking/bays',
@@ -50,16 +49,16 @@ export function Booking() {
     {
       id: 'nine-holes',
       name: '9 Holes Course',
-      subtitle: 'Championship Executive Golf Round',
-      icon: <Flag size={24} />,
+      subtitle: 'Championship Executive Round',
+      icon: <Flag size={22} />,
       accentColor: '#0284c7',
       bgGradient: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
     },
     {
       id: 'putt-crazy',
-      name: 'Putt Crazy Adventure Minigolf',
-      subtitle: '18-Hole Neon Adventure Crazy Golf',
-      icon: <Sparkles size={24} />,
+      name: 'Putt Crazy Minigolf',
+      subtitle: '18-Hole Adventure Crazy Golf',
+      icon: <Sparkles size={22} />,
       accentColor: '#d97706',
       bgGradient: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
     },
@@ -67,7 +66,7 @@ export function Booking() {
       id: 'darts-interactive',
       name: 'Darts Interactive',
       subtitle: 'Smart AR Digital Target Darts',
-      icon: <CircleDot size={24} />,
+      icon: <CircleDot size={22} />,
       accentColor: '#7c3aed',
       bgGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
     },
@@ -123,18 +122,24 @@ export function Booking() {
     reloadUserBookings();
   };
 
-  const handleOptionClick = (opt: ActivityOption) => {
-    setSelectedId(opt.id);
-  };
-
   return (
-    <div style={{ padding: '20px 20px 32px 20px', maxWidth: '540px', margin: '0 auto' }}>
+    <div style={{ padding: '16px 16px 28px 16px', width: '100%' }}>
       {/* Header */}
-      <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <CalendarIcon style={{ color: 'var(--brand-green)' }} size={24} /> Club Reservations
+      <div style={{ marginBottom: '14px' }}>
+        <h2
+          style={{
+            fontSize: '1.35rem',
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            lineHeight: 1.2,
+          }}
+        >
+          <CalendarIcon style={{ color: 'var(--brand-green)', flexShrink: 0 }} size={22} /> Club Reservations
         </h2>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
           Book activities & view digital check-in passes for reception
         </p>
       </div>
@@ -145,9 +150,10 @@ export function Booking() {
           display: 'flex',
           background: 'var(--bg-subtle)',
           padding: '4px',
-          borderRadius: '16px',
+          borderRadius: '14px',
           border: '1px solid var(--border-color)',
-          marginBottom: '20px',
+          marginBottom: '18px',
+          gap: '4px',
         }}
       >
         <button
@@ -158,16 +164,18 @@ export function Booking() {
           }}
           style={{
             flex: 1,
-            padding: '10px 14px',
-            borderRadius: '12px',
+            minHeight: '40px',
+            padding: '8px 10px',
+            borderRadius: '10px',
             border: 'none',
             background: activeTab === 'book' ? '#ffffff' : 'transparent',
             color: activeTab === 'book' ? 'var(--brand-green)' : 'var(--slate-grey)',
             fontWeight: 800,
-            fontSize: '0.85rem',
+            fontSize: '0.82rem',
             cursor: 'pointer',
             boxShadow: activeTab === 'book' ? 'var(--shadow-sm)' : 'none',
             transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
           }}
         >
           Book Activity
@@ -181,13 +189,14 @@ export function Booking() {
           }}
           style={{
             flex: 1,
-            padding: '10px 14px',
-            borderRadius: '12px',
+            minHeight: '40px',
+            padding: '8px 10px',
+            borderRadius: '10px',
             border: 'none',
             background: activeTab === 'my-bookings' ? '#ffffff' : 'transparent',
             color: activeTab === 'my-bookings' ? 'var(--brand-green)' : 'var(--slate-grey)',
             fontWeight: 800,
-            fontSize: '0.85rem',
+            fontSize: '0.82rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -195,17 +204,18 @@ export function Booking() {
             gap: '6px',
             boxShadow: activeTab === 'my-bookings' ? 'var(--shadow-sm)' : 'none',
             transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
           }}
         >
-          <Ticket size={16} /> My Bookings
+          <Ticket size={15} /> My Bookings
           {userBookings.length > 0 && (
             <span
               style={{
                 background: 'var(--brand-green)',
                 color: '#ffffff',
-                fontSize: '0.7rem',
+                fontSize: '0.68rem',
                 fontWeight: 800,
-                padding: '2px 7px',
+                padding: '1px 6px',
                 borderRadius: '9999px',
               }}
             >
@@ -233,7 +243,7 @@ export function Booking() {
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
                 No Bookings Yet
               </h3>
-              <p style={{ fontSize: '0.82rem', color: 'var(--slate-grey)', marginBottom: '16px' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--slate-grey)', marginBottom: '16px', lineHeight: 1.45 }}>
                 You don't have any active reservations. Select "Book Activity" to reserve a round or game!
               </p>
               <button
@@ -251,38 +261,41 @@ export function Booking() {
                 style={{
                   background: '#ffffff',
                   border: bk.status === 'confirmed' ? '1px solid var(--brand-green-light)' : '1px solid var(--border-color)',
-                  borderRadius: '20px',
-                  padding: '20px',
+                  borderRadius: '18px',
+                  padding: '16px',
                   boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                  <div style={{ minWidth: 0 }}>
                     <span
                       style={{
                         fontFamily: 'monospace',
-                        fontSize: '0.75rem',
+                        fontSize: '0.72rem',
                         fontWeight: 800,
                         color: 'var(--brand-green)',
                         background: 'var(--brand-green-subtle)',
                         padding: '3px 8px',
                         borderRadius: '6px',
+                        display: 'inline-block',
                       }}
                     >
                       {bk.booking_code}
                     </span>
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px', marginBottom: '2px' }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px', marginBottom: '2px', lineHeight: 1.25 }}>
                       {bk.activity_name}
                     </h3>
                   </div>
 
                   <span
                     style={{
-                      fontSize: '0.72rem',
+                      fontSize: '0.68rem',
                       fontWeight: 800,
                       padding: '3px 10px',
                       borderRadius: 'var(--radius-full)',
                       textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       background:
                         bk.status === 'confirmed'
                           ? 'var(--brand-green-subtle)'
@@ -301,32 +314,34 @@ export function Booking() {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '14px', fontSize: '0.82rem', color: 'var(--slate-grey)', fontWeight: 600, marginBottom: '16px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.8rem', color: 'var(--slate-grey)', fontWeight: 600, marginBottom: bk.notes ? '8px' : '14px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <CalendarIcon size={14} /> {bk.date}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--brand-green)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--brand-green)', fontWeight: 700 }}>
                     <Clock size={14} /> {bk.time}
                   </span>
                 </div>
+
+                {bk.notes && (
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', background: 'var(--bg-subtle)', padding: '8px 10px', borderRadius: '8px', marginBottom: '14px' }}>
+                    Note: {bk.notes}
+                  </div>
+                )}
 
                 {/* Show at Reception Button */}
                 <button
                   onClick={() => setSelectedPassBooking(bk)}
                   className="btn-primary"
                   style={{
-                    height: '46px',
-                    fontSize: '0.88rem',
+                    height: '44px',
+                    fontSize: '0.85rem',
                     fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
                     background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                     borderRadius: '12px',
                   }}
                 >
-                  <QrCode size={18} /> Show Pass at Reception
+                  <QrCode size={17} /> Show Pass at Reception
                 </button>
               </div>
             ))
@@ -334,99 +349,99 @@ export function Booking() {
         </div>
       ) : lastCreatedBooking ? (
         /* CONFIRMATION SCREEN FOR NEWLY CREATED BOOKING */
-        <div 
-          style={{ 
-            background: '#ffffff', 
-            border: '1px solid var(--border-color)', 
-            borderRadius: '20px', 
-            padding: '28px 20px', 
-            textAlign: 'center', 
-            boxShadow: '0 10px 30px rgba(0,0,0,0.06)' 
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid var(--border-color)',
+            borderRadius: '20px',
+            padding: '24px 18px',
+            textAlign: 'center',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
           }}
         >
-          <div 
-            style={{ 
-              width: '64px', 
-              height: '64px', 
-              borderRadius: '50%', 
-              background: 'linear-gradient(135deg, #d1fae5, #a7f3d0)', 
-              color: '#047857', 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              marginBottom: '16px',
-              boxShadow: '0 4px 12px rgba(4, 120, 87, 0.2)'
+          <div
+            style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #d1fae5, #a7f3d0)',
+              color: '#047857',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '14px',
+              boxShadow: '0 4px 12px rgba(4, 120, 87, 0.2)',
             }}
           >
-            <CheckCircle2 size={36} />
+            <CheckCircle2 size={32} />
           </div>
 
-          <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+          <h3 style={{ fontSize: '1.22rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
             {lastCreatedBooking.activity_name} Reserved!
           </h3>
           <div style={{ fontSize: '0.82rem', color: 'var(--slate-grey)', marginBottom: '16px', fontWeight: 600 }}>
             Booking Pass Ref: <span style={{ fontFamily: 'monospace', color: 'var(--brand-green)', fontWeight: 800 }}>{lastCreatedBooking.booking_code}</span>
           </div>
 
-          <div 
-            style={{ 
-              background: activeOption.bgGradient, 
-              border: `1px solid ${activeOption.accentColor}33`, 
-              borderRadius: '16px', 
-              padding: '18px', 
+          <div
+            style={{
+              background: activeOption.bgGradient,
+              border: `1px solid ${activeOption.accentColor}33`,
+              borderRadius: '16px',
+              padding: '16px',
               textAlign: 'left',
-              marginBottom: '20px' 
+              marginBottom: '16px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ color: activeOption.accentColor }}>{activeOption.icon}</div>
-              <div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              <div style={{ color: activeOption.accentColor, flexShrink: 0 }}>{activeOption.icon}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {lastCreatedBooking.activity_name}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '2px' }}>
                   {lastCreatedBooking.date} at {lastCreatedBooking.time}
                 </div>
               </div>
             </div>
           </div>
 
-          <div 
-            style={{ 
-              background: '#ecfdf5', 
-              border: '1px solid #a7f3d0', 
-              padding: '12px', 
-              borderRadius: '12px', 
-              color: '#047857', 
-              fontSize: '0.8rem', 
-              fontWeight: 700, 
+          <div
+            style={{
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              padding: '11px 12px',
+              borderRadius: '12px',
+              color: '#047857',
+              fontSize: '0.78rem',
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              marginBottom: '20px' 
+              marginBottom: '18px',
             }}
           >
-            <Award size={16} /> +100 Loyalty Points earned on reception check-in!
+            <Award size={16} style={{ flexShrink: 0 }} /> +100 Loyalty Points earned on reception check-in!
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <button 
-              onClick={() => setSelectedPassBooking(lastCreatedBooking)} 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              onClick={() => setSelectedPassBooking(lastCreatedBooking)}
               className="btn-primary"
-              style={{ height: '48px', fontSize: '0.85rem' }}
+              style={{ height: '48px', fontSize: '0.88rem' }}
             >
-              <QrCode size={16} /> Show Reception Pass
+              <QrCode size={17} /> Show Reception Pass
             </button>
-            <button 
+            <button
               onClick={() => {
                 setLastCreatedBooking(null);
                 setActiveTab('my-bookings');
-              }} 
+              }}
               className="btn-secondary"
-              style={{ height: '48px', fontSize: '0.85rem' }}
+              style={{ height: '44px', fontSize: '0.85rem' }}
             >
-              View My Bookings
+              View All My Bookings
             </button>
           </div>
         </div>
@@ -434,68 +449,87 @@ export function Booking() {
         /* BOOKING FORM SCREEN */
         <div>
           {/* THE 4 OPTIONS GRID */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '22px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
             {options.map((opt) => {
               const isSelected = opt.id === selectedId;
               return (
                 <div
                   key={opt.id}
-                  onClick={() => handleOptionClick(opt)}
+                  onClick={() => setSelectedId(opt.id)}
                   style={{
                     background: isSelected ? opt.bgGradient : '#ffffff',
                     border: isSelected ? `2px solid ${opt.accentColor}` : '1px solid var(--border-color)',
                     borderRadius: '18px',
-                    padding: '16px',
+                    padding: '14px',
                     cursor: 'pointer',
-                    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: isSelected ? `0 8px 24px -4px ${opt.accentColor}35` : '0 2px 8px rgba(0,0,0,0.04)',
-                    position: 'relative',
-                    overflow: 'hidden',
+                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    boxShadow: isSelected ? `0 8px 20px -4px ${opt.accentColor}30` : 'var(--shadow-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: '140px',
                   }}
                 >
-                  {opt.isExternal && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px', marginBottom: '10px' }}>
                     <div
                       style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        background: 'rgba(4, 120, 87, 0.12)',
-                        color: 'var(--brand-green)',
-                        fontSize: '0.62rem',
-                        fontWeight: 800,
-                        padding: '2px 7px',
-                        borderRadius: '9999px',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        background: isSelected ? '#ffffff' : 'var(--bg-subtle)',
+                        color: opt.accentColor,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '3px',
+                        justifyContent: 'center',
+                        boxShadow: isSelected ? '0 3px 10px rgba(0,0,0,0.07)' : 'none',
+                        flexShrink: 0,
                       }}
                     >
-                      <ExternalLink size={10} /> Partner
+                      {opt.icon}
                     </div>
-                  )}
 
-                  <div 
-                    style={{ 
-                      width: '44px', 
-                      height: '44px', 
-                      borderRadius: '14px', 
-                      background: isSelected ? '#ffffff' : 'var(--bg-subtle)', 
-                      color: opt.accentColor, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      marginBottom: '12px',
-                      boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.08)' : 'none'
-                    }}
-                  >
-                    {opt.icon}
+                    {opt.isExternal ? (
+                      <span
+                        style={{
+                          background: 'rgba(4, 120, 87, 0.12)',
+                          color: 'var(--brand-green)',
+                          fontSize: '0.6rem',
+                          fontWeight: 800,
+                          padding: '3px 7px',
+                          borderRadius: '9999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <ExternalLink size={9} /> Partner
+                      </span>
+                    ) : isSelected ? (
+                      <span
+                        style={{
+                          background: opt.accentColor,
+                          color: '#ffffff',
+                          fontSize: '0.58rem',
+                          fontWeight: 800,
+                          padding: '2px 7px',
+                          borderRadius: '9999px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        Selected
+                      </span>
+                    ) : null}
                   </div>
 
-                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: '1.25' }}>
-                    {opt.name}
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: '1.3' }}>
-                    {opt.subtitle}
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: '1.22' }}>
+                      {opt.name}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '3px', lineHeight: '1.3' }}>
+                      {opt.subtitle}
+                    </div>
                   </div>
                 </div>
               );
@@ -504,58 +538,58 @@ export function Booking() {
 
           {/* Conditional Details Box: External Portal for Driving Range vs In-App Form for others */}
           {activeOption.isExternal ? (
-            <div 
-              style={{ 
-                background: '#ffffff', 
-                border: '1px solid var(--border-color)', 
-                borderRadius: '20px', 
-                padding: '24px 20px', 
-                boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-                textAlign: 'center'
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-color)',
+                borderRadius: '20px',
+                padding: '22px 18px',
+                boxShadow: 'var(--shadow-sm)',
+                textAlign: 'center',
               }}
             >
-              <div 
-                style={{ 
-                  width: '56px', 
-                  height: '56px', 
-                  borderRadius: '16px', 
-                  background: 'var(--brand-green-subtle)', 
-                  color: 'var(--brand-green)', 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  marginBottom: '14px',
-                  boxShadow: 'var(--shadow-sm)'
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '15px',
+                  background: 'var(--brand-green-subtle)',
+                  color: 'var(--brand-green)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '12px',
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                <Target size={28} />
+                <Target size={26} />
               </div>
 
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
                 Driving Range Bay Reservations
               </h3>
 
-              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '20px' }}>
-                All driving range bays (TopTracer & TrackMan) at PlayGolf Northwick Park are booked directly via our official YourGolfBooking partner portal for live bay availability.
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '16px' }}>
+                All TrackMan driving range bays at PlayGolf Northwick Park are booked directly via our official YourGolfBooking partner portal for live bay availability.
               </p>
 
-              <div 
-                style={{ 
-                  background: 'var(--bg-subtle)', 
-                  border: '1px solid var(--border-color)', 
-                  padding: '12px 14px', 
-                  borderRadius: '12px', 
-                  fontSize: '0.78rem', 
-                  color: 'var(--slate-dark)', 
-                  fontWeight: 600, 
+              <div
+                style={{
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-color)',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  fontSize: '0.76rem',
+                  color: 'var(--slate-dark)',
+                  fontWeight: 600,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  marginBottom: '20px' 
+                  marginBottom: '18px',
                 }}
               >
-                <ShieldCheck size={16} style={{ color: 'var(--brand-green)' }} /> Official Partner: YourGolfBooking
+                <ShieldCheck size={15} style={{ color: 'var(--brand-green)', flexShrink: 0 }} /> Official Partner: YourGolfBooking
               </div>
 
               <a
@@ -564,33 +598,27 @@ export function Booking() {
                 rel="noopener noreferrer"
                 className="btn-primary"
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  height: '50px',
+                  height: '48px',
                   textDecoration: 'none',
-                  fontSize: '0.95rem',
+                  fontSize: '0.9rem',
                   fontWeight: 800,
                   background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                   borderRadius: '14px',
-                  boxShadow: '0 4px 14px rgba(4, 120, 87, 0.3)',
-                  width: '100%',
                 }}
               >
-                Book Bay on YourGolfBooking <ExternalLink size={18} />
+                Book Bay on YourGolfBooking <ExternalLink size={17} />
               </a>
             </div>
           ) : (
             <form onSubmit={handleBookSubmit}>
               {/* In-App Booking Details Box */}
-              <div 
-                style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '20px', 
-                  padding: '20px', 
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.04)' 
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '20px',
+                  padding: '18px 16px',
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
                 <div className="form-group">
@@ -608,43 +636,58 @@ export function Booking() {
                 <div className="form-group">
                   <label className="form-label">Select Time Slot</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                    {timeSlots.map((t) => (
-                      <button
-                        type="button"
-                        key={t}
-                        onClick={() => setSelectedTime(t)}
-                        style={{
-                          padding: '10px 4px',
-                          borderRadius: '12px',
-                          border: selectedTime === t ? `2px solid ${activeOption.accentColor}` : '1px solid var(--border-color)',
-                          background: selectedTime === t ? `${activeOption.accentColor}15` : '#ffffff',
-                          color: selectedTime === t ? activeOption.accentColor : 'var(--text-secondary)',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                    {timeSlots.map((t) => {
+                      const active = selectedTime === t;
+                      return (
+                        <button
+                          type="button"
+                          key={t}
+                          onClick={() => setSelectedTime(t)}
+                          style={{
+                            minHeight: '42px',
+                            padding: '8px 4px',
+                            borderRadius: '11px',
+                            border: active ? `2px solid ${activeOption.accentColor}` : '1px solid var(--border-color)',
+                            background: active ? `${activeOption.accentColor}15` : '#ffffff',
+                            color: active ? activeOption.accentColor : 'var(--text-secondary)',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
+                {/* Optional Notes Input */}
+                <div className="form-group" style={{ marginBottom: '18px' }}>
+                  <label className="form-label">Notes / Players (Optional)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. 2 players, club hire needed"
+                    value={bookingNotes}
+                    onChange={(e) => setBookingNotes(e.target.value)}
+                  />
+                </div>
+
                 {/* Submit Button */}
-                <button 
-                  type="submit" 
-                  className="btn-primary" 
-                  style={{ 
-                    marginTop: '16px', 
-                    height: '50px',
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{
+                    height: '48px',
                     background: `linear-gradient(135deg, ${activeOption.accentColor}, ${activeOption.accentColor}dd)`,
                     borderRadius: '14px',
-                    fontSize: '0.98rem',
-                    fontWeight: 800
+                    fontSize: '0.94rem',
+                    fontWeight: 800,
                   }}
                 >
-                  Book {activeOption.name}
+                  Confirm {activeOption.name} Booking
                 </button>
               </div>
             </form>

@@ -23,7 +23,25 @@ function ProtectedRoute({ children, roleRequired }: { children: React.ReactNode;
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--slate-grey)' }}>Loading PlayGolf...</div>;
+    return (
+      <div
+        style={{
+          padding: '64px 20px',
+          textAlign: 'center',
+          color: 'var(--slate-grey)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          gap: '10px',
+          fontSize: '0.88rem',
+          fontWeight: 600,
+        }}
+      >
+        Loading PlayGolf...
+      </div>
+    );
   }
 
   if (!user) {
@@ -41,13 +59,21 @@ function AppRoutes() {
   const { user } = useAuth();
   const [splashFinished, setSplashFinished] = useState(false);
 
+  const viewportClasses = [
+    'app-viewport',
+    user ? 'has-bottom-nav' : '',
+    user?.role === 'admin' ? 'is-admin' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="app-viewport">
+    <div className={viewportClasses}>
       {!splashFinished && <SplashScreen onFinish={() => setSplashFinished(true)} />}
 
       <Header />
 
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
         <Routes>
           <Route path="/login" element={<Login />} />
 
