@@ -4,6 +4,10 @@ import {
   adjustMemberPointsInSupabase,
   fetchCurrentUserFromSupabase,
   fetchRewardsFromSupabase,
+  saveRewardToSupabase,
+  deleteRewardFromSupabase,
+  fetchAllRedemptionsFromSupabase,
+  fulfillRedemptionByIdInSupabase,
   redeemRewardInSupabase,
   fetchTransactionsFromSupabase,
   fetchAllMembersFromSupabase,
@@ -158,7 +162,7 @@ const DEFAULT_REWARDS: Reward[] = [
     min_tier: 'All',
     featured: true,
     stock_limit: null,
-    redeemed_count: 48,
+    redeemed_count: 0,
     retail_value: '£14.00',
     validity_days: 30,
     terms: 'Valid any day at Northwick Park Driving Range. Present QR pass at reception.',
@@ -176,7 +180,7 @@ const DEFAULT_REWARDS: Reward[] = [
     min_tier: 'Silver',
     featured: false,
     stock_limit: 100,
-    redeemed_count: 31,
+    redeemed_count: 0,
     retail_value: 'Up to £35',
     validity_days: 14,
     terms: 'Applies to full-price apparel and footwear. Cannot be combined with clearance items.',
@@ -193,7 +197,7 @@ const DEFAULT_REWARDS: Reward[] = [
     min_tier: 'Gold',
     featured: true,
     stock_limit: 25,
-    redeemed_count: 14,
+    redeemed_count: 0,
     retail_value: '£65.00',
     validity_days: 60,
     terms: 'Advance booking required with Pro Shop reception.',
@@ -210,7 +214,7 @@ const DEFAULT_REWARDS: Reward[] = [
     min_tier: 'All',
     featured: false,
     stock_limit: null,
-    redeemed_count: 64,
+    redeemed_count: 0,
     retail_value: '£7.50',
     validity_days: 14,
     terms: 'Redeemable daily before 2:00 PM at the Clubhouse Bar & Kitchen.',
@@ -228,67 +232,10 @@ const DEFAULT_REWARDS: Reward[] = [
     min_tier: 'All',
     featured: true,
     stock_limit: 50,
-    redeemed_count: 22,
+    redeemed_count: 0,
     retail_value: '£12.00',
     validity_days: 30,
     terms: 'Valid Monday–Sunday. Lowest priced ticket is complimentary.',
-  },
-];
-
-const DEFAULT_REDEMPTIONS: RewardRedemption[] = [
-  {
-    id: 'red_demo_1',
-    user_id: 'usr_member_1',
-    user_name: 'Alex Morgan',
-    user_member_id: 'PG-2445B5',
-    reward_id: 'rew_1',
-    reward_title: 'Complimentary Bucket of 100 Range Balls',
-    points_cost: 150,
-    redemption_type: 'qr',
-    qr_code_token: 'QR_REDEEM_8821A',
-    fulfilled: false,
-    created_at: new Date(Date.now() - 3600000 * 1.5).toISOString(),
-  },
-  {
-    id: 'red_demo_2',
-    user_id: 'usr_member_2',
-    user_name: 'Sarah Connor',
-    user_member_id: 'PG-9812A4',
-    reward_id: 'rew_4',
-    reward_title: 'Complimentary Clubhouse Coffee & Pastry',
-    points_cost: 120,
-    redemption_type: 'qr',
-    qr_code_token: 'QR_REDEEM_4490B',
-    fulfilled: true,
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    fulfilled_at: new Date(Date.now() - 3600000 * 4.5).toISOString(),
-  },
-  {
-    id: 'red_demo_3',
-    user_id: 'usr_member_3',
-    user_name: 'James Wilson',
-    user_member_id: 'PG-7731C9',
-    reward_id: 'rew_2',
-    reward_title: '20% Off Pro Shop Apparel & Gear',
-    points_cost: 300,
-    redemption_type: 'discount',
-    discount_code: 'PLAYGOLF20',
-    fulfilled: true,
-    created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
-    fulfilled_at: new Date(Date.now() - 3600000 * 18).toISOString(),
-  },
-  {
-    id: 'red_demo_4',
-    user_id: 'usr_member_4',
-    user_name: 'Elena Rostova',
-    user_member_id: 'PG-5120D2',
-    reward_id: 'rew_3',
-    reward_title: '1-Hour PGA Pro Coaching & TrackMan Session',
-    points_cost: 600,
-    redemption_type: 'qr',
-    qr_code_token: 'QR_REDEEM_9102P',
-    fulfilled: false,
-    created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
   },
 ];
 
@@ -318,103 +265,44 @@ export function getStoredRedemptions(): RewardRedemption[] {
   try {
     const raw = localStorage.getItem(REDEMPTIONS_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(REDEMPTIONS_STORAGE_KEY, JSON.stringify(DEFAULT_REDEMPTIONS));
-      return DEFAULT_REDEMPTIONS;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_REDEMPTIONS;
+    if (!Array.isArray(parsed)) return [];
+    const realOnly = parsed.filter((r: any) => !String(r?.id || '').startsWith('red_demo_'));
+    if (realOnly.length !== parsed.length) {
+      localStorage.setItem(REDEMPTIONS_STORAGE_KEY, JSON.stringify(realOnly));
+    }
+    return realOnly;
   } catch {
-    return DEFAULT_REDEMPTIONS;
+    return [];
   }
 }
 
 export function saveStoredRedemptions(redemptions: RewardRedemption[]): void {
   try {
-    localStorage.setItem(REDEMPTIONS_STORAGE_KEY, JSON.stringify(redemptions));
+    const realOnly = redemptions.filter((r) => !String(r?.id || '').startsWith('red_demo_'));
+    localStorage.setItem(REDEMPTIONS_STORAGE_KEY, JSON.stringify(realOnly));
   } catch {
     /* ignore */
   }
 }
 
-const MOCK_REWARDS: Reward[] = DEFAULT_REWARDS;
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'txn_1',
-    user_id: 'usr_member_1',
-    type: 'earn',
-    title: 'Range Visit Check-in',
-    points: 100,
-    category: 'Visit',
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'txn_2',
-    user_id: 'usr_member_1',
-    type: 'earn',
-    title: 'Weekend Championship Round',
-    points: 150,
-    category: 'Round',
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
+const MOCK_TRANSACTIONS: Transaction[] = [];
 
 const MOCK_ADMIN_STATS: AdminStats = {
-  points_issued_today: 4500,
-  visits_today: 32,
-  redemptions_today: 8,
-  total_members: 142,
-  tiers: { Silver: 95, Gold: 35, Platinum: 12 },
-  week_earn_total: 24500,
-  week_redeem_total: 6200,
-  points_outstanding: 184250,
-  retention_rate: 84,
-  avg_visits_per_member: 4.8,
-  daily_trends: [
-    { day: 'Mon', date: 'Oct 12', visits: 24, points_earned: 2900, points_redeemed: 600, bookings: 14 },
-    { day: 'Tue', date: 'Oct 13', visits: 28, points_earned: 3200, points_redeemed: 750, bookings: 18 },
-    { day: 'Wed', date: 'Oct 14', visits: 35, points_earned: 4100, points_redeemed: 1100, bookings: 22 },
-    { day: 'Thu', date: 'Oct 15', visits: 31, points_earned: 3600, points_redeemed: 900, bookings: 19 },
-    { day: 'Fri', date: 'Oct 16', visits: 44, points_earned: 5200, points_redeemed: 1450, bookings: 29 },
-    { day: 'Sat', date: 'Oct 17', visits: 32, points_earned: 4500, points_redeemed: 1200, bookings: 26 },
-    { day: 'Sun', date: 'Oct 18', visits: 48, points_earned: 5500, points_redeemed: 1600, bookings: 34 },
-  ],
-  hourly_traffic: [
-    { hour: '08:00', load: 35, visits: 4 },
-    { hour: '10:00', load: 62, visits: 7 },
-    { hour: '12:00', load: 55, visits: 6 },
-    { hour: '14:00', load: 78, visits: 9 },
-    { hour: '16:00', load: 88, visits: 11 },
-    { hour: '18:00', load: 96, visits: 14 },
-    { hour: '20:00', load: 70, visits: 8 },
-  ],
-  top_members: [
-    { id: 'usr_admin_jay', name: 'Jay (Admin)', member_id: 'PG-000001', tier: 'Platinum', points: 12500, points_ytd: 14200, visits_count: 42, last_visit: 'Today' },
-    { id: 'usr_m_elena', name: 'Elena Rostova', member_id: 'PG-5120D2', tier: 'Platinum', points: 6450, points_ytd: 8900, visits_count: 29, last_visit: 'Today' },
-    { id: 'usr_m_james', name: 'James Wilson', member_id: 'PG-7731C9', tier: 'Gold', points: 3120, points_ytd: 4500, visits_count: 19, last_visit: 'Yesterday' },
-    { id: 'usr_m_sarah', name: 'Sarah Connor', member_id: 'PG-9812A4', tier: 'Gold', points: 1850, points_ytd: 2400, visits_count: 14, last_visit: 'Today' },
-    { id: 'usr_member_1', name: 'Alex Morgan', member_id: 'PG-2445B5', tier: 'Silver', points: 450, points_ytd: 750, visits_count: 6, last_visit: 'Today' },
-  ],
-  recent: [
-    {
-      id: 'rec_1',
-      type: 'earn',
-      title: 'Range Visit Check-in',
-      points: 100,
-      member_name: 'Alex Morgan',
-      member_id: 'PG-2445B5',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'rec_2',
-      type: 'redeem',
-      title: 'Range Ball Bucket',
-      points: 150,
-      member_name: 'Sam Taylor',
-      member_id: 'PG-109283',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ],
+  points_issued_today: 0,
+  visits_today: 0,
+  redemptions_today: 0,
+  total_members: 0,
+  tiers: { Silver: 0, Gold: 0, Platinum: 0 },
+  week_earn_total: 0,
+  week_redeem_total: 0,
+  points_outstanding: 0,
+  daily_trends: [],
+  hourly_traffic: [],
+  top_members: [],
+  recent: [],
 };
 
 function getMockFallback<T>(path: string, options: RequestInit): T {
@@ -769,13 +657,7 @@ export const adminApi = {
   async stats(adminToken: string) {
     const sbStats = await fetchAdminStatsFromSupabase();
     if (sbStats) {
-      return {
-        ...MOCK_ADMIN_STATS,
-        ...sbStats,
-        daily_trends: sbStats.daily_trends || MOCK_ADMIN_STATS.daily_trends,
-        hourly_traffic: sbStats.hourly_traffic || MOCK_ADMIN_STATS.hourly_traffic,
-        top_members: sbStats.top_members && sbStats.top_members.length > 0 ? sbStats.top_members : MOCK_ADMIN_STATS.top_members,
-      };
+      return sbStats;
     }
     return request<AdminStats>('/api/admin/stats', {
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -865,10 +747,9 @@ export const adminApi = {
     if (sbRewards && sbRewards.length > 0) {
       const localMap = new Map(localRewards.map((r) => [r.id, r]));
       const merged = sbRewards.map((r) => ({ ...localMap.get(r.id), ...r }));
-      // Include any locally created rewards not yet in Supabase
       const sbIds = new Set(sbRewards.map((r) => r.id));
       for (const lr of localRewards) {
-        if (!sbIds.has(lr.id)) merged.push(lr);
+        if (!sbIds.has(lr.id) && !lr.id.startsWith('rew_')) merged.push(lr);
       }
       saveStoredRewards(merged);
       return merged;
@@ -880,14 +761,16 @@ export const adminApi = {
   },
 
   async createReward(_adminToken: string, reward: Omit<Reward, 'id'>) {
-    const newReward: Reward = {
+    const tempReward: Reward = {
       ...reward,
       id: 'rew_' + Date.now(),
       redeemed_count: reward.redeemed_count ?? 0,
     };
+    const savedRemote = await saveRewardToSupabase(tempReward);
+    const finalReward = savedRemote || tempReward;
     const current = getStoredRewards();
-    saveStoredRewards([newReward, ...current]);
-    return newReward;
+    saveStoredRewards([finalReward, ...current]);
+    return finalReward;
   },
 
   async updateReward(_adminToken: string, rewardId: string, updates: Partial<Reward>) {
@@ -900,11 +783,15 @@ export const adminApi = {
       }
       return r;
     });
+    if (updatedItem) {
+      await saveRewardToSupabase(updatedItem);
+    }
     saveStoredRewards(updatedList);
     return updatedItem || ({ id: rewardId, ...updates } as Reward);
   },
 
   async deleteReward(_adminToken: string, rewardId: string) {
+    await deleteRewardFromSupabase(rewardId);
     const current = getStoredRewards();
     const updatedList = current.filter((r) => r.id !== rewardId);
     saveStoredRewards(updatedList);
@@ -912,10 +799,48 @@ export const adminApi = {
   },
 
   async listRedemptions(_adminToken: string) {
-    return getStoredRedemptions();
+    const localList = getStoredRedemptions();
+    const remoteList = await fetchAllRedemptionsFromSupabase();
+    if (remoteList && remoteList.length > 0) {
+      const byId = new Map<string, RewardRedemption>();
+      for (const loc of localList) {
+        byId.set(loc.id, loc);
+      }
+      for (const rem of remoteList) {
+        const existing = byId.get(rem.id);
+        byId.set(rem.id, {
+          ...existing,
+          ...rem,
+          fulfilled: Boolean(existing?.fulfilled || rem.fulfilled),
+        });
+      }
+      const merged = Array.from(byId.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      saveStoredRedemptions(merged);
+      return merged;
+    }
+    return localList;
   },
 
   async fulfillRewardQr(adminToken: string, qrToken: string) {
+    try {
+      const sbRes = await fulfillRewardQrInSupabase(qrToken);
+      if (sbRes) {
+        const localRedemptions = getStoredRedemptions();
+        saveStoredRedemptions(
+          localRedemptions.map((r) =>
+            r.id === sbRes.redemption.id || (r.qr_code_token || '').toUpperCase() === qrToken.trim().toUpperCase()
+              ? { ...r, fulfilled: true, fulfilled_at: new Date().toISOString() }
+              : r
+          )
+        );
+        return sbRes;
+      }
+    } catch (err: any) {
+      if (err.message?.includes('already been fulfilled')) throw err;
+    }
+
     const cleanToken = (qrToken || '').trim().toUpperCase();
     const localRedemptions = getStoredRedemptions();
     const localMatch = localRedemptions.find(
@@ -929,6 +854,7 @@ export const adminApi = {
       if (localMatch.fulfilled && localMatch.redemption_type === 'qr') {
         throw new Error('This reward QR pass has already been fulfilled and used.');
       }
+      await fulfillRedemptionByIdInSupabase(localMatch.id);
       const updatedMatch: RewardRedemption = {
         ...localMatch,
         fulfilled: true,
@@ -943,18 +869,12 @@ export const adminApi = {
         member: {
           ...MOCK_MEMBER_USER,
           id: localMatch.user_id,
-          name: localMatch.user_name || MOCK_MEMBER_USER.name,
-          member_id: localMatch.user_member_id || MOCK_MEMBER_USER.member_id,
+          name: localMatch.user_name || 'Club Member',
+          member_id: localMatch.user_member_id || 'PG-MEMBER',
         },
       };
     }
 
-    try {
-      const sbRes = await fulfillRewardQrInSupabase(qrToken);
-      if (sbRes) return sbRes;
-    } catch (err: any) {
-      if (err.message?.includes('already been fulfilled')) throw err;
-    }
     return request<{ message: string; redemption: RewardRedemption; member: User }>(
       '/api/admin/rewards/fulfill-qr',
       {
@@ -966,6 +886,7 @@ export const adminApi = {
   },
 
   async fulfillRedemption(adminToken: string, redemptionId: string) {
+    await fulfillRedemptionByIdInSupabase(redemptionId);
     const localRedemptions = getStoredRedemptions();
     let updatedItem: RewardRedemption | null = null;
     const updated = localRedemptions.map((r) => {

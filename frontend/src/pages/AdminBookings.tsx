@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Search,
@@ -23,20 +24,24 @@ import {
   LayoutGrid,
   CheckCircle2,
   ExternalLink,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, User as MemberUser } from '../api';
 import {
   BookingItem,
   getStoredBookings,
+  syncBookingsFromSupabase,
   createBooking,
   updateBookingStatus,
   updateBookingDetails,
+  parseBookingQrPayload,
   ACTIVITY_METADATA,
 } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
 
 const BAY_OPTIONS_BY_ACTIVITY: Record<string, string[]> = {
+  'driving-range': ['TrackMan Bay 7', 'TrackMan Bay 8', 'TrackMan Bay 12', 'VIP Covered Bay 1'],
   'nine-holes': ['Tee 1 (Championship)', 'Tee 1 (Executive)', 'Tee 10 (Back Nine)'],
   'putt-crazy': ['Adventure Course A', 'Adventure Course B', 'VIP Party Zone'],
   'darts-interactive': ['AR Darts Lane 1', 'AR Darts Lane 2', 'AR Darts Lane 3', 'AR Darts VIP Booth'],
@@ -48,14 +53,16 @@ const TIME_SLOTS = ['10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00
 
 export function AdminBookings() {
   const { token } = useAuth();
+  const navigate = useNavigate();
 
-  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [bookings, setBookings] = useState<BookingItem[]>(() => getStoredBookings());
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'completed' | 'cancelled' | 'no-show'>('all');
   const [dateScope, setDateScope] = useState<'all' | 'today' | 'tomorrow' | 'upcoming'>('all');
   const [activityFilter, setActivityFilter] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
   const [message, setMessage] = useState('');
+  const [activeServiceBooking, setActiveServiceBooking] = useState<BookingItem | null>(null);
 
   // Quick Booking Code Verification Bar
   const [quickVerifyCode, setQuickVerifyCode] = useState('');
@@ -77,12 +84,20 @@ export function AdminBookings() {
   const [editingBooking, setEditingBooking] = useState<BookingItem | null>(null);
   const [passModalBooking, setPassModalBooking] = useState<BookingItem | null>(null);
 
-  const reloadBookings = () => {
+  const reloadBookings = async () => {
     setBookings(getStoredBookings());
+    const synced = await syncBookingsFromSupabase();
+    setBookings(synced);
   };
 
   useEffect(() => {
     reloadBookings();
+    const handleStorageOrSync = () => {
+      setBookings(getStoredBookings());
+    };
+    window.addEventListener('playgolf-bookings-updated', handleStorageOrSync);
+    window.addEventListener('storage', handleStorageOrSync);
+
     if (token) {
       adminApi
         .listMembers(token)
@@ -92,6 +107,11 @@ export function AdminBookings() {
         })
         .catch(() => setMembers([]));
     }
+
+    return () => {
+      window.removeEventListener('playgolf-bookings-updated', handleStorageOrSync);
+      window.removeEventListener('storage', handleStorageOrSync);
+    };
   }, [token]);
 
   const handleActivityChange = (actId: string) => {
@@ -104,32 +124,38 @@ export function AdminBookings() {
   };
 
   const handleCheckin = async (booking: BookingItem) => {
-    const updated = updateBookingStatus(booking.id, 'completed');
-    if (updated) {
-      if (token && booking.user_id) {
-        try {
-          await adminApi.adjustPoints(
-            token,
-            booking.user_id,
-            100,
-            `Reception check-in: ${booking.activity_name} (${booking.booking_code})`
-          );
-        } catch {
-          /* ignore */
-        }
+    const updated = updateBookingStatus(booking.id, 'completed') || { ...booking, status: 'completed' as const };
+    if (token && booking.user_id) {
+      try {
+        await adminApi.adjustPoints(
+          token,
+          booking.user_id,
+          100,
+          `Reception check-in: ${booking.activity_name} (${booking.booking_code})`
+        );
+      } catch {
+        /* ignore */
       }
-      setMessage(
-        `✅ Checked in ${booking.user_name} for ${booking.activity_name} [${booking.bay_assignment || 'Main Bay'}]! +100 PTS credited.`
-      );
-      reloadBookings();
     }
+    setActiveServiceBooking(updated);
+    setMessage(
+      `✅ Checked in ${booking.user_name} for ${booking.activity_name} [${booking.bay_assignment || 'Main Bay'}]! +100 PTS credited.`
+    );
+    setBookings(getStoredBookings());
   };
 
   const handleQuickCodeCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = quickVerifyCode.trim().toUpperCase();
-    if (!clean) return;
-    const match = bookings.find(
+    const raw = quickVerifyCode.trim();
+    if (!raw) return;
+
+    const synced = await syncBookingsFromSupabase();
+    setBookings(synced);
+
+    const parsedQr = parseBookingQrPayload(raw);
+    const clean = (parsedQr?.booking_code || raw).trim().toUpperCase();
+
+    const match = synced.find(
       (b) =>
         b.booking_code.toUpperCase() === clean ||
         b.booking_code.toUpperCase().endsWith(clean) ||
@@ -140,7 +166,8 @@ export function AdminBookings() {
       return;
     }
     if (match.status === 'completed') {
-      setMessage(`ℹ️ Booking ${match.booking_code} (${match.user_name}) is already checked in.`);
+      setActiveServiceBooking(match);
+      setMessage(`ℹ️ Booking ${match.booking_code} (${match.user_name}) is already checked in. Showing guest service details below.`);
       setQuickVerifyCode('');
       return;
     }
@@ -152,7 +179,7 @@ export function AdminBookings() {
     const updated = updateBookingStatus(booking.id, 'cancelled');
     if (updated) {
       setMessage(`Booking ${booking.booking_code} (${booking.activity_name}) marked as cancelled.`);
-      reloadBookings();
+      setBookings(getStoredBookings());
     }
   };
 
@@ -160,14 +187,17 @@ export function AdminBookings() {
     const updated = updateBookingStatus(booking.id, 'no-show');
     if (updated) {
       setMessage(`⚠️ Booking ${booking.booking_code} marked as No-Show.`);
-      reloadBookings();
+      setBookings(getStoredBookings());
     }
   };
 
   const handleMarkPaid = (booking: BookingItem) => {
-    updateBookingDetails(booking.id, { payment_status: 'paid' });
+    const updated = updateBookingDetails(booking.id, { payment_status: 'paid' });
+    if (activeServiceBooking && activeServiceBooking.id === booking.id && updated) {
+      setActiveServiceBooking(updated);
+    }
     setMessage(`💳 Payment collected at reception for ${booking.booking_code} (${booking.price}).`);
-    reloadBookings();
+    setBookings(getStoredBookings());
   };
 
   const handleCreateManualBooking = (e: React.FormEvent) => {
@@ -201,7 +231,7 @@ export function AdminBookings() {
     setMessage(`✅ Created ${newBk.activity_name} booking (${newBk.booking_code}) for ${newBk.user_name}!`);
     setShowAddModal(false);
     setBookingNotes('');
-    reloadBookings();
+    setBookings(getStoredBookings());
   };
 
   const handleSaveEditBooking = (e: React.FormEvent) => {
@@ -218,7 +248,7 @@ export function AdminBookings() {
     });
     setMessage(`✅ Updated reservation details for ${editingBooking.booking_code}.`);
     setEditingBooking(null);
-    reloadBookings();
+    setBookings(getStoredBookings());
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -270,6 +300,8 @@ export function AdminBookings() {
   const getActivityIcon = (actId: string, size = 20) => {
     const color = ACTIVITY_METADATA[actId]?.color || '#10b981';
     switch (actId) {
+      case 'driving-range':
+        return <Target size={size} style={{ color }} />;
       case 'nine-holes':
         return <Flag size={size} style={{ color }} />;
       case 'putt-crazy':
@@ -286,51 +318,56 @@ export function AdminBookings() {
   };
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '16px 16px 32px 16px' }}>
+    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+      {/* Back Button */}
+      <button
+        onClick={() => navigate('/admin')}
+        style={{
+          background: 'rgba(255, 255, 255, 0.06)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          color: '#cbd5e1',
+          padding: '8px 14px',
+          borderRadius: '999px',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          cursor: 'pointer',
+          marginBottom: '16px',
+        }}
+      >
+        <ArrowLeft size={15} /> Back to Staff Home
+      </button>
+
       {/* Top Header Banner */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: '14px',
-          gap: '10px',
+          marginBottom: '20px',
+          gap: '12px',
+          flexWrap: 'wrap',
         }}
       >
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div
+          <h1
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.64rem',
-              fontWeight: 800,
-              color: '#38bdf8',
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.28)',
-              padding: '3px 9px',
-              borderRadius: '999px',
-              marginBottom: '6px',
-              letterSpacing: '0.05em',
-            }}
-          >
-            RECEPTION & TEE SHEET DESK
-          </div>
-          <h2
-            style={{
-              fontSize: '1.35rem',
+              fontSize: '1.5rem',
               fontWeight: 800,
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               lineHeight: 1.2,
+              marginBottom: '6px',
             }}
           >
-            <Calendar size={22} style={{ color: '#10b981', flexShrink: 0 }} /> Bookings Terminal
-          </h2>
-          <p style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px' }}>
-            Clear activity identification, bay assignments & instant check-in
+            <Calendar size={22} style={{ color: '#10b981', flexShrink: 0 }} /> Bookings & Schedule
+          </h1>
+          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
+            See who is playing today, check players in, or add a walk-in booking.
           </p>
         </div>
 
@@ -339,17 +376,17 @@ export function AdminBookings() {
           className="btn-primary"
           style={{
             width: 'auto',
-            minHeight: '40px',
-            padding: '8px 14px',
-            fontSize: '0.78rem',
-            borderRadius: 'var(--radius-full)',
+            minHeight: '44px',
+            padding: '10px 16px',
+            fontSize: '0.84rem',
+            borderRadius: '12px',
             background: 'linear-gradient(135deg, #10b981, #059669)',
             boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          <Plus size={15} /> Walk-In Booking
+          <Plus size={16} /> Add Walk-In Booking
         </button>
       </div>
 
@@ -359,10 +396,10 @@ export function AdminBookings() {
             background: 'rgba(16, 185, 129, 0.15)',
             border: '1px solid rgba(16, 185, 129, 0.35)',
             color: '#34d399',
-            padding: '11px 14px',
-            borderRadius: '12px',
-            fontSize: '0.82rem',
-            marginBottom: '14px',
+            padding: '12px 16px',
+            borderRadius: '14px',
+            fontSize: '0.85rem',
+            marginBottom: '18px',
             fontWeight: 700,
             display: 'flex',
             justifyContent: 'space-between',
@@ -374,71 +411,71 @@ export function AdminBookings() {
           <button
             type="button"
             onClick={() => setMessage('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800 }}
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Reception Desk KPI Summary Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '14px' }}>
+      {/* Spacious 2x2 Summary Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
         <div
           onClick={() => setDateScope(dateScope === 'today' ? 'all' : 'today')}
           style={{
-            background: dateScope === 'today' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(15, 23, 42, 0.88)',
+            background: dateScope === 'today' ? 'rgba(56, 189, 248, 0.16)' : '#111827',
             border: '1px solid rgba(56, 189, 248, 0.3)',
-            borderRadius: '13px',
-            padding: '10px 8px',
-            textAlign: 'center',
+            borderRadius: '16px',
+            padding: '16px',
             cursor: 'pointer',
           }}
         >
-          <div style={{ fontSize: '0.6rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800 }}>Today</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', marginTop: '2px' }}>{todayTotal}</div>
+          <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: 700 }}>Today's Bookings</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>{todayTotal}</div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Tap to filter today</div>
         </div>
 
         <div
           onClick={() => setStatusFilter(statusFilter === 'confirmed' ? 'all' : 'confirmed')}
           style={{
-            background: statusFilter === 'confirmed' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(15, 23, 42, 0.88)',
+            background: statusFilter === 'confirmed' ? 'rgba(16, 185, 129, 0.18)' : '#111827',
             border: '1px solid rgba(16, 185, 129, 0.3)',
-            borderRadius: '13px',
-            padding: '10px 8px',
-            textAlign: 'center',
+            borderRadius: '16px',
+            padding: '16px',
             cursor: 'pointer',
           }}
         >
-          <div style={{ fontSize: '0.6rem', color: '#34d399', textTransform: 'uppercase', fontWeight: 800 }}>Awaiting</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#10b981', marginTop: '2px' }}>{awaitingArrivalCount}</div>
+          <div style={{ fontSize: '0.76rem', color: '#34d399', fontWeight: 700 }}>Waiting to Arrive</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#10b981', marginTop: '4px' }}>{awaitingArrivalCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Not checked in yet</div>
         </div>
 
         <div
           onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
           style={{
-            background: statusFilter === 'completed' ? 'rgba(167, 139, 250, 0.18)' : 'rgba(15, 23, 42, 0.88)',
+            background: statusFilter === 'completed' ? 'rgba(167, 139, 250, 0.18)' : '#111827',
             border: '1px solid rgba(167, 139, 250, 0.3)',
-            borderRadius: '13px',
-            padding: '10px 8px',
-            textAlign: 'center',
+            borderRadius: '16px',
+            padding: '16px',
             cursor: 'pointer',
           }}
         >
-          <div style={{ fontSize: '0.6rem', color: '#a78bfa', textTransform: 'uppercase', fontWeight: 800 }}>Checked In</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#a78bfa', marginTop: '2px' }}>{completedCount}</div>
+          <div style={{ fontSize: '0.76rem', color: '#a78bfa', fontWeight: 700 }}>Already Checked In</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#a78bfa', marginTop: '4px' }}>{completedCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Completed sessions</div>
         </div>
 
         <div
           style={{
-            background: 'rgba(15, 23, 42, 0.88)',
+            background: '#111827',
             border: '1px solid rgba(251, 191, 36, 0.3)',
-            borderRadius: '13px',
-            padding: '10px 8px',
-            textAlign: 'center',
+            borderRadius: '16px',
+            padding: '16px',
           }}
         >
-          <div style={{ fontSize: '0.6rem', color: '#fbbf24', textTransform: 'uppercase', fontWeight: 800 }}>Pay @ Desk</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fbbf24', marginTop: '2px' }}>{payAtDeskCount}</div>
+          <div style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: 700 }}>Pay at Reception</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fbbf24', marginTop: '4px' }}>{payAtDeskCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Payment due on arrival</div>
         </div>
       </div>
 
@@ -491,6 +528,130 @@ export function AdminBookings() {
           Verify & Check-In
         </button>
       </form>
+
+      {/* Active Guest Reception Service Sheet */}
+      {activeServiceBooking && (
+        <div
+          style={{
+            background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.14), rgba(15, 23, 42, 0.96))',
+            border: '2px solid rgba(16, 185, 129, 0.5)',
+            borderRadius: '18px',
+            padding: '18px',
+            marginBottom: '18px',
+            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', fontWeight: 900, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                ✓ Reception Guest Service Sheet • {activeServiceBooking.booking_code}
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#ffffff', margin: '4px 0 0 0' }}>
+                {activeServiceBooking.activity_name}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveServiceBooking(null)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#cbd5e1',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              Close ✕
+            </button>
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: '12px',
+              padding: '12px 14px',
+              marginBottom: '12px',
+            }}
+          >
+            <div style={{ fontSize: '0.68rem', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
+              How to Serve This Guest
+            </div>
+            <div style={{ fontSize: '0.84rem', color: '#f8fafc', fontWeight: 600, lineHeight: 1.45 }}>
+              {ACTIVITY_METADATA[activeServiceBooking.activity_id]?.serviceInstructions ||
+                'Verify guest name, assign bay/lane, and provide required equipment at reception.'}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Guest & Member ID</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{activeServiceBooking.user_name}</div>
+              <div style={{ fontSize: '0.74rem', color: '#34d399', fontFamily: 'monospace', fontWeight: 700 }}>
+                {activeServiceBooking.user_member_id} ({activeServiceBooking.member_tier || 'Silver'})
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Assigned Bay / Spot</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
+                {activeServiceBooking.bay_assignment || 'Assign at Desk'}
+              </div>
+              <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 600 }}>
+                {activeServiceBooking.date} at {activeServiceBooking.time} ({activeServiceBooking.duration || '60 mins'})
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Party Size</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                {activeServiceBooking.party_size || 2} Players
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Payment & Total</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>
+                {activeServiceBooking.price || '£25.00'} •{' '}
+                <span style={{ color: activeServiceBooking.payment_status === 'pay_at_desk' ? '#fbbf24' : '#34d399' }}>
+                  {activeServiceBooking.payment_status === 'pay_at_desk' ? 'COLLECT AT DESK' : 'PAID'}
+                </span>
+              </div>
+              {activeServiceBooking.payment_status === 'pay_at_desk' && (
+                <button
+                  type="button"
+                  onClick={() => handleMarkPaid(activeServiceBooking)}
+                  style={{
+                    marginTop: '6px',
+                    background: '#f59e0b',
+                    color: '#090d16',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    fontSize: '0.7rem',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Mark Paid Now
+                </button>
+              )}
+            </div>
+          </div>
+
+          {activeServiceBooking.notes && (
+            <div style={{ marginTop: '10px', background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem', color: '#e2e8f0' }}>
+              <strong style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '0.68rem', marginRight: '6px' }}>
+                Extras & Notes:
+              </strong>
+              {activeServiceBooking.notes}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Date Horizon + View Mode Switcher */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>

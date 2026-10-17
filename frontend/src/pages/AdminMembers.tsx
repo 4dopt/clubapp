@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -11,6 +12,7 @@ import {
   ArrowUpDown,
   Download,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, User } from '../api';
@@ -19,6 +21,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 export function AdminMembers() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<User[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [query, setQuery] = useState('');
@@ -118,33 +121,36 @@ export function AdminMembers() {
   const totalPointsPool = members.reduce((acc, m) => acc + (m.points || 0), 0);
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '16px 16px 32px 16px' }}>
+    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+      {/* Back Button */}
+      <button
+        onClick={() => navigate('/admin')}
+        style={{
+          background: 'rgba(255, 255, 255, 0.06)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          color: '#cbd5e1',
+          padding: '8px 14px',
+          borderRadius: '999px',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          cursor: 'pointer',
+          marginBottom: '16px',
+        }}
+      >
+        <ArrowLeft size={15} /> Back to Staff Home
+      </button>
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.64rem',
-              fontWeight: 800,
-              color: '#38bdf8',
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.28)',
-              padding: '3px 9px',
-              borderRadius: '999px',
-              marginBottom: '6px',
-              letterSpacing: '0.05em',
-            }}
-          >
-            MEMBER CRM & LOYALTY LEDGER
-          </div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1.2 }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1.2, marginBottom: '6px' }}>
             <Users size={22} style={{ color: '#38bdf8', flexShrink: 0 }} /> Member Directory
-          </h2>
-          <p style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px' }}>
-            Inspect member tiers, log visits, adjust points & view bookings
+          </h1>
+          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
+            Look up any member by name, log a visit, or add bonus points.
           </p>
         </div>
 
@@ -155,19 +161,19 @@ export function AdminMembers() {
             background: 'rgba(56, 189, 248, 0.14)',
             border: '1px solid rgba(56, 189, 248, 0.3)',
             color: '#38bdf8',
-            padding: '8px 12px',
-            borderRadius: '999px',
-            fontSize: '0.74rem',
+            padding: '10px 14px',
+            borderRadius: '12px',
+            fontSize: '0.8rem',
             fontWeight: 800,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '5px',
+            gap: '6px',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          <Download size={14} /> Export CSV
+          <Download size={15} /> Download List (CSV)
         </button>
       </div>
 
@@ -177,10 +183,10 @@ export function AdminMembers() {
             background: 'rgba(30, 41, 59, 0.95)',
             border: '1px solid rgba(56, 189, 248, 0.35)',
             color: '#38bdf8',
-            padding: '11px 14px',
-            borderRadius: '12px',
-            fontSize: '0.82rem',
-            marginBottom: '14px',
+            padding: '12px 16px',
+            borderRadius: '14px',
+            fontSize: '0.85rem',
+            marginBottom: '18px',
             fontWeight: 700,
             display: 'flex',
             justifyContent: 'space-between',
@@ -192,36 +198,26 @@ export function AdminMembers() {
           <button
             type="button"
             onClick={() => setMessage('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800 }}
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Summary Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '14px' }}>
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>Roster</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#ffffff', marginTop: '2px' }}>{members.length}</div>
+      {/* Spacious 2x2 Summary Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '16px' }}>
+          <div style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: 700 }}>Total Members</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>{members.length}</div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Registered accounts</div>
         </div>
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#34d399', textTransform: 'uppercase', fontWeight: 800 }}>Platinum</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981', marginTop: '2px' }}>
-            {members.filter((m) => m.tier === 'Platinum').length}
+        <div style={{ background: '#111827', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '16px', padding: '16px' }}>
+          <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: 700 }}>Total Member Points</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
+            {totalPointsPool.toLocaleString()}
           </div>
-        </div>
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(251, 191, 36, 0.25)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#fbbf24', textTransform: 'uppercase', fontWeight: 800 }}>Gold</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fbbf24', marginTop: '2px' }}>
-            {members.filter((m) => m.tier === 'Gold').length}
-          </div>
-        </div>
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 800 }}>Total PTS</div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#38bdf8', marginTop: '2px' }}>
-            {(totalPointsPool / 1000).toFixed(1)}k
-          </div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Combined balance</div>
         </div>
       </div>
 

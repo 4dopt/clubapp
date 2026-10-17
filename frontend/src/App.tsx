@@ -16,6 +16,7 @@ import { BookingDarts } from './pages/BookingDarts';
 import { Profile } from './pages/Profile';
 
 import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminAnalytics } from './pages/AdminAnalytics';
 import { AdminScan } from './pages/AdminScan';
 import { AdminMembers } from './pages/AdminMembers';
 import { AdminRewards } from './pages/AdminRewards';
@@ -186,6 +187,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute roleRequired="admin">
                 <AdminBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute roleRequired="admin">
+                <AdminAnalytics />
               </ProtectedRoute>
             }
           />

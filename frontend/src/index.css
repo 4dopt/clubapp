@@ -100,6 +100,7 @@ html, body {
 }
 
 .app-viewport.is-admin {
+  max-width: 600px;
   background-color: #090d16;
   color: #f8fafc;
 }
@@ -193,6 +194,7 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .bottom-nav.bottom-nav-admin {
+  max-width: 600px;
   background: rgba(9, 13, 22, 0.96);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);

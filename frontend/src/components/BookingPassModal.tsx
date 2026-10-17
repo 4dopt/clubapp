@@ -1,7 +1,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, Calendar, Clock, MapPin, ShieldCheck, Ticket } from 'lucide-react';
-import { BookingItem } from '../bookingsStore';
+import { X, Calendar, Clock, MapPin, ShieldCheck, Ticket, Users, CreditCard, ClipboardList } from 'lucide-react';
+import { BookingItem, buildBookingQrPayload } from '../bookingsStore';
 
 interface Props {
   booking: BookingItem;
@@ -9,6 +9,8 @@ interface Props {
 }
 
 export function BookingPassModal({ booking, onClose }: Props) {
+  const qrPayload = buildBookingQrPayload(booking);
+
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
       <div
@@ -59,7 +61,10 @@ export function BookingPassModal({ booking, onClose }: Props) {
           {booking.activity_name}
         </h3>
         <p style={{ fontSize: '0.82rem', color: 'var(--slate-grey)', marginBottom: '14px', fontWeight: 600 }}>
-          Booking Ref: <span style={{ fontFamily: 'monospace', color: 'var(--brand-green)', fontWeight: 800 }}>{booking.booking_code}</span>
+          Booking Ref:{' '}
+          <span style={{ fontFamily: 'monospace', color: 'var(--brand-green)', fontWeight: 800 }}>
+            {booking.booking_code}
+          </span>
         </p>
 
         {/* QR Code Container */}
@@ -77,9 +82,9 @@ export function BookingPassModal({ booking, onClose }: Props) {
           }}
         >
           <QRCodeSVG
-            value={booking.booking_code}
-            size={180}
-            level="M"
+            value={qrPayload}
+            size={185}
+            level="L"
             marginSize={1}
             bgColor="#ffffff"
             fgColor="#090d16"
@@ -101,7 +106,9 @@ export function BookingPassModal({ booking, onClose }: Props) {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.76rem', color: 'var(--slate-grey)', fontWeight: 600, flexShrink: 0 }}>Member</span>
+            <span style={{ fontSize: '0.76rem', color: 'var(--slate-grey)', fontWeight: 600, flexShrink: 0 }}>
+              Member
+            </span>
             <span
               style={{
                 fontSize: '0.82rem',
@@ -119,24 +126,60 @@ export function BookingPassModal({ booking, onClose }: Props) {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.76rem', color: 'var(--slate-grey)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Calendar size={13} /> Date
+              <Calendar size={13} /> Date & Time
             </span>
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{booking.date}</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--brand-green)' }}>
+              {booking.date} at {booking.time}
+            </span>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.76rem', color: 'var(--slate-grey)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={13} /> Time Slot
+              <Clock size={13} /> Duration & Party
             </span>
-            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--brand-green)' }}>{booking.time}</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {booking.duration || '60 mins'} • {booking.party_size || 1} {booking.party_size === 1 ? 'Player' : 'Players'}
+            </span>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.76rem', color: 'var(--slate-grey)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <MapPin size={13} /> Venue
+              <MapPin size={13} /> Assigned Spot
             </span>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>PlayGolf Reception</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {booking.bay_assignment || 'PlayGolf Reception'}
+            </span>
           </div>
+
+          {booking.price && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.76rem', color: 'var(--slate-grey)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CreditCard size={13} /> Total & Status
+              </span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--brand-green)' }}>
+                {booking.price} ({booking.payment_status === 'pay_at_desk' ? 'Pay at Desk' : 'Paid'})
+              </span>
+            </div>
+          )}
+
+          {booking.notes && (
+            <div
+              style={{
+                marginTop: '4px',
+                paddingTop: '8px',
+                borderTop: '1px solid var(--border-color)',
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.4,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '6px',
+              }}
+            >
+              <ClipboardList size={14} style={{ color: 'var(--brand-green)', flexShrink: 0, marginTop: '1px' }} />
+              <span>{booking.notes}</span>
+            </div>
+          )}
         </div>
 
         <div

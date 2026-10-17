@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Gift, Calendar, QrCode, TrendingUp, ChevronRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../auth';
 import { MembershipCard, resolveCardVisualTier } from '../components/MembershipCard';
+import { OfferOfTheDaySection } from '../components/OfferOfTheDaySection';
 import { OffersSlider } from '../components/OffersSlider';
 import { QrModal } from '../components/QrModal';
 import { BookingPassModal } from '../components/BookingPassModal';
@@ -312,6 +313,9 @@ export function Dashboard() {
           </div>
         );
       })()}
+
+      {/* Offer of the Day Section */}
+      <OfferOfTheDaySection />
 
       {/* Exclusive Offers Slider */}
       <OffersSlider />

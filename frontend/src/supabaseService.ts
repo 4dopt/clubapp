@@ -468,6 +468,99 @@ export async function fetchRewardsFromSupabase(activeOnly: boolean = true): Prom
   }
 }
 
+export async function saveRewardToSupabase(reward: Reward): Promise<Reward | null> {
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reward.id || '');
+    const payload: Record<string, any> = {
+      title: reward.title,
+      description: reward.description,
+      points_cost: Number(reward.points_cost) || 100,
+      category: reward.category || 'General',
+      image_url: reward.image_url,
+      active: reward.active !== false,
+      redemption_type: reward.redemption_type || 'qr',
+      discount_code: reward.discount_code || null,
+    };
+    if (isUuid) {
+      payload.id = reward.id;
+    }
+    const { data, error } = await supabase
+      .from('rewards')
+      .upsert(payload)
+      .select()
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return { ...reward, ...(data as Reward) };
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteRewardFromSupabase(rewardId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('rewards').delete().eq('id', rewardId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchAllRedemptionsFromSupabase(): Promise<any[] | null> {
+  try {
+    const [{ data: txns, error }, members] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('*')
+        .eq('type', 'redeem')
+        .order('created_at', { ascending: false }),
+      fetchAllMembersFromSupabase(),
+    ]);
+
+    if (error || !txns) return null;
+    const memberById = new Map((members || []).map((m) => [m.id, m]));
+
+    return txns.map((t: any) => {
+      const m = memberById.get(t.user_id);
+      const code = t.redemption_code || '';
+      const isQr = code.startsWith('QR_REDEEM_') || !code;
+      const rawTitle = (t.title || 'Reward Perk').replace(/^Redeemed:\s*/i, '');
+      return {
+        id: t.id,
+        user_id: t.user_id,
+        user_name: m?.name || 'Club Member',
+        user_member_id: m?.member_id || deriveMemberIdFromUuid(t.user_id),
+        reward_id: t.reward_id || 'rew_1',
+        reward_title: rawTitle,
+        points_cost: Math.abs(Number(t.points) || 0),
+        redemption_type: isQr ? 'qr' : 'discount',
+        discount_code: !isQr ? code : undefined,
+        qr_code_token: isQr ? code || `QR_REDEEM_${String(t.id).slice(0, 6).toUpperCase()}` : undefined,
+        fulfilled: Boolean(t.used),
+        created_at: t.created_at || new Date().toISOString(),
+        fulfilled_at: t.used_at || undefined,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function fulfillRedemptionByIdInSupabase(redemptionId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        used: true,
+        used_at: new Date().toISOString(),
+      })
+      .eq('id', redemptionId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 export async function redeemRewardInSupabase(rewardId: string): Promise<{
   redemption_id: string;
   redemption_type: 'qr' | 'discount';
@@ -628,24 +721,29 @@ export async function fetchAllMembersFromSupabase(searchQuery?: string): Promise
 
 export async function fetchAdminStatsFromSupabase(): Promise<AdminStats | null> {
   try {
-    const members = await fetchAllMembersFromSupabase();
-    if (!members) return null;
+    const [members, { data: txns }, bookings] = await Promise.all([
+      fetchAllMembersFromSupabase(),
+      supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(200),
+      fetchBookingsFromSupabase(),
+    ]);
 
-    const { data: txns } = await supabase
-      .from('transactions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
+    const memberList = members || [];
+    const txnList = txns || [];
+    const bookingList = bookings || [];
 
     const tiers = { Silver: 0, Gold: 0, Platinum: 0 };
-    for (const m of members) {
+    let pointsOutstanding = 0;
+    for (const m of memberList) {
+      pointsOutstanding += m.points || 0;
       if (m.tier === 'Platinum') tiers.Platinum++;
       else if (m.tier === 'Gold') tiers.Gold++;
       else tiers.Silver++;
     }
 
-    const memberById = new Map(members.map((m) => [m.id, m]));
-    const todayStr = new Date().toISOString().split('T')[0];
+    const memberById = new Map(memberList.map((m) => [m.id, m]));
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const sevenDaysAgoMs = now.getTime() - 7 * 86400000;
 
     let pointsIssuedToday = 0;
     let visitsToday = 0;
@@ -653,22 +751,132 @@ export async function fetchAdminStatsFromSupabase(): Promise<AdminStats | null> 
     let weekEarnTotal = 0;
     let weekRedeemTotal = 0;
 
-    const recent = (txns || []).slice(0, 10).map((t: any) => {
-      const m = memberById.get(t.user_id);
+    // Track per-member visit counts from real transactions and bookings
+    const visitsByUserId = new Map<string, { count: number; lastDate: string }>();
+    const bumpVisit = (uid: string, dateIso: string) => {
+      if (!uid) return;
+      const prev = visitsByUserId.get(uid) || { count: 0, lastDate: '' };
+      visitsByUserId.set(uid, {
+        count: prev.count + 1,
+        lastDate: !prev.lastDate || dateIso > prev.lastDate ? dateIso : prev.lastDate,
+      });
+    };
+
+    for (const t of txnList) {
       const pts = Math.abs(Number(t.points) || 0);
-      const isToday = (t.created_at || '').startsWith(todayStr);
+      const createdIso = String(t.created_at || '');
+      const datePart = createdIso.slice(0, 10);
+      const createdMs = createdIso ? new Date(createdIso).getTime() : 0;
+      const isToday = datePart === todayStr;
+      const isLast7Days = createdMs >= sevenDaysAgoMs;
 
       if (t.type === 'redeem') {
-        weekRedeemTotal += pts;
+        if (isLast7Days) weekRedeemTotal += pts;
         if (isToday) redemptionsToday++;
       } else {
-        weekEarnTotal += pts;
+        if (isLast7Days) weekEarnTotal += pts;
         if (isToday) {
           pointsIssuedToday += pts;
           visitsToday++;
         }
+        bumpVisit(t.user_id, datePart);
+      }
+    }
+
+    for (const b of bookingList) {
+      if (b.status !== 'cancelled') {
+        bumpVisit(b.user_id, b.date);
+        if (b.status === 'completed' && (b.checked_in_at || '').startsWith(todayStr)) {
+          visitsToday++;
+        }
+      }
+    }
+
+    // Build real 7-day daily_trends (oldest to newest ending today)
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dailyTrends = [];
+    for (let i = 6; i >= 0; i--) {
+      const dObj = new Date(now.getTime() - i * 86400000);
+      const dStr = dObj.toISOString().split('T')[0];
+      const dayLabel = dayNames[dObj.getDay()];
+      const shortDate = dObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+      const dayTxns = txnList.filter((t: any) => String(t.created_at || '').startsWith(dStr));
+      const dayBookings = bookingList.filter((b) => b.date === dStr && b.status !== 'cancelled');
+
+      const dayVisits =
+        dayTxns.filter((t: any) => t.type !== 'redeem').length +
+        dayBookings.filter((b) => b.status === 'completed').length;
+      const dayEarned = dayTxns
+        .filter((t: any) => t.type !== 'redeem')
+        .reduce((s: number, t: any) => s + Math.abs(Number(t.points) || 0), 0);
+      const dayRedeemed = dayTxns
+        .filter((t: any) => t.type === 'redeem')
+        .reduce((s: number, t: any) => s + Math.abs(Number(t.points) || 0), 0);
+
+      dailyTrends.push({
+        day: dayLabel,
+        date: shortDate,
+        visits: dayVisits,
+        points_earned: dayEarned,
+        points_redeemed: dayRedeemed,
+        bookings: dayBookings.length,
+      });
+    }
+
+    // Build real hourly_traffic from actual bookings & transactions
+    const slots = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
+    const slotCounts = slots.map((slotHour) => {
+      const slotH = parseInt(slotHour.slice(0, 2), 10);
+      let count = 0;
+
+      for (const b of bookingList) {
+        if (b.status === 'cancelled') continue;
+        const bh = parseInt((b.time || '14:00').slice(0, 2), 10);
+        if (!isNaN(bh) && Math.abs(bh - slotH) <= 1) {
+          count++;
+        }
       }
 
+      for (const t of txnList) {
+        if (!t.created_at) continue;
+        const th = new Date(t.created_at).getHours();
+        if (!isNaN(th) && Math.abs(th - slotH) <= 1) {
+          count++;
+        }
+      }
+
+      return { hour: slotHour, visits: count };
+    });
+
+    const maxSlotVisits = Math.max(...slotCounts.map((s) => s.visits), 1);
+    const hourlyTraffic = slotCounts.map((s) => ({
+      hour: s.hour,
+      visits: s.visits,
+      load: s.visits === 0 ? 0 : Math.min(100, Math.round((s.visits / maxSlotVisits) * 100)),
+    }));
+
+    // Build real top_members from actual database members
+    const topMembers = [...memberList]
+      .sort((a, b) => (b.points || 0) - (a.points || 0))
+      .slice(0, 10)
+      .map((m) => {
+        const vInfo = visitsByUserId.get(m.id);
+        return {
+          id: m.id,
+          name: m.name,
+          member_id: m.member_id,
+          tier: m.tier,
+          points: m.points || 0,
+          points_ytd: m.points_ytd || m.points || 0,
+          visits_count: vInfo?.count || 0,
+          last_visit: vInfo?.lastDate === todayStr ? 'Today' : vInfo?.lastDate || 'Registered',
+        };
+      });
+
+    const recent = txnList.slice(0, 10).map((t: any) => {
+      const m = memberById.get(t.user_id);
+      const pts = Math.abs(Number(t.points) || 0);
       return {
         id: t.id,
         type: (t.type === 'redeem' ? 'redeem' : 'earn') as 'earn' | 'redeem',
@@ -684,10 +892,14 @@ export async function fetchAdminStatsFromSupabase(): Promise<AdminStats | null> 
       points_issued_today: pointsIssuedToday,
       visits_today: visitsToday,
       redemptions_today: redemptionsToday,
-      total_members: members.length,
+      total_members: memberList.length,
       tiers,
       week_earn_total: weekEarnTotal,
       week_redeem_total: weekRedeemTotal,
+      points_outstanding: pointsOutstanding,
+      daily_trends: dailyTrends,
+      hourly_traffic: hourlyTraffic,
+      top_members: topMembers,
       recent,
     };
   } catch {
@@ -697,6 +909,75 @@ export async function fetchAdminStatsFromSupabase(): Promise<AdminStats | null> 
 
 // ==================== DATABASE BOOKINGS SERVICES ====================
 
+const BOOKING_META_DELIMITER = ' ||META:';
+
+function packBookingForSupabase(booking: BookingItem) {
+  const cleanNotes = (booking.notes || '').split(BOOKING_META_DELIMITER)[0].trim();
+  const meta = {
+    member_tier: booking.member_tier || 'Silver',
+    duration: booking.duration || '60 mins',
+    party_size: booking.party_size || 1,
+    bay_assignment: booking.bay_assignment || 'Assigned at Reception',
+    payment_status: booking.payment_status || 'paid',
+    price: booking.price || '£20.00',
+  };
+  const packedNotes = `${cleanNotes}${BOOKING_META_DELIMITER}${JSON.stringify(meta)}`;
+
+  return {
+    id: booking.id,
+    booking_code: booking.booking_code,
+    user_id: booking.user_id,
+    user_name: booking.user_name,
+    user_member_id: booking.user_member_id,
+    activity_id: booking.activity_id,
+    activity_name: booking.activity_name,
+    date: booking.date,
+    time: booking.time,
+    status: booking.status,
+    notes: packedNotes,
+    created_at: booking.created_at,
+    checked_in_at: booking.checked_in_at || null,
+  };
+}
+
+function unpackBookingFromSupabase(row: any): BookingItem {
+  const rawNotes = String(row.notes || '');
+  let cleanNotes = rawNotes;
+  let parsedMeta: Record<string, any> = {};
+
+  if (rawNotes.includes(BOOKING_META_DELIMITER)) {
+    const [notePart, metaPart] = rawNotes.split(BOOKING_META_DELIMITER);
+    cleanNotes = notePart.trim();
+    try {
+      parsedMeta = JSON.parse(metaPart);
+    } catch {
+      parsedMeta = {};
+    }
+  }
+
+  return {
+    id: row.id,
+    booking_code: row.booking_code,
+    user_id: row.user_id,
+    user_name: row.user_name || 'Club Member',
+    user_member_id: row.user_member_id || 'PG-MEMBER',
+    member_tier: parsedMeta.member_tier || row.member_tier || 'Silver',
+    activity_id: row.activity_id,
+    activity_name: row.activity_name,
+    date: row.date,
+    time: row.time,
+    duration: parsedMeta.duration || row.duration,
+    party_size: parsedMeta.party_size || row.party_size,
+    bay_assignment: parsedMeta.bay_assignment || row.bay_assignment,
+    payment_status: parsedMeta.payment_status || row.payment_status || 'paid',
+    price: parsedMeta.price || row.price,
+    status: row.status || 'confirmed',
+    notes: cleanNotes,
+    created_at: row.created_at || new Date().toISOString(),
+    checked_in_at: row.checked_in_at || undefined,
+  };
+}
+
 export async function fetchBookingsFromSupabase(): Promise<BookingItem[]> {
   try {
     const { data, error } = await supabase
@@ -705,7 +986,7 @@ export async function fetchBookingsFromSupabase(): Promise<BookingItem[]> {
       .order('created_at', { ascending: false });
 
     if (error || !data) return [];
-    return data as BookingItem[];
+    return data.map(unpackBookingFromSupabase);
   } catch {
     return [];
   }
@@ -713,7 +994,8 @@ export async function fetchBookingsFromSupabase(): Promise<BookingItem[]> {
 
 export async function saveBookingToSupabase(booking: BookingItem): Promise<boolean> {
   try {
-    const { error } = await supabase.from('bookings').upsert(booking);
+    const row = packBookingForSupabase(booking);
+    const { error } = await supabase.from('bookings').upsert(row);
     if (error) {
       console.warn('Supabase booking insert warning:', error.message);
       return false;

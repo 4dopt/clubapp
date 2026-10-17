@@ -13,28 +13,28 @@ export function BottomNav() {
     return (
       <nav className="bottom-nav bottom-nav-admin">
         <NavLink to="/admin" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Home size={20} />
-          <span>Dashboard</span>
+          <Home size={19} />
+          <span>Home</span>
         </NavLink>
 
         <NavLink to="/admin/scan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <QrCode size={20} />
-          <span>Scanner</span>
+          <QrCode size={19} />
+          <span>Scan</span>
         </NavLink>
 
         <NavLink to="/admin/bookings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Calendar size={20} />
+          <Calendar size={19} />
           <span>Bookings</span>
         </NavLink>
 
-        <NavLink to="/admin/members" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Users size={20} />
-          <span>Members</span>
+        <NavLink to="/admin/rewards" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Gift size={19} />
+          <span>Rewards</span>
         </NavLink>
 
-        <NavLink to="/admin/rewards" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Gift size={20} />
-          <span>Rewards</span>
+        <NavLink to="/admin/members" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Users size={19} />
+          <span>Members</span>
         </NavLink>
       </nav>
     );

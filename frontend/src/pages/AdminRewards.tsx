@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Gift,
   Plus,
@@ -21,9 +22,12 @@ import {
   ShieldCheck,
   Clock,
   Wand2,
+  ArrowLeft,
+  Calendar,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, Reward, RewardRedemption } from '../api';
+import { AdminDailyOffersStudio } from '../components/AdminDailyOffersStudio';
 
 interface RewardTemplate {
   label: string;
@@ -134,12 +138,16 @@ const CURATED_GOLF_IMAGES = [
 
 export function AdminRewards() {
   const { token } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Main View Tab: Catalog Studio vs Redemptions & Voucher Desk
-  const [activeTab, setActiveTab] = useState<'catalog' | 'redemptions'>('catalog');
+  // Main View Tab: Catalog Studio vs Daily Offers (Mon-Sun) vs Redemptions & Voucher Desk
+  const [activeTab, setActiveTab] = useState<'catalog' | 'daily_offers' | 'redemptions'>(() =>
+    location.search.includes('daily') ? 'daily_offers' : 'catalog'
+  );
 
   // Catalog Filters
   const [query, setQuery] = useState('');
@@ -459,51 +467,56 @@ export function AdminRewards() {
     rewards.length > 0 ? Math.round(rewards.reduce((acc, r) => acc + r.points_cost, 0) / rewards.length) : 0;
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '16px 16px 32px 16px' }}>
+    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+      {/* Back Button */}
+      <button
+        onClick={() => navigate('/admin')}
+        style={{
+          background: 'rgba(255, 255, 255, 0.06)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          color: '#cbd5e1',
+          padding: '8px 14px',
+          borderRadius: '999px',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          cursor: 'pointer',
+          marginBottom: '16px',
+        }}
+      >
+        <ArrowLeft size={15} /> Back to Staff Home
+      </button>
+
       {/* Header Banner */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: '14px',
-          gap: '10px',
+          marginBottom: '20px',
+          gap: '12px',
+          flexWrap: 'wrap',
         }}
       >
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div
+          <h1
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.64rem',
-              fontWeight: 800,
-              color: '#fbbf24',
-              background: 'rgba(251, 191, 36, 0.12)',
-              border: '1px solid rgba(251, 191, 36, 0.28)',
-              padding: '3px 9px',
-              borderRadius: '999px',
-              marginBottom: '6px',
-              letterSpacing: '0.05em',
-            }}
-          >
-            LOYALTY & PERKS STUDIO
-          </div>
-          <h2
-            style={{
-              fontSize: '1.35rem',
+              fontSize: '1.5rem',
               fontWeight: 800,
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               lineHeight: 1.2,
+              marginBottom: '6px',
             }}
           >
             <Gift size={22} style={{ color: '#10b981', flexShrink: 0 }} /> Rewards & Vouchers
-          </h2>
-          <p style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px' }}>
-            1-tap templates, tier eligibility, stock tracking & voucher desk
+          </h1>
+          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
+            Add new member perks or check off reward vouchers at reception.
           </p>
         </div>
 
@@ -512,17 +525,17 @@ export function AdminRewards() {
           className="btn-primary"
           style={{
             width: 'auto',
-            minHeight: '40px',
-            padding: '8px 14px',
-            fontSize: '0.78rem',
-            borderRadius: 'var(--radius-full)',
+            minHeight: '44px',
+            padding: '10px 16px',
+            fontSize: '0.84rem',
+            borderRadius: '12px',
             background: 'linear-gradient(135deg, #10b981, #059669)',
             boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          <Plus size={15} /> Create Perk
+          <Plus size={16} /> Add New Reward
         </button>
       </div>
 
@@ -532,10 +545,10 @@ export function AdminRewards() {
             background: 'rgba(16, 185, 129, 0.15)',
             border: '1px solid rgba(16, 185, 129, 0.35)',
             color: '#34d399',
-            padding: '11px 14px',
-            borderRadius: '12px',
-            fontSize: '0.82rem',
-            marginBottom: '14px',
+            padding: '12px 16px',
+            borderRadius: '14px',
+            fontSize: '0.85rem',
+            marginBottom: '18px',
             fontWeight: 700,
             display: 'flex',
             justifyContent: 'space-between',
@@ -547,39 +560,49 @@ export function AdminRewards() {
           <button
             type="button"
             onClick={() => setMessage('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 800 }}
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Analytics Summary Bar (4 Cards) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '14px' }}>
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>Active Perks</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981', marginTop: '2px' }}>
-            {activeCount}/{rewards.length}
+      {/* Spacious 2x2 Summary Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        <div
+          onClick={() => setActiveTab('catalog')}
+          style={{
+            background: '#111827',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: '16px',
+            padding: '16px',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '0.76rem', color: '#34d399', fontWeight: 700 }}>Active Perks in Shop</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>
+            {activeCount} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 600 }}>of {rewards.length}</span>
           </div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Available to members</div>
         </div>
 
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>Total Claimed</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#38bdf8', marginTop: '2px' }}>{totalRedeemedCount}</div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(251, 191, 36, 0.28)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>Pending QR</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fbbf24', marginTop: '2px' }}>{pendingVoucherCount}</div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(167, 139, 250, 0.25)', borderRadius: '13px', padding: '10px 6px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800 }}>Avg Cost</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#a78bfa', marginTop: '2px' }}>{avgCost}</div>
+        <div
+          onClick={() => setActiveTab('redemptions')}
+          style={{
+            background: '#111827',
+            border: '1px solid rgba(251, 191, 36, 0.3)',
+            borderRadius: '16px',
+            padding: '16px',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: 700 }}>Waiting Vouchers</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fbbf24', marginTop: '4px' }}>{pendingVoucherCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Tap to verify codes</div>
         </div>
       </div>
 
-      {/* Mode Switcher: Catalog Studio vs Voucher Fulfillment Desk */}
+      {/* Mode Switcher: Catalog Studio vs Daily Offers (Mon–Sun) vs Voucher Desk */}
       <div
         style={{
           display: 'flex',
@@ -601,16 +624,38 @@ export function AdminRewards() {
             border: 'none',
             background: activeTab === 'catalog' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
             color: activeTab === 'catalog' ? '#ffffff' : '#94a3b8',
-            fontSize: '0.78rem',
+            fontSize: '0.75rem',
             fontWeight: 800,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
+            gap: '5px',
           }}
         >
-          <Layers size={15} /> Reward Catalog ({rewards.length})
+          <Layers size={14} /> Catalog ({rewards.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('daily_offers')}
+          style={{
+            flex: 1,
+            minHeight: '38px',
+            borderRadius: '9px',
+            border: 'none',
+            background: activeTab === 'daily_offers' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+            color: activeTab === 'daily_offers' ? '#ffffff' : '#94a3b8',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+          }}
+        >
+          <Calendar size={14} /> Daily Offers (7)
         </button>
 
         <button
@@ -623,16 +668,16 @@ export function AdminRewards() {
             border: 'none',
             background: activeTab === 'redemptions' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
             color: activeTab === 'redemptions' ? '#ffffff' : '#94a3b8',
-            fontSize: '0.78rem',
+            fontSize: '0.75rem',
             fontWeight: 800,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
+            gap: '5px',
           }}
         >
-          <QrCode size={15} /> Voucher Desk
+          <QrCode size={14} /> Vouchers
           {pendingVoucherCount > 0 && (
             <span
               style={{
@@ -650,7 +695,9 @@ export function AdminRewards() {
         </button>
       </div>
 
-      {activeTab === 'redemptions' ? (
+      {activeTab === 'daily_offers' ? (
+        <AdminDailyOffersStudio onStatusMessage={(msg) => setMessage(msg)} />
+      ) : activeTab === 'redemptions' ? (
         /* VOUCHER VERIFICATION & REDEMPTION HISTORY DESK */
         <div>
           {/* Instant Voucher / QR Code Verification Box */}

@@ -18,6 +18,7 @@ import { useAuth } from '../auth';
 import {
   BookingItem,
   getStoredBookings,
+  syncBookingsFromSupabase,
 } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
 
@@ -107,12 +108,19 @@ export function Booking() {
   const [userBookings, setUserBookings] = useState<BookingItem[]>([]);
   const [selectedPassBooking, setSelectedPassBooking] = useState<BookingItem | null>(null);
 
-  const reloadUserBookings = () => {
-    const all = getStoredBookings();
+  const reloadUserBookings = async () => {
+    const localAll = getStoredBookings();
     if (user?.id) {
-      setUserBookings(all.filter((b) => b.user_id === user.id || b.user_member_id === user.member_id));
+      setUserBookings(localAll.filter((b) => b.user_id === user.id || b.user_member_id === user.member_id));
     } else {
-      setUserBookings(all);
+      setUserBookings(localAll);
+    }
+
+    const syncedAll = await syncBookingsFromSupabase();
+    if (user?.id) {
+      setUserBookings(syncedAll.filter((b) => b.user_id === user.id || b.user_member_id === user.member_id));
+    } else {
+      setUserBookings(syncedAll);
     }
   };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Shield, LogOut, Award } from 'lucide-react';
+import { Shield, LogOut, Award, BarChart3 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { resolveCardVisualTier } from './MembershipCard';
 
@@ -17,6 +17,7 @@ export function Header() {
   };
 
   if (user.role === 'admin') {
+    const isAnalyticsPage = location.pathname.startsWith('/admin/analytics');
     return (
       <header
         style={{
@@ -35,36 +36,48 @@ export function Header() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <div
+          <Link
+            to="/admin"
             style={{
               background: 'rgba(16, 185, 129, 0.15)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
               borderRadius: 'var(--radius-full)',
-              padding: '4px 10px',
+              padding: '5px 11px',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
               color: '#10b981',
-              fontSize: '0.7rem',
+              fontSize: '0.75rem',
               fontWeight: 800,
               whiteSpace: 'nowrap',
               flexShrink: 0,
+              textDecoration: 'none',
             }}
           >
-            <Shield size={13} /> Admin Terminal
-          </div>
-          <span
+            <Shield size={14} /> Staff Portal
+          </Link>
+
+          <Link
+            to="/admin/analytics"
             style={{
-              fontSize: '0.78rem',
-              color: '#94a3b8',
-              fontWeight: 600,
+              background: isAnalyticsPage ? 'rgba(56, 189, 248, 0.24)' : 'rgba(56, 189, 248, 0.12)',
+              border: `1px solid ${isAnalyticsPage ? 'rgba(56, 189, 248, 0.5)' : 'rgba(56, 189, 248, 0.28)'}`,
+              borderRadius: 'var(--radius-full)',
+              padding: '5px 11px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: '#38bdf8',
+              fontSize: '0.75rem',
+              fontWeight: 800,
               whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              flexShrink: 0,
+              textDecoration: 'none',
             }}
+            title="Open Club Reports & Analytics"
           >
-            {user.name}
-          </span>
+            <BarChart3 size={14} /> Reports
+          </Link>
         </div>
 
         <button
