@@ -9,41 +9,49 @@ import {
   CheckCircle2,
   QrCode,
   Award,
-  Compass,
+  RotateCcw,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { BookingItem, createBooking } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
 
 const PACKAGES = [
-  { id: 'solo', label: 'Solo Pass', pax: 1, price: 12, badge: '1 Player' },
-  { id: 'duo', label: 'Duo Pass', pax: 2, price: 22, badge: '2 Players' },
-  { id: 'family', label: 'Family 4-Pack', pax: 4, price: 40, badge: 'Best Value' },
-  { id: 'party', label: 'Group of 6', pax: 6, price: 58, badge: '6 Players' },
+  {
+    id: 'kid',
+    label: 'Kids Pass',
+    pax: 1,
+    price: 6.95,
+    badge: 'Junior Rate',
+    sub: '1 Child • 2 Course Laps',
+  },
+  {
+    id: 'adult',
+    label: 'Adult Pass',
+    pax: 1,
+    price: 9.95,
+    badge: 'Standard',
+    sub: '1 Adult • 2 Course Laps',
+  },
+  {
+    id: 'family',
+    label: 'Family 4-Pack',
+    pax: 4,
+    price: 27.95,
+    badge: 'Save £5.85+',
+    sub: '4 Players (Indiv. £33.80+)',
+  },
+  {
+    id: 'party',
+    label: 'Group of 6',
+    pax: 6,
+    price: 44.95,
+    badge: 'Save up to £14.75',
+    sub: '6 Players • Best Group Deal',
+  },
 ];
 
-const COURSES = [
-  {
-    id: 'Adventure Course A',
-    name: 'Adventure Course A (Volcano Trail)',
-    holes: '18 Holes • Waterfalls & Suspension Bridges',
-    vibe: 'Popular',
-  },
-  {
-    id: 'Adventure Course B',
-    name: 'Adventure Course B (Tiki Rapids)',
-    holes: '18 Holes • Trick-Shot Obstacles & Tunnels',
-    vibe: 'Trick-Shots',
-  },
-  {
-    id: 'VIP Party Zone',
-    name: 'VIP Party Zone + 18 Holes',
-    holes: 'Reserved Score Table + Priority Start',
-    vibe: 'Groups',
-  },
-];
-
-const TIME_SLOTS = ['10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00', '20:30'];
+const QUICK_TIMES = ['10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00', '21:00'];
 
 export function BookingPuttCrazy() {
   const navigate = useNavigate();
@@ -56,21 +64,34 @@ export function BookingPuttCrazy() {
   const accentBorder = '#fde68a';
 
   const [selectedPkgId, setSelectedPkgId] = useState<string>('family');
-  const [selectedCourse, setSelectedCourse] = useState<string>(COURSES[0].id);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState<string>('14:30');
-  const [juniorPutters, setJuniorPutters] = useState<boolean>(false);
+  const [timeError, setTimeError] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
   const [passModalBooking, setPassModalBooking] = useState<BookingItem | null>(null);
 
   const activePkg = PACKAGES.find((p) => p.id === selectedPkgId) || PACKAGES[2];
 
+  const handleTimeChange = (val: string) => {
+    setSelectedTime(val);
+    if (val < '10:00' || val > '21:00') {
+      setTimeError('Please select a time between 10:00 AM and 09:00 PM.');
+    } else {
+      setTimeError('');
+    }
+  };
+
   const handleBookSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedTime < '10:00' || selectedTime > '21:00') {
+      setTimeError('Please select a time between 10:00 AM and 09:00 PM.');
+      return;
+    }
+
     const combinedNotes = [
-      activePkg.label,
-      juniorPutters ? 'Includes Junior Putters' : 'Standard Putters & Balls',
+      `${activePkg.label} (2 Course Laps Included)`,
+      'Includes Scorecard, Pencils & Age-Colored Putters',
       notes.trim(),
     ]
       .filter(Boolean)
@@ -85,11 +106,11 @@ export function BookingPuttCrazy() {
       activity_name: 'Putt Crazy Adventure Minigolf',
       date: selectedDate,
       time: selectedTime,
-      duration: '60 mins',
+      duration: '2 Course Laps',
       party_size: activePkg.pax,
-      bay_assignment: selectedCourse,
+      bay_assignment: 'Putt Crazy Course',
       payment_status: 'paid',
-      price: `£${activePkg.price}.00`,
+      price: `£${activePkg.price.toFixed(2)}`,
       notes: combinedNotes,
     });
 
@@ -137,7 +158,7 @@ export function BookingPuttCrazy() {
             textTransform: 'uppercase',
           }}
         >
-          <Sparkles size={12} /> 18-Hole Minigolf
+          <RotateCcw size={12} /> Play 2x Around!
         </span>
       </div>
 
@@ -171,7 +192,7 @@ export function BookingPuttCrazy() {
           </div>
           <div>
             <div style={{ fontSize: '0.66rem', fontWeight: 800, color: accent, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              18-HOLE ADVENTURE COURSE
+              ADVENTURE CRAZY GOLF
             </div>
             <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', margin: '1px 0 0 0', lineHeight: 1.2 }}>
               Putt Crazy Minigolf
@@ -180,22 +201,22 @@ export function BookingPuttCrazy() {
         </div>
 
         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: '14px' }}>
-          Take on 18 holes of volcano loops, water bridges, and trick-shot tunnels. Putters, balls, and scorecards included.
+          Every ticket includes going around the course <strong>two times</strong>! Collect your official scorecard, pencils, and colored putters sized for every age group at reception.
         </p>
 
-        {/* Course Info Strip */}
+        {/* Course Perks Strip */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '12px', padding: '8px', textAlign: 'center', border: `1px solid ${accentBorder}` }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Course</div>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: accent, marginTop: '2px' }}>18 Holes</div>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Course Play</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: accent, marginTop: '2px' }}>2 Full Laps</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '12px', padding: '8px', textAlign: 'center', border: `1px solid ${accentBorder}` }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Equipment</div>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>Included</div>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Putters</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>Color-Sized</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '12px', padding: '8px', textAlign: 'center', border: `1px solid ${accentBorder}` }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Duration</div>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>~60 Mins</div>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Included</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>Card & Pencil</div>
           </div>
         </div>
       </div>
@@ -250,16 +271,16 @@ export function BookingPuttCrazy() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Course Trail:</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.bay_assignment}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Date & Time:</span>
               <span style={{ color: accent, fontWeight: 800 }}>{createdBooking.date} at {createdBooking.time}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Players & Pass:</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.party_size} Players ({createdBooking.price})</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pass & Total:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{activePkg.label} ({createdBooking.price})</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Included:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>2 Laps • Scorecard, Pencils & Colored Putters</span>
             </div>
           </div>
 
@@ -307,7 +328,7 @@ export function BookingPuttCrazy() {
         </div>
       ) : (
         <form onSubmit={handleBookSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* 1. Group Package Selector */}
+          {/* 1. Group & Individual Package Selector */}
           <div
             style={{
               background: '#ffffff',
@@ -317,8 +338,13 @@ export function BookingPuttCrazy() {
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-              <Users size={16} color={accent} /> 1. Select Player Package
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users size={16} color={accent} /> 1. Select Player Pass
+              </span>
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: accent }}>
+                Kids £6.95 • Adults £9.95
+              </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -340,110 +366,58 @@ export function BookingPuttCrazy() {
                       gap: '6px',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
                       <span
                         style={{
-                          fontSize: '0.6rem',
+                          fontSize: '0.58rem',
                           fontWeight: 800,
                           padding: '2px 7px',
                           borderRadius: '999px',
                           background: active ? accent : 'var(--bg-subtle)',
                           color: active ? '#ffffff' : 'var(--text-secondary)',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {pkg.badge}
                       </span>
-                      <span style={{ fontSize: '0.96rem', fontWeight: 800, color: accent }}>£{pkg.price}</span>
+                      <span style={{ fontSize: '0.94rem', fontWeight: 800, color: accent }}>
+                        £{pkg.price.toFixed(2)}
+                      </span>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{pkg.label}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{pkg.pax} Putter{pkg.pax > 1 ? 's' : ''} & Balls</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: '1px' }}>{pkg.sub}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
 
+            {/* Included Equipment & 2 Laps Info Banner */}
             <div
-              onClick={() => setJuniorPutters(!juniorPutters)}
               style={{
                 marginTop: '12px',
                 padding: '10px 12px',
                 borderRadius: '12px',
-                background: juniorPutters ? accentSoft : 'var(--bg-subtle)',
-                border: juniorPutters ? `1.5px solid ${accent}` : '1px solid var(--border-color)',
+                background: accentSoft,
+                border: `1px solid ${accentBorder}`,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
+                gap: '8px',
+                fontSize: '0.74rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                lineHeight: 1.4,
               }}
             >
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Include Junior / Kids Putters (Free)
-              </span>
-              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: juniorPutters ? accent : 'var(--slate-grey)' }}>
-                {juniorPutters ? 'Included ✓' : '+ Add'}
+              <ClipboardList size={16} color={accent} style={{ flexShrink: 0 }} />
+              <span>
+                Includes <strong>2 rounds around the course</strong>, official scorecard, pencils & age-colored putters for kids and adults!
               </span>
             </div>
           </div>
 
-          {/* 2. Course Selection */}
-          <div
-            style={{
-              background: '#ffffff',
-              border: '1px solid var(--border-color)',
-              borderRadius: '20px',
-              padding: '16px',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-              <Compass size={16} color={accent} /> 2. Choose Course Trail
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {COURSES.map((c) => {
-                const active = selectedCourse === c.id;
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => setSelectedCourse(c.id)}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '14px',
-                      border: active ? `1.5px solid ${accent}` : '1px solid var(--border-color)',
-                      background: active ? accentSoft : '#ffffff',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{c.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{c.holes}</div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: '0.62rem',
-                        fontWeight: 800,
-                        padding: '3px 8px',
-                        borderRadius: '999px',
-                        background: active ? accent : 'var(--bg-subtle)',
-                        color: active ? '#ffffff' : 'var(--text-secondary)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {c.vibe}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Date, Time & Notes */}
+          {/* 2. Date, 3. Custom Time (10 AM to 9 PM) & Notes */}
           <div
             style={{
               background: '#ffffff',
@@ -455,7 +429,7 @@ export function BookingPuttCrazy() {
           >
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CalendarIcon size={15} color={accent} /> 3. Select Date
+                <CalendarIcon size={15} color={accent} /> 2. Select Date
               </label>
               <input
                 type="date"
@@ -467,25 +441,53 @@ export function BookingPuttCrazy() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={15} color={accent} /> 4. Select Time Slot
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                {TIME_SLOTS.map((t) => {
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
+                  <Clock size={15} color={accent} /> 3. Select Custom Time
+                </label>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: accent }}>
+                  Available: 10:00 AM – 9:00 PM
+                </span>
+              </div>
+
+              <input
+                type="time"
+                className="form-input"
+                min="10:00"
+                max="21:00"
+                value={selectedTime}
+                onChange={(e) => handleTimeChange(e.target.value)}
+                required
+                style={{
+                  borderColor: timeError ? '#dc2626' : 'var(--border-color)',
+                  fontWeight: 700,
+                  marginBottom: '10px',
+                }}
+              />
+
+              {timeError && (
+                <div style={{ fontSize: '0.74rem', color: '#dc2626', fontWeight: 700, marginBottom: '10px' }}>
+                  {timeError}
+                </div>
+              )}
+
+              {/* Quick Preset Chips between 10 AM and 9 PM */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {QUICK_TIMES.map((t) => {
                   const active = selectedTime === t;
                   return (
                     <button
                       type="button"
                       key={t}
-                      onClick={() => setSelectedTime(t)}
+                      onClick={() => handleTimeChange(t)}
                       style={{
-                        minHeight: '42px',
-                        borderRadius: '11px',
-                        border: active ? `2px solid ${accent}` : '1px solid var(--border-color)',
-                        background: active ? accentSoft : '#ffffff',
+                        padding: '6px 10px',
+                        borderRadius: '999px',
+                        border: active ? `1.5px solid ${accent}` : '1px solid var(--border-color)',
+                        background: active ? accentSoft : 'var(--bg-subtle)',
                         color: active ? accent : 'var(--text-secondary)',
                         fontWeight: 700,
-                        fontSize: '0.82rem',
+                        fontSize: '0.74rem',
                         cursor: 'pointer',
                       }}
                     >
@@ -501,7 +503,7 @@ export function BookingPuttCrazy() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. Birthday group, extra scorecards"
+                placeholder="e.g. Ages for colored putters, birthday group"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -519,7 +521,7 @@ export function BookingPuttCrazy() {
                 boxShadow: '0 4px 14px rgba(217, 119, 6, 0.25)',
               }}
             >
-              Confirm Putt Crazy Booking (£{activePkg.price}.00)
+              Confirm Putt Crazy Booking (£{activePkg.price.toFixed(2)})
             </button>
           </div>
         </form>

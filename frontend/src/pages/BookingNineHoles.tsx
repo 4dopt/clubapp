@@ -5,30 +5,46 @@ import {
   Flag,
   Calendar as CalendarIcon,
   Clock,
-  Users,
   Award,
   CheckCircle2,
   QrCode,
-  Compass,
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { BookingItem, createBooking } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
 
-const TEE_BOXES = [
-  { id: 'Tee 1 (Championship)', name: 'Championship Blue Tees', par: 'Par 34 • 2,680 Yds', desc: 'Signature water hazards & tour-spec greens' },
-  { id: 'Tee 1 (Executive)', name: 'Executive White Tees', par: 'Par 34 • 2,340 Yds', desc: 'Ideal distance for mid-handicap flights' },
-  { id: 'Tee 10 (Back Nine)', name: 'Twilight / Academy Loop', par: 'Par 32 • 2,050 Yds', desc: 'Fast-paced 90-minute scoring loop' },
+const ROUND_OPTIONS = [
+  {
+    id: '9-holes',
+    label: '9 Holes',
+    sub: 'Par 34 • ~2 Hours',
+    weekdayPrice: 12.5,
+    weekendPrice: 14,
+    duration: '120 mins',
+  },
+  {
+    id: '18-holes',
+    label: '18 Holes',
+    sub: 'Par 68 • ~4 Hours',
+    weekdayPrice: 17.5,
+    weekendPrice: 18,
+    duration: '240 mins',
+  },
 ];
 
 const ADD_ONS = [
-  { id: 'buggy', label: 'Electric Golf Buggy', price: 18 },
-  { id: 'trolley', label: '3-Wheel Push Trolley', price: 6 },
-  { id: 'clubs', label: 'TaylorMade Club Hire', price: 15 },
+  { id: 'buggy', label: 'Electric Buggy Hire', price: 25 },
+  { id: 'clubs', label: 'Club Hire', price: 10 },
+  { id: 'balls-3', label: '3 Lake Balls', price: 5 },
+  { id: 'balls-6', label: '6 Lake Balls', price: 10 },
 ];
 
-const TEE_TIMES = ['08:30', '10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00'];
+const QUICK_TIMES = ['09:00', '10:30', '12:00', '13:30', '15:00', '16:30', '18:00'];
+
+function formatGBP(amount: number): string {
+  return Number.isInteger(amount) ? `£${amount}` : `£${amount.toFixed(2)}`;
+}
 
 export function BookingNineHoles() {
   const navigate = useNavigate();
@@ -40,35 +56,55 @@ export function BookingNineHoles() {
   const accentSoft = '#f0f9ff';
   const accentBorder = '#bae6fd';
 
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('9-holes');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState<string>('10:00');
-  const [selectedTee, setSelectedTee] = useState<string>(TEE_BOXES[0].id);
-  const [players, setPlayers] = useState<number>(2);
+  const [timeError, setTimeError] = useState<string>('');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>('');
   const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
   const [passModalBooking, setPassModalBooking] = useState<BookingItem | null>(null);
 
+  // Determine if selectedDate is Weekend (Saturday = 6, Sunday = 0) or Weekday (Mon–Fri)
+  const dayOfWeek = selectedDate ? new Date(`${selectedDate}T12:00:00`).getDay() : 1;
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+  const activeRound = ROUND_OPTIONS.find((r) => r.id === selectedRoundId) || ROUND_OPTIONS[0];
+  const activeRoundPrice = isWeekend ? activeRound.weekendPrice : activeRound.weekdayPrice;
+
   const toggleAddOn = (id: string) => {
     setSelectedAddOns((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
 
-  const baseGreenFee = 28;
   const addOnsTotal = selectedAddOns.reduce((acc, id) => {
     const item = ADD_ONS.find((a) => a.id === id);
     return acc + (item ? item.price : 0);
   }, 0);
-  const totalPrice = players * baseGreenFee + addOnsTotal;
+  const totalPrice = activeRoundPrice + addOnsTotal;
+
+  const handleTimeChange = (val: string) => {
+    setSelectedTime(val);
+    if (val < '09:00' || val > '18:00') {
+      setTimeError('Please select a tee time between 09:00 AM and 06:00 PM.');
+    } else {
+      setTimeError('');
+    }
+  };
 
   const handleBookSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedTime < '09:00' || selectedTime > '18:00') {
+      setTimeError('Please select a tee time between 09:00 AM and 06:00 PM.');
+      return;
+    }
+
     const addOnLabels = selectedAddOns
       .map((id) => ADD_ONS.find((a) => a.id === id)?.label)
       .filter(Boolean)
       .join(', ');
 
     const combinedNotes = [
-      `${players}-Ball Flight`,
+      `Round: ${activeRound.label} (${isWeekend ? 'Weekend' : 'Weekday'} Rate)`,
       addOnLabels ? `Extras: ${addOnLabels}` : '',
       notes.trim(),
     ]
@@ -81,14 +117,14 @@ export function BookingNineHoles() {
       user_member_id: user?.member_id || 'PG-2445B5',
       member_tier: user?.tier || 'Silver',
       activity_id: 'nine-holes',
-      activity_name: '9 Holes Championship Course',
+      activity_name: `${activeRound.label} Championship Course`,
       date: selectedDate,
       time: selectedTime,
-      duration: '120 mins',
-      party_size: players,
-      bay_assignment: selectedTee,
+      duration: activeRound.duration,
+      party_size: 1,
+      bay_assignment: 'Tee 1 (Championship)',
       payment_status: 'paid',
-      price: `£${totalPrice}.00`,
+      price: `£${totalPrice.toFixed(2)}`,
       notes: combinedNotes,
     });
 
@@ -136,7 +172,7 @@ export function BookingNineHoles() {
             textTransform: 'uppercase',
           }}
         >
-          <Flag size={12} /> Par 34 Course
+          <Flag size={12} /> {activeRound.label} Course
         </span>
       </div>
 
@@ -179,22 +215,22 @@ export function BookingNineHoles() {
         </div>
 
         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: '14px' }}>
-          Play our signature 9-hole parkland course featuring USGA-spec greens, sculpted bunkers, and water hazards.
+          Play our signature parkland course featuring USGA-spec greens, sculpted bunkers, and water hazards. Choose between a 9-hole or full 18-hole round.
         </p>
 
         {/* Scorecard Stats Bar */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '12px', padding: '8px', textAlign: 'center', border: `1px solid ${accentBorder}` }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Course Par</div>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: accent, marginTop: '2px' }}>Par 34</div>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Mon – Fri</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: accent, marginTop: '2px' }}>£12.50 / £17.50</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '12px', padding: '8px', textAlign: 'center', border: `1px solid ${accentBorder}` }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Length</div>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>2,680 Yds</div>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Sat – Sun</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>£14 / £18</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: '12px', padding: '8px', textAlign: 'center', border: `1px solid ${accentBorder}` }}>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Duration</div>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>~2 Hours</div>
+            <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tee Times</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>9AM – 6PM</div>
           </div>
         </div>
       </div>
@@ -249,16 +285,18 @@ export function BookingNineHoles() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Starting Tee:</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.bay_assignment}</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Round Option:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>
+                {activeRound.label} ({isWeekend ? 'Weekend' : 'Weekday'})
+              </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Date & Time:</span>
               <span style={{ color: accent, fontWeight: 800 }}>{createdBooking.date} at {createdBooking.time}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Players & Total:</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.party_size} Golfers ({createdBooking.price})</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Total Fee:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.price}</span>
             </div>
           </div>
 
@@ -306,7 +344,7 @@ export function BookingNineHoles() {
         </div>
       ) : (
         <form onSubmit={handleBookSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Flight Size & Tee Box */}
+          {/* 1. 9 Holes vs 18 Holes */}
           <div
             style={{
               background: '#ffffff',
@@ -316,85 +354,67 @@ export function BookingNineHoles() {
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '8px' }}>
               <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Users size={16} color={accent} /> 1. Flight Size (Golfers)
+                <Flag size={16} color={accent} /> 1. Select Course Option
               </span>
-              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: accent }}>£{baseGreenFee} / Golfer</span>
+              <span
+                style={{
+                  fontSize: '0.66rem',
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: '999px',
+                  background: accentSoft,
+                  color: accent,
+                  border: `1px solid ${accentBorder}`,
+                }}
+              >
+                {isWeekend ? 'Weekend Rate (Sat–Sun)' : 'Weekday Rate (Mon–Fri)'}
+              </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
-              {[1, 2, 3, 4].map((n) => {
-                const active = players === n;
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {ROUND_OPTIONS.map((opt, idx) => {
+                const active = selectedRoundId === opt.id;
+                const displayPrice = isWeekend ? opt.weekendPrice : opt.weekdayPrice;
                 return (
                   <button
-                    key={n}
+                    key={opt.id}
                     type="button"
-                    onClick={() => setPlayers(n)}
+                    onClick={() => setSelectedRoundId(opt.id)}
                     style={{
-                      padding: '10px 6px',
-                      borderRadius: '11px',
+                      padding: '12px 10px',
+                      borderRadius: '14px',
                       border: active ? `2px solid ${accent}` : '1px solid var(--border-color)',
                       background: active ? accentSoft : '#ffffff',
-                      color: active ? accent : 'var(--text-secondary)',
-                      fontWeight: 800,
-                      fontSize: '0.82rem',
+                      color: active ? accent : 'var(--text-primary)',
                       cursor: 'pointer',
-                    }}
-                  >
-                    {n}-Ball
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-              <Compass size={16} color={accent} /> 2. Starting Tee Box
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {TEE_BOXES.map((tee) => {
-                const active = selectedTee === tee.id;
-                return (
-                  <div
-                    key={tee.id}
-                    onClick={() => setSelectedTee(tee.id)}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '14px',
-                      border: active ? `1.5px solid ${accent}` : '1px solid var(--border-color)',
-                      background: active ? accentSoft : '#ffffff',
-                      cursor: 'pointer',
+                      textAlign: 'left',
                       display: 'flex',
+                      flexDirection: 'column',
                       justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '8px',
+                      gap: '4px',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>{tee.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{tee.desc}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {idx + 1}. {opt.label}
+                      </span>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 800, color: accent }}>
+                        {formatGBP(displayPrice)}
+                      </span>
                     </div>
-                    <span
-                      style={{
-                        fontSize: '0.62rem',
-                        fontWeight: 800,
-                        padding: '3px 8px',
-                        borderRadius: '999px',
-                        background: active ? accent : 'var(--bg-subtle)',
-                        color: active ? '#ffffff' : 'var(--text-secondary)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {tee.par}
-                    </span>
-                  </div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Weekday {formatGBP(opt.weekdayPrice)} • Weekend {formatGBP(opt.weekendPrice)}
+                    </div>
+                  </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Date & Tee Time */}
+          {/* 2. Date & 3. Custom Tee Time (9 AM to 6 PM) */}
           <div
             style={{
               background: '#ffffff',
@@ -406,7 +426,7 @@ export function BookingNineHoles() {
           >
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CalendarIcon size={15} color={accent} /> 3. Select Date
+                <CalendarIcon size={15} color={accent} /> 2. Select Date
               </label>
               <input
                 type="date"
@@ -418,25 +438,53 @@ export function BookingNineHoles() {
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={15} color={accent} /> 4. Select Tee Time
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                {TEE_TIMES.map((t) => {
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
+                  <Clock size={15} color={accent} /> 3. Select Custom Time
+                </label>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: accent }}>
+                  Available: 9:00 AM – 6:00 PM
+                </span>
+              </div>
+
+              <input
+                type="time"
+                className="form-input"
+                min="09:00"
+                max="18:00"
+                value={selectedTime}
+                onChange={(e) => handleTimeChange(e.target.value)}
+                required
+                style={{
+                  borderColor: timeError ? '#dc2626' : `var(--border-color)`,
+                  fontWeight: 700,
+                  marginBottom: '10px',
+                }}
+              />
+
+              {timeError && (
+                <div style={{ fontSize: '0.74rem', color: '#dc2626', fontWeight: 700, marginBottom: '10px' }}>
+                  {timeError}
+                </div>
+              )}
+
+              {/* Quick Preset Chips between 9 AM and 6 PM */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {QUICK_TIMES.map((t) => {
                   const active = selectedTime === t;
                   return (
                     <button
                       type="button"
                       key={t}
-                      onClick={() => setSelectedTime(t)}
+                      onClick={() => handleTimeChange(t)}
                       style={{
-                        minHeight: '42px',
-                        borderRadius: '11px',
-                        border: active ? `2px solid ${accent}` : '1px solid var(--border-color)',
-                        background: active ? accentSoft : '#ffffff',
+                        padding: '6px 10px',
+                        borderRadius: '999px',
+                        border: active ? `1.5px solid ${accent}` : '1px solid var(--border-color)',
+                        background: active ? accentSoft : 'var(--bg-subtle)',
                         color: active ? accent : 'var(--text-secondary)',
                         fontWeight: 700,
-                        fontSize: '0.82rem',
+                        fontSize: '0.74rem',
                         cursor: 'pointer',
                       }}
                     >
@@ -448,7 +496,7 @@ export function BookingNineHoles() {
             </div>
           </div>
 
-          {/* Equipment Hire & Submit */}
+          {/* 4. Equipment Hire & Lake Balls */}
           <div
             style={{
               background: '#ffffff',
@@ -459,7 +507,7 @@ export function BookingNineHoles() {
             }}
           >
             <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-              <Sparkles size={15} color={accent} /> 5. Equipment Hire (Optional)
+              <Sparkles size={15} color={accent} /> 4. Equipment Hire & Lake Balls (Optional)
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
@@ -512,7 +560,7 @@ export function BookingNineHoles() {
                 boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
               }}
             >
-              Confirm 9 Holes Booking (£{totalPrice}.00)
+              Confirm {activeRound.label} Booking (£{totalPrice.toFixed(2)})
             </button>
           </div>
         </form>
