@@ -318,7 +318,7 @@ export function AdminBookings() {
   };
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
       {/* Back Button */}
       <button
         onClick={() => navigate('/admin')}
@@ -418,8 +418,8 @@ export function AdminBookings() {
         </div>
       )}
 
-      {/* Spacious 2x2 Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* Spacious 4 Summary Cards (2x2 on mobile, 4 in 1 row on desktop) */}
+      <div className="admin-kpi-grid" style={{ marginBottom: '20px' }}>
         <div
           onClick={() => setDateScope(dateScope === 'today' ? 'all' : 'today')}
           style={{
@@ -975,7 +975,7 @@ export function AdminBookings() {
         </div>
       ) : (
         /* ULTRA-CLEAR BOOKING CARDS LIST */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
+        <div className="admin-cards-grid" style={{ marginBottom: '24px' }}>
           {filteredBookings.length === 0 ? (
             <div
               style={{
@@ -1526,9 +1526,9 @@ export function AdminBookings() {
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div
-            className="modal-content"
+            className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#ffffff', maxWidth: '430px' }}
+            style={{ background: '#0f172a', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#ffffff' }}
           >
             <button
               onClick={() => setShowAddModal(false)}
@@ -1683,9 +1683,9 @@ export function AdminBookings() {
       {editingBooking && (
         <div className="modal-overlay" onClick={() => setEditingBooking(null)}>
           <div
-            className="modal-content"
+            className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#ffffff', maxWidth: '430px' }}
+            style={{ background: '#0f172a', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#ffffff' }}
           >
             <button
               onClick={() => setEditingBooking(null)}

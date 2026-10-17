@@ -1,6 +1,16 @@
 import React from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Shield, LogOut, Award, BarChart3 } from 'lucide-react';
+import { useNavigate, Link, NavLink, useLocation } from 'react-router-dom';
+import {
+  Shield,
+  LogOut,
+  Award,
+  BarChart3,
+  LayoutDashboard,
+  QrCode,
+  Calendar,
+  Gift,
+  Users,
+} from 'lucide-react';
 import { useAuth } from '../auth';
 import { resolveCardVisualTier } from './MembershipCard';
 
@@ -18,90 +28,115 @@ export function Header() {
 
   if (user.role === 'admin') {
     const isAnalyticsPage = location.pathname.startsWith('/admin/analytics');
+    const adminNavLinks = [
+      { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+      { to: '/admin/scan', label: 'Scan Pass', icon: QrCode },
+      { to: '/admin/bookings', label: 'Bookings Sheet', icon: Calendar },
+      { to: '/admin/rewards', label: 'Rewards & Offers', icon: Gift },
+      { to: '/admin/members', label: 'Members', icon: Users },
+      { to: '/admin/analytics', label: 'Reports & Till', icon: BarChart3 },
+    ];
+
     return (
-      <header
-        style={{
-          background: 'rgba(9, 13, 22, 0.94)',
-          backdropFilter: 'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: 'calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <Link
-            to="/admin"
-            style={{
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: 'var(--radius-full)',
-              padding: '5px 11px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              color: '#10b981',
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              textDecoration: 'none',
-            }}
-          >
-            <Shield size={14} /> Staff Portal
-          </Link>
+      <header className="app-header-admin">
+        <div className="admin-header-inner">
+          {/* Brand Logo & Reception Indicator */}
+          <div className="admin-header-brand">
+            <Link to="/admin" className="admin-brand-link">
+              <img
+                src="/playgolf-logo.png"
+                alt="PlayGolf Northwick Park"
+                className="admin-brand-logo-img"
+              />
+              <div className="admin-brand-info">
+                <span className="admin-brand-title">STAFF PORTAL</span>
+                <span className="admin-brand-desk">
+                  <span className="admin-status-dot" />
+                  Reception Desk
+                </span>
+              </div>
+            </Link>
+          </div>
 
-          <Link
-            to="/admin/analytics"
-            style={{
-              background: isAnalyticsPage ? 'rgba(56, 189, 248, 0.24)' : 'rgba(56, 189, 248, 0.12)',
-              border: `1px solid ${isAnalyticsPage ? 'rgba(56, 189, 248, 0.5)' : 'rgba(56, 189, 248, 0.28)'}`,
-              borderRadius: 'var(--radius-full)',
-              padding: '5px 11px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              color: '#38bdf8',
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              textDecoration: 'none',
-            }}
-            title="Open Club Reports & Analytics"
-          >
-            <BarChart3 size={14} /> Reports
-          </Link>
+          {/* Desktop Navigation Links (>= 900px) */}
+          <nav className="admin-desktop-nav-menu">
+            {adminNavLinks.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => `admin-desktop-nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          {/* Mobile Quick Action Link (< 900px) */}
+          <div className="admin-mobile-header-actions">
+            <Link
+              to="/admin"
+              style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: 'var(--radius-full)',
+                padding: '5px 11px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: '#10b981',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+                textDecoration: 'none',
+              }}
+            >
+              <Shield size={14} /> Staff
+            </Link>
+
+            <Link
+              to="/admin/analytics"
+              style={{
+                background: isAnalyticsPage ? 'rgba(56, 189, 248, 0.24)' : 'rgba(56, 189, 248, 0.12)',
+                border: `1px solid ${isAnalyticsPage ? 'rgba(56, 189, 248, 0.5)' : 'rgba(56, 189, 248, 0.28)'}`,
+                borderRadius: 'var(--radius-full)',
+                padding: '5px 11px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: '#38bdf8',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+                textDecoration: 'none',
+              }}
+              title="Open Club Reports & Analytics"
+            >
+              <BarChart3 size={14} /> Reports
+            </Link>
+          </div>
+
+          {/* User Info & Sign Out */}
+          <div className="admin-header-user-section">
+            <div className="admin-user-pill">
+              <span className="admin-user-name">{user.name || 'Staff User'}</span>
+              <span className="admin-user-role">Club Manager</span>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="admin-logout-btn"
+              title="Sign out of admin session"
+            >
+              <LogOut size={13} />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
-
-        <button
-          onClick={handleLogout}
-          style={{
-            background: 'rgba(239, 68, 68, 0.14)',
-            border: '1px solid rgba(239, 68, 68, 0.32)',
-            color: '#f87171',
-            padding: '6px 12px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}
-          title="Sign out of admin session"
-        >
-          <LogOut size={13} /> Sign Out
-        </button>
       </header>
     );
   }

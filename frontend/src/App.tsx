@@ -64,6 +64,17 @@ function AppRoutes() {
   const { user } = useAuth();
   const [splashFinished, setSplashFinished] = useState(false);
 
+  React.useEffect(() => {
+    if (user?.role === 'admin') {
+      document.body.classList.add('admin-body');
+    } else {
+      document.body.classList.remove('admin-body');
+    }
+    return () => {
+      document.body.classList.remove('admin-body');
+    };
+  }, [user?.role]);
+
   const viewportClasses = [
     'app-viewport',
     user ? 'has-bottom-nav' : '',

@@ -467,7 +467,7 @@ export function AdminRewards() {
     rewards.length > 0 ? Math.round(rewards.reduce((acc, r) => acc + r.points_cost, 0) / rewards.length) : 0;
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
       {/* Back Button */}
       <button
         onClick={() => navigate('/admin')}
@@ -567,8 +567,8 @@ export function AdminRewards() {
         </div>
       )}
 
-      {/* Spacious 2x2 Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* Spacious 2-Column Summary Cards */}
+      <div className="admin-two-col" style={{ marginBottom: '20px' }}>
         <div
           onClick={() => setActiveTab('catalog')}
           style={{
@@ -767,7 +767,7 @@ export function AdminRewards() {
           </div>
 
           {/* Redemptions List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="admin-cards-grid">
             {filteredRedemptions.length === 0 ? (
               <div style={{ background: 'rgba(15, 23, 42, 0.85)', borderRadius: '16px', padding: '32px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.84rem' }}>
                 No reward redemptions match this filter.
@@ -999,7 +999,7 @@ export function AdminRewards() {
           </div>
 
           {/* Detailed Rewards Cards Grid */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="admin-cards-grid">
             {loading ? (
               <div style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                 Loading rewards catalog...
@@ -1308,9 +1308,9 @@ export function AdminRewards() {
           }}
         >
           <div
-            className="modal-content"
+            className="modal-content admin-modal-dialog-wide"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(16, 185, 129, 0.35)', maxWidth: '440px' }}
+            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(16, 185, 129, 0.35)' }}
           >
             <button
               type="button"

@@ -10,6 +10,7 @@ import {
   Clock,
   UserCheck,
   Bell,
+  Receipt,
 } from 'lucide-react';
 import { adminApi, AdminStats, getStoredRedemptions } from '../api';
 import { getStoredBookings, syncBookingsFromSupabase, BookingItem } from '../bookingsStore';
@@ -91,7 +92,17 @@ export function AdminDashboard() {
     month: 'long',
   });
 
+  function parsePriceValue(priceStr?: string): number {
+    if (!priceStr) return 14;
+    const num = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
+    return isNaN(num) ? 14 : num;
+  }
+
   const todaysBookings = bookings.filter((b) => b.date === todayIso && b.status === 'confirmed');
+  const todaysActiveBookings = bookings.filter(
+    (b) => (b.date === todayIso || b.created_at?.startsWith(todayIso)) && b.status !== 'cancelled'
+  );
+  const todaysRevenue = todaysActiveBookings.reduce((sum, b) => sum + parsePriceValue(b.price), 0);
 
   if (loading) {
     return (
@@ -102,7 +113,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div style={{ padding: '24px 18px 44px 18px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div className="admin-page-container">
       {/* 1. FRIENDLY GREETING & PRIMARY ACTION */}
       <div
         style={{
@@ -110,128 +121,134 @@ export function AdminDashboard() {
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: '22px',
           padding: '24px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
         }}
       >
-        <div>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>
-            {todayReadable}
+        <div className="admin-hero-grid">
+          {/* Left Column: Greeting & Big Scan CTA */}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '18px' }}>
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>
+                {todayReadable}
+              </div>
+              <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
+                Hello, {user?.name?.split(' ')[0] || 'Staff'} 👋
+              </h1>
+              <p style={{ fontSize: '0.92rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Welcome to the PlayGolf reception desk. Scan a guest's QR pass or choose a management module below.
+              </p>
+            </div>
+
+            {/* Big Primary Scan Button */}
+            <button
+              onClick={() => navigate('/admin/scan')}
+              style={{
+                width: '100%',
+                padding: '16px 20px',
+                borderRadius: '16px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                fontSize: '1rem',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                boxShadow: '0 8px 20px rgba(16, 185, 129, 0.28)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <QrCode size={22} />
+              <span>Scan QR Code (Member, Booking or Voucher)</span>
+            </button>
           </div>
-          <h1 style={{ fontSize: '1.55rem', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
-            Hello, {user?.name?.split(' ')[0] || 'Staff'} 👋
-          </h1>
-          <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: 1.5 }}>
-            Welcome to the reception desk. Scan a member's pass or choose a section below.
-          </p>
-        </div>
 
-        {/* Big Primary Scan Button */}
-        <button
-          onClick={() => navigate('/admin/scan')}
-          style={{
-            width: '100%',
-            padding: '16px 20px',
-            borderRadius: '16px',
-            border: 'none',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: '#ffffff',
-            fontSize: '1rem',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            cursor: 'pointer',
-            boxShadow: '0 8px 20px rgba(16, 185, 129, 0.28)',
-          }}
-        >
-          <QrCode size={22} />
-          <span>Scan QR Code (Member, Booking or Voucher)</span>
-        </button>
-
-        {/* Simple Quick Check-In by Member ID */}
-        <div
-          style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '16px',
-          }}
-        >
+          {/* Right Column: Simple Quick Check-In by Member ID */}
           <div
             style={{
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              color: '#e2e8f0',
-              marginBottom: '10px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              padding: '18px',
               display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
+              flexDirection: 'column',
+              justifyContent: 'center',
             }}
           >
-            <UserCheck size={16} style={{ color: '#34d399' }} />
-            <span>Or type a Member ID to check them in (+100 pts):</span>
-          </div>
-
-          <form onSubmit={handleQuickCheckIn} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              placeholder="e.g. PG-398459"
-              value={memberIdInput}
-              onChange={(e) => setMemberIdInput(e.target.value)}
-              style={{
-                flex: '1 1 180px',
-                minHeight: '46px',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.16)',
-                background: '#090d16',
-                color: '#ffffff',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-              }}
-            />
-
-            <button
-              type="submit"
-              disabled={submitting || !memberIdInput.trim()}
-              style={{
-                minHeight: '46px',
-                padding: '10px 18px',
-                borderRadius: '12px',
-                border: '1px solid rgba(52, 211, 153, 0.35)',
-                background: memberIdInput.trim() ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                color: memberIdInput.trim() ? '#34d399' : '#64748b',
-                fontSize: '0.88rem',
-                fontWeight: 800,
-                cursor: memberIdInput.trim() ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {submitting ? 'Checking in...' : 'Check In'}
-            </button>
-          </form>
-
-          {checkinMessage && (
             <div
               style={{
-                marginTop: '10px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                fontSize: '0.82rem',
+                fontSize: '0.86rem',
                 fontWeight: 700,
-                background:
-                  checkinMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: checkinMessage.type === 'success' ? '#34d399' : '#f87171',
-                border: `1px solid ${
-                  checkinMessage.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'
-                }`,
+                color: '#e2e8f0',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
-              {checkinMessage.text}
+              <UserCheck size={16} style={{ color: '#34d399' }} />
+              <span>Quick Check-In by Member ID (+100 pts):</span>
             </div>
-          )}
+
+            <form onSubmit={handleQuickCheckIn} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="e.g. PG-398459"
+                value={memberIdInput}
+                onChange={(e) => setMemberIdInput(e.target.value)}
+                style={{
+                  flex: '1 1 180px',
+                  minHeight: '46px',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  background: '#090d16',
+                  color: '#ffffff',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                }}
+              />
+
+              <button
+                type="submit"
+                disabled={submitting || !memberIdInput.trim()}
+                style={{
+                  minHeight: '46px',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(52, 211, 153, 0.35)',
+                  background: memberIdInput.trim() ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  color: memberIdInput.trim() ? '#34d399' : '#64748b',
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  cursor: memberIdInput.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {submitting ? 'Checking in...' : 'Check In'}
+              </button>
+            </form>
+
+            {checkinMessage && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  background:
+                    checkinMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: checkinMessage.type === 'success' ? '#34d399' : '#f87171',
+                  border: `1px solid ${
+                    checkinMessage.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'
+                  }`,
+                }}
+              >
+                {checkinMessage.text}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -244,7 +261,50 @@ export function AdminDashboard() {
           Tap any box below to view full details.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+        {/* Highlight Banner: End-of-Day Takings */}
+        <div
+          onClick={() => navigate('/admin/analytics?tab=payments')}
+          style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, #111827 100%)',
+            border: '1.5px solid rgba(16, 185, 129, 0.45)',
+            borderRadius: '18px',
+            padding: '18px 20px',
+            cursor: 'pointer',
+            marginBottom: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                color: '#34d399',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '4px',
+              }}
+            >
+              <Receipt size={16} /> END-OF-DAY APP TAKINGS
+            </div>
+            <div style={{ fontSize: '2.3rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
+              £{todaysRevenue.toFixed(2)}
+            </div>
+            <div style={{ fontSize: '0.82rem', color: '#cbd5e1', marginTop: '4px' }}>
+              From {todaysActiveBookings.length} {todaysActiveBookings.length === 1 ? 'booking' : 'bookings'} today • Tap for till report
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399', fontSize: '0.84rem', fontWeight: 800 }}>
+            <span>Till Report</span>
+            <ChevronRight size={18} />
+          </div>
+        </div>
+
+        <div className="admin-kpi-grid">
           <div
             onClick={() => navigate('/admin/analytics')}
             style={{
@@ -351,7 +411,7 @@ export function AdminDashboard() {
             Items that need a quick check from staff today.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="admin-two-col">
             {todaysBookings.length > 0 && (
               <div
                 onClick={() => navigate('/admin/bookings')}
@@ -418,7 +478,7 @@ export function AdminDashboard() {
           Choose what you would like to view or update.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="admin-menu-grid">
           {[
             {
               title: 'Bookings & Tee Sheet',
@@ -427,6 +487,14 @@ export function AdminDashboard() {
               icon: <Calendar size={22} />,
               color: '#38bdf8',
               bg: 'rgba(56, 189, 248, 0.14)',
+            },
+            {
+              title: 'Daily Payments & Till Report',
+              desc: 'End-of-day takings, revenue breakdown, and how much the app has made today.',
+              path: '/admin/analytics?tab=payments',
+              icon: <Receipt size={22} />,
+              color: '#10b981',
+              bg: 'rgba(16, 185, 129, 0.14)',
             },
             {
               title: 'Club Reports & Insights',

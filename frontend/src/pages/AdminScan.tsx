@@ -323,7 +323,7 @@ export function AdminScan() {
   const sampleBookingCode = latestBookings[0]?.booking_code || 'PG-BK109283';
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
       {/* Back Button */}
       <button
         onClick={() => navigate('/admin')}
@@ -359,12 +359,14 @@ export function AdminScan() {
       {!scanResult && (
         <div
           style={{
+            maxWidth: '620px',
+            margin: '0 auto 20px auto',
+            width: '100%',
             display: 'flex',
             background: '#111827',
             padding: '6px',
             borderRadius: '16px',
             border: '1px solid rgba(255, 255, 255, 0.08)',
-            marginBottom: '20px',
             gap: '6px',
           }}
         >
@@ -430,6 +432,9 @@ export function AdminScan() {
             borderRadius: '22px',
             padding: '24px 20px',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            maxWidth: '780px',
+            margin: '0 auto',
+            width: '100%',
           }}
         >
           {/* Top Status Header */}
@@ -834,7 +839,7 @@ export function AdminScan() {
           </div>
         </div>
       ) : (
-        <div>
+        <div style={{ maxWidth: '620px', margin: '0 auto', width: '100%' }}>
           {error && (
             <div
               style={{

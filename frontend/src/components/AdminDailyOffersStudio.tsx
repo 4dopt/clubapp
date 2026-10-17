@@ -173,7 +173,7 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
       </div>
 
       {/* Mon–Sun Daily Offer Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="admin-cards-grid-dense">
         {offers.map((offer) => {
           const isToday = offer.dayKey === todayOffer.dayKey;
 
@@ -307,13 +307,12 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
       {editingDay && (
         <div className="modal-overlay" onClick={() => setEditingDay(null)}>
           <div
-            className="modal-content"
+            className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
             style={{
               background: '#0f172a',
               color: '#ffffff',
               border: '1px solid rgba(16, 185, 129, 0.35)',
-              maxWidth: '440px',
             }}
           >
             <button

@@ -121,7 +121,7 @@ export function AdminMembers() {
   const totalPointsPool = members.reduce((acc, m) => acc + (m.points || 0), 0);
 
   return (
-    <div style={{ background: '#090d16', color: '#f8fafc', flex: 1, padding: '24px 18px 44px 18px' }}>
+    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
       {/* Back Button */}
       <button
         onClick={() => navigate('/admin')}
@@ -205,8 +205,8 @@ export function AdminMembers() {
         </div>
       )}
 
-      {/* Spacious 2x2 Summary Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* Spacious 2-Column Summary Strip */}
+      <div className="admin-two-col" style={{ marginBottom: '20px' }}>
         <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '16px' }}>
           <div style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: 700 }}>Total Members</div>
           <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>{members.length}</div>
@@ -286,7 +286,7 @@ export function AdminMembers() {
       </div>
 
       {/* Member Cards List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="admin-cards-grid">
         {loading ? (
           <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
             Loading member directory...
@@ -448,9 +448,9 @@ export function AdminMembers() {
       {inspectUser && (
         <div className="modal-overlay" onClick={() => setInspectUser(null)}>
           <div
-            className="modal-content"
+            className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(56, 189, 248, 0.35)', maxWidth: '420px' }}
+            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(56, 189, 248, 0.35)' }}
           >
             <button
               type="button"
@@ -592,7 +592,7 @@ export function AdminMembers() {
       {selectedUser && (
         <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
           <div
-            className="modal-content"
+            className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
           >
