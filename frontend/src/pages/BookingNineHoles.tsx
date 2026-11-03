@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../auth';
 import { BookingItem, createBooking } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
+import { FoodUpsellStep, SelectedUpsellOrder } from '../components/FoodUpsellStep';
 
 const ROUND_OPTIONS = [
   {
@@ -62,6 +63,8 @@ export function BookingNineHoles() {
   const [timeError, setTimeError] = useState<string>('');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>('');
+  const [showUpsellStep, setShowUpsellStep] = useState<boolean>(false);
+  const [upsellSummary, setUpsellSummary] = useState<string>('');
   const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
   const [passModalBooking, setPassModalBooking] = useState<BookingItem | null>(null);
 
@@ -97,7 +100,10 @@ export function BookingNineHoles() {
       setTimeError('Please select a tee time between 09:00 AM and 06:00 PM.');
       return;
     }
+    setShowUpsellStep(true);
+  };
 
+  const handleFinalizeBooking = (upsellOrder: SelectedUpsellOrder) => {
     const addOnLabels = selectedAddOns
       .map((id) => ADD_ONS.find((a) => a.id === id)?.label)
       .filter(Boolean)
@@ -106,10 +112,14 @@ export function BookingNineHoles() {
     const combinedNotes = [
       `Round: ${activeRound.label} (${isWeekend ? 'Weekend' : 'Weekday'} Rate)`,
       addOnLabels ? `Extras: ${addOnLabels}` : '',
+      upsellOrder.summaryText,
       notes.trim(),
     ]
       .filter(Boolean)
       .join(' • ');
+
+    const finalAmount = totalPrice + upsellOrder.upsellTotal;
+    setUpsellSummary(upsellOrder.summaryText);
 
     const newBk = createBooking({
       user_id: user?.id || 'usr_member_1',
@@ -124,10 +134,11 @@ export function BookingNineHoles() {
       party_size: 1,
       bay_assignment: 'Tee 1 (Championship)',
       payment_status: 'paid',
-      price: `£${totalPrice.toFixed(2)}`,
+      price: `£${finalAmount.toFixed(2)}`,
       notes: combinedNotes,
     });
 
+    setShowUpsellStep(false);
     setCreatedBooking(newBk);
   };
 
@@ -137,7 +148,7 @@ export function BookingNineHoles() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <button
           type="button"
-          onClick={() => navigate('/booking')}
+          onClick={() => (showUpsellStep ? setShowUpsellStep(false) : navigate('/booking'))}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -153,7 +164,7 @@ export function BookingNineHoles() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <ArrowLeft size={15} /> Back to Booking
+          <ArrowLeft size={15} /> {showUpsellStep ? 'Back to Details' : 'Back to Booking'}
         </button>
 
         <span
@@ -294,6 +305,14 @@ export function BookingNineHoles() {
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Date & Time:</span>
               <span style={{ color: accent, fontWeight: 800 }}>{createdBooking.date} at {createdBooking.time}</span>
             </div>
+            {upsellSummary && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pre-Order:</span>
+                <span style={{ color: '#b45309', fontWeight: 800, textAlign: 'right' }}>
+                  {upsellSummary.replace('Pre-Order Food/Drinks: ', '')}
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Total Fee:</span>
               <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.price}</span>
@@ -342,6 +361,14 @@ export function BookingNineHoles() {
             </button>
           </div>
         </div>
+      ) : showUpsellStep ? (
+        <FoodUpsellStep
+          activityTitle={`${activeRound.label} Course`}
+          basePrice={totalPrice}
+          accentColor={accent}
+          onComplete={handleFinalizeBooking}
+          onBack={() => setShowUpsellStep(false)}
+        />
       ) : (
         <form onSubmit={handleBookSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* 1. 9 Holes vs 18 Holes */}

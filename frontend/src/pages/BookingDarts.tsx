@@ -7,7 +7,6 @@ import {
   Clock,
   Users,
   Gamepad2,
-  Wine,
   CheckCircle2,
   QrCode,
   Award,
@@ -16,6 +15,7 @@ import {
 import { useAuth } from '../auth';
 import { BookingItem, createBooking } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
+import { FoodUpsellStep, SelectedUpsellOrder } from '../components/FoodUpsellStep';
 
 const AR_GAME_MODES = [
   { id: 'killer', name: 'Killer AR', tag: 'Party Mode', desc: 'Knock out rivals in interactive target play' },
@@ -53,28 +53,35 @@ export function BookingDarts() {
   const [selectedGame, setSelectedGame] = useState<string>('killer');
   const [selectedDuration, setSelectedDuration] = useState<string>('60 mins');
   const [players, setPlayers] = useState<number>(4);
-  const [drinksPackage, setDrinksPackage] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState<string>('19:00');
   const [notes, setNotes] = useState<string>('');
+  const [showUpsellStep, setShowUpsellStep] = useState<boolean>(false);
+  const [upsellSummary, setUpsellSummary] = useState<string>('');
   const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
   const [passModalBooking, setPassModalBooking] = useState<BookingItem | null>(null);
 
   const activeDur = DURATIONS.find((d) => d.label === selectedDuration) || DURATIONS[0];
   const vipSurcharge = selectedLane === 'AR Darts VIP Booth' ? 10 : 0;
-  const drinksAddon = drinksPackage ? 24 : 0;
-  const totalPrice = activeDur.price + vipSurcharge + drinksAddon;
+  const totalPrice = activeDur.price + vipSurcharge;
 
   const handleBookSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowUpsellStep(true);
+  };
+
+  const handleFinalizeBooking = (upsellOrder: SelectedUpsellOrder) => {
     const gameObj = AR_GAME_MODES.find((g) => g.id === selectedGame);
     const combinedNotes = [
       `Starting Mode: ${gameObj?.name || 'Killer AR'}`,
-      drinksPackage ? 'Clubhouse Pitchers & Sharing Nachos (+£24)' : '',
+      upsellOrder.summaryText,
       notes.trim(),
     ]
       .filter(Boolean)
       .join(' • ');
+
+    const finalAmount = totalPrice + upsellOrder.upsellTotal;
+    setUpsellSummary(upsellOrder.summaryText);
 
     const newBk = createBooking({
       user_id: user?.id || 'usr_member_1',
@@ -89,10 +96,11 @@ export function BookingDarts() {
       party_size: players,
       bay_assignment: selectedLane,
       payment_status: 'paid',
-      price: `£${totalPrice}.00`,
+      price: `£${finalAmount.toFixed(2)}`,
       notes: combinedNotes,
     });
 
+    setShowUpsellStep(false);
     setCreatedBooking(newBk);
   };
 
@@ -102,7 +110,7 @@ export function BookingDarts() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <button
           type="button"
-          onClick={() => navigate('/booking')}
+          onClick={() => (showUpsellStep ? setShowUpsellStep(false) : navigate('/booking'))}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -118,7 +126,7 @@ export function BookingDarts() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <ArrowLeft size={15} /> Back to Booking
+          <ArrowLeft size={15} /> {showUpsellStep ? 'Back to Details' : 'Back to Booking'}
         </button>
 
         <span
@@ -257,6 +265,14 @@ export function BookingDarts() {
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Date & Time:</span>
               <span style={{ color: accent, fontWeight: 800 }}>{createdBooking.date} at {createdBooking.time}</span>
             </div>
+            {upsellSummary && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pre-Order:</span>
+                <span style={{ color: '#b45309', fontWeight: 800, textAlign: 'right' }}>
+                  {upsellSummary.replace('Pre-Order Food/Drinks: ', '')}
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Duration & Group:</span>
               <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{createdBooking.duration} • {createdBooking.party_size} Players ({createdBooking.price})</span>
@@ -305,6 +321,14 @@ export function BookingDarts() {
             </button>
           </div>
         </div>
+      ) : showUpsellStep ? (
+        <FoodUpsellStep
+          activityTitle={`Darts Lane (${selectedDuration})`}
+          basePrice={totalPrice}
+          accentColor={accent}
+          onComplete={handleFinalizeBooking}
+          onBack={() => setShowUpsellStep(false)}
+        />
       ) : (
         <form onSubmit={handleBookSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* 1. AR Game Mode */}
@@ -459,7 +483,7 @@ export function BookingDarts() {
             </div>
           </div>
 
-          {/* 3. Date, Time & Drinks Add-on */}
+          {/* 3. Date & Time */}
           <div
             style={{
               background: '#ffffff',
@@ -510,36 +534,6 @@ export function BookingDarts() {
                   );
                 })}
               </div>
-            </div>
-
-            <div
-              onClick={() => setDrinksPackage(!drinksPackage)}
-              style={{
-                padding: '11px 12px',
-                borderRadius: '12px',
-                border: drinksPackage ? `1.5px solid ${accent}` : '1px solid var(--border-color)',
-                background: drinksPackage ? accentSoft : 'var(--bg-subtle)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                marginBottom: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Wine size={16} color={accent} />
-                <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Clubhouse Pitchers & Sharing Nachos
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                    Served to your lane on arrival
-                  </div>
-                </div>
-              </div>
-              <span style={{ fontSize: '0.76rem', fontWeight: 800, color: drinksPackage ? accent : 'var(--text-secondary)' }}>
-                +£24 {drinksPackage ? '✓' : ''}
-              </span>
             </div>
 
             <div className="form-group" style={{ marginBottom: '16px' }}>

@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../auth';
 import { BookingItem, createBooking } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
+import { FoodUpsellStep, SelectedUpsellOrder } from '../components/FoodUpsellStep';
 
 const PACKAGES = [
   {
@@ -68,6 +69,8 @@ export function BookingPuttCrazy() {
   const [selectedTime, setSelectedTime] = useState<string>('14:30');
   const [timeError, setTimeError] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  const [showUpsellStep, setShowUpsellStep] = useState<boolean>(false);
+  const [upsellSummary, setUpsellSummary] = useState<string>('');
   const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
   const [passModalBooking, setPassModalBooking] = useState<BookingItem | null>(null);
 
@@ -88,14 +91,21 @@ export function BookingPuttCrazy() {
       setTimeError('Please select a time between 10:00 AM and 09:00 PM.');
       return;
     }
+    setShowUpsellStep(true);
+  };
 
+  const handleFinalizeBooking = (upsellOrder: SelectedUpsellOrder) => {
     const combinedNotes = [
       `${activePkg.label} (2 Course Laps Included)`,
       'Includes Scorecard, Pencils & Age-Colored Putters',
+      upsellOrder.summaryText,
       notes.trim(),
     ]
       .filter(Boolean)
       .join(' • ');
+
+    const finalAmount = activePkg.price + upsellOrder.upsellTotal;
+    setUpsellSummary(upsellOrder.summaryText);
 
     const newBk = createBooking({
       user_id: user?.id || 'usr_member_1',
@@ -110,10 +120,11 @@ export function BookingPuttCrazy() {
       party_size: activePkg.pax,
       bay_assignment: 'Putt Crazy Course',
       payment_status: 'paid',
-      price: `£${activePkg.price.toFixed(2)}`,
+      price: `£${finalAmount.toFixed(2)}`,
       notes: combinedNotes,
     });
 
+    setShowUpsellStep(false);
     setCreatedBooking(newBk);
   };
 
@@ -123,7 +134,7 @@ export function BookingPuttCrazy() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <button
           type="button"
-          onClick={() => navigate('/booking')}
+          onClick={() => (showUpsellStep ? setShowUpsellStep(false) : navigate('/booking'))}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -139,7 +150,7 @@ export function BookingPuttCrazy() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <ArrowLeft size={15} /> Back to Booking
+          <ArrowLeft size={15} /> {showUpsellStep ? 'Back to Details' : 'Back to Booking'}
         </button>
 
         <span
@@ -278,6 +289,14 @@ export function BookingPuttCrazy() {
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pass & Total:</span>
               <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{activePkg.label} ({createdBooking.price})</span>
             </div>
+            {upsellSummary && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pre-Order:</span>
+                <span style={{ color: '#b45309', fontWeight: 800, textAlign: 'right' }}>
+                  {upsellSummary.replace('Pre-Order Food/Drinks: ', '')}
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Included:</span>
               <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>2 Laps • Scorecard, Pencils & Colored Putters</span>
@@ -326,6 +345,14 @@ export function BookingPuttCrazy() {
             </button>
           </div>
         </div>
+      ) : showUpsellStep ? (
+        <FoodUpsellStep
+          activityTitle={`Putt Crazy (${activePkg.label})`}
+          basePrice={activePkg.price}
+          accentColor={accent}
+          onComplete={handleFinalizeBooking}
+          onBack={() => setShowUpsellStep(false)}
+        />
       ) : (
         <form onSubmit={handleBookSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* 1. Group & Individual Package Selector */}
