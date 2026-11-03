@@ -48,7 +48,7 @@ export const ACTIVITY_METADATA: Record<
     category: 'TrackMan Radar Range Bay',
     defaultDuration: '60 mins',
     defaultBay: 'TrackMan Bay 12',
-    defaultPrice: '£14.00',
+    defaultPrice: '£10.00',
     color: '#10b981',
     bgTint: 'rgba(16, 185, 129, 0.14)',
     serviceInstructions: 'Issue range ball token/basket & direct guest to their assigned TrackMan bay.',

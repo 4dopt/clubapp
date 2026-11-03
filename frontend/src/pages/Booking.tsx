@@ -57,7 +57,7 @@ export function Booking() {
       name: 'Driving Range',
       subtitle: 'TrackMan 4 Radar Range Bays',
       tag: 'TrackMan Live',
-      priceTag: 'From £7.50',
+      priceTag: '£10 Off-Peak',
       icon: <Target size={22} />,
       accentColor: '#047857',
       accentSoft: '#ecfdf5',
