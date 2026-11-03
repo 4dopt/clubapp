@@ -63,10 +63,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 2. Check if Staff/Admin PIN session is active
+        // 2. Check if Staff/Admin PIN session or demo member session is active
         const adminTok = localStorage.getItem(ADMIN_TOKEN_KEY);
+        const memberTok = localStorage.getItem(TOKEN_KEY);
         const cached = getCachedUser();
-        if (adminTok && (adminTok.includes('admin') || cached?.role === 'admin')) {
+        if (memberTok === 'member_demo_token' && cached) {
+          if (mounted) {
+            setToken(memberTok);
+            setUserState(cached);
+          }
+        } else if (adminTok && (adminTok.includes('admin') || cached?.role === 'admin')) {
           if (mounted) {
             setToken(adminTok);
             setUserState(

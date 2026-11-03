@@ -12,12 +12,14 @@ import {
   ShieldCheck,
   ArrowLeft,
   Calendar,
-  Clock,
   MapPin,
   Users,
   CreditCard,
   ClipboardList,
   CheckCheck,
+  Utensils,
+  BellRing,
+  PackageCheck,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi } from '../api';
@@ -29,6 +31,7 @@ import {
   updateBookingStatus,
   updateBookingDetails,
   parseBookingQrPayload,
+  parseBookingAddons,
   ACTIVITY_METADATA,
 } from '../bookingsStore';
 import { parseDailyOfferQrPayload } from '../dailyOffersStore';
@@ -242,6 +245,33 @@ export function AdminScan() {
           saveStoredBookings([foundBk, ...syncedList]);
         }
 
+        // Built-in sample fallback for PG-BK884920 or PG-BK109283 so staff can always test Pre-Ordered Food & Add-ons scanning
+        if (!foundBk && (upper === 'PG-BK884920' || upper === 'PG-BK109283')) {
+          const todayIso = new Date().toISOString().split('T')[0];
+          foundBk = {
+            id: 'bk_sample_' + Date.now(),
+            booking_code: upper,
+            user_id: 'usr_member_1',
+            user_name: 'Alex Morgan',
+            user_member_id: 'PG-2445B5',
+            member_tier: 'Gold',
+            activity_id: 'nine-holes',
+            activity_name: '9 Holes Championship Course',
+            date: todayIso,
+            time: '14:30',
+            duration: '120 mins',
+            party_size: 2,
+            bay_assignment: 'Tee 1 (Championship)',
+            payment_status: 'paid',
+            price: '£67.00',
+            status: 'confirmed',
+            notes:
+              'Round: 9 Holes (Weekday Rate) • Extras: Electric Buggy Hire • Pre-Order Food/Drinks: 1x Classic Loaded Nachos (£6.00), 1x Crispy Chicken Wings (£6.00), 2x Ice-Cold Beer Pint (£10.00)',
+            created_at: new Date().toISOString(),
+          };
+          saveStoredBookings([foundBk, ...syncedList]);
+        }
+
         if (foundBk) {
           const alreadyCheckedIn = foundBk.status === 'completed';
           const updatedBk = updateBookingStatus(foundBk.id, 'completed') || {
@@ -252,9 +282,13 @@ export function AdminScan() {
 
           let newPoints = 0;
           if (!alreadyCheckedIn) {
-            const res = await adminApi.logVisit(token, foundBk.user_member_id || foundBk.user_id);
-            newPoints = res.new_points;
-            await refresh().catch(() => {});
+            try {
+              const res = await adminApi.logVisit(token, foundBk.user_member_id || foundBk.user_id);
+              newPoints = res.new_points;
+              await refresh().catch(() => {});
+            } catch {
+              /* ignore points error */
+            }
           }
 
           const meta = ACTIVITY_METADATA[updatedBk.activity_id];
@@ -305,6 +339,15 @@ export function AdminScan() {
     });
   };
 
+  const handleMarkKitchenOrderPlacedOnScan = () => {
+    if (!scanResult?.booking) return;
+    const updated = updateBookingDetails(scanResult.booking.id, { kitchen_order_placed: true });
+    setScanResult({
+      ...scanResult,
+      booking: updated || { ...scanResult.booking, kitchen_order_placed: true },
+    });
+  };
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualCode.trim()) return;
@@ -320,7 +363,14 @@ export function AdminScan() {
   };
 
   const latestBookings = getStoredBookings();
+  const bookingWithAddons = latestBookings.find((b) => parseBookingAddons(b.notes).hasAnyAddons);
+  const sampleAddonBookingCode = bookingWithAddons?.booking_code || 'PG-BK884920';
   const sampleBookingCode = latestBookings[0]?.booking_code || 'PG-BK109283';
+
+  const scannedBookingAddons =
+    scanResult?.type === 'booking' && scanResult?.booking
+      ? parseBookingAddons(scanResult.booking.notes)
+      : null;
 
   return (
     <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
@@ -351,7 +401,7 @@ export function AdminScan() {
           QR Code & Pass Scanner
         </h1>
         <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-          Scan a member card, booking pass, or reward voucher to see their full details and check them in.
+          Scan a member card, booking pass, or reward voucher to see their full details, pre-ordered food/drinks, and check them in.
         </p>
       </div>
 
@@ -469,6 +519,265 @@ export function AdminScan() {
           {/* FULL BOOKING RECEPTION SERVICE SHEET */}
           {scanResult.type === 'booking' && scanResult.booking && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '22px' }}>
+              {/* 🚨 HIGH-VISIBILITY PRE-ORDER FOOD & ADD-ONS STAFF ACTION ALERT 🚨 */}
+              {scannedBookingAddons && scannedBookingAddons.hasAnyAddons && (
+                <div
+                  style={{
+                    background: scanResult.booking.kitchen_order_placed
+                      ? 'linear-gradient(145deg, rgba(16, 185, 129, 0.18), rgba(6, 78, 59, 0.4))'
+                      : 'linear-gradient(145deg, rgba(245, 158, 11, 0.24), rgba(220, 38, 38, 0.18))',
+                    border: scanResult.booking.kitchen_order_placed
+                      ? '2px solid #10b981'
+                      : '2px solid #f59e0b',
+                    borderRadius: '18px',
+                    padding: '18px',
+                    boxShadow: scanResult.booking.kitchen_order_placed
+                      ? '0 10px 28px rgba(16, 185, 129, 0.25)'
+                      : '0 12px 32px rgba(245, 158, 11, 0.3)',
+                    textAlign: 'left',
+                  }}
+                >
+                  {/* Top Urgent Strip */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '10px',
+                      flexWrap: 'wrap',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: scanResult.booking.kitchen_order_placed ? '#059669' : '#f59e0b',
+                        color: scanResult.booking.kitchen_order_placed ? '#ffffff' : '#090d16',
+                        padding: '5px 12px',
+                        borderRadius: '999px',
+                        fontSize: '0.76rem',
+                        fontWeight: 900,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <BellRing size={15} />
+                      {scanResult.booking.kitchen_order_placed
+                        ? '✓ Kitchen / Bar Order Placed & Add-Ons Issued'
+                        : '🚨 Staff Action Required — Guest Has Arrived!'}
+                    </div>
+
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        color: scanResult.booking.kitchen_order_placed ? '#6ee7b7' : '#fde68a',
+                      }}
+                    >
+                      Serve / Deliver to: <strong>{scanResult.booking.bay_assignment || 'Assigned Bay'}</strong>
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '1.08rem',
+                      fontWeight: 900,
+                      color: '#ffffff',
+                      lineHeight: 1.35,
+                      marginBottom: '14px',
+                    }}
+                  >
+                    {scanResult.booking.kitchen_order_placed
+                      ? 'Pre-ordered food, drinks & add-on items have been sent to Kitchen/Bar.'
+                      : 'Place order for these pre-ordered items with the Kitchen / Bar right now:'}
+                  </div>
+
+                  {/* Pre-Ordered Food & Drinks List */}
+                  {scannedBookingAddons.hasFoodPreOrders && (
+                    <div
+                      style={{
+                        background: 'rgba(9, 13, 22, 0.78)',
+                        border: '1px solid rgba(251, 191, 36, 0.45)',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        marginBottom: scannedBookingAddons.hasEquipmentAddons ? '12px' : '14px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 900,
+                          color: '#fbbf24',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <Utensils size={15} /> Pre-Ordered Food & Drinks (Send to Kitchen / Bar Now):
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {scannedBookingAddons.foodPreOrders.map((item, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: '10px',
+                              background: 'rgba(245, 158, 11, 0.14)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span
+                                style={{
+                                  width: '24px',
+                                  height: '24px',
+                                  borderRadius: '6px',
+                                  background: '#f59e0b',
+                                  color: '#090d16',
+                                  fontWeight: 900,
+                                  fontSize: '0.75rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {idx + 1}
+                              </span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
+                                {item}
+                              </span>
+                            </div>
+
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 900,
+                                padding: '4px 9px',
+                                borderRadius: '6px',
+                                background: scanResult.booking.kitchen_order_placed
+                                  ? 'rgba(16, 185, 129, 0.25)'
+                                  : 'rgba(239, 68, 68, 0.28)',
+                                color: scanResult.booking.kitchen_order_placed ? '#34d399' : '#fca5a5',
+                                border: scanResult.booking.kitchen_order_placed
+                                  ? '1px solid rgba(16, 185, 129, 0.4)'
+                                  : '1px solid rgba(239, 68, 68, 0.45)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {scanResult.booking.kitchen_order_placed ? '✓ ORDER PLACED' : 'PLACE ORDER NOW'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Equipment / Course Add-Ons List */}
+                  {scannedBookingAddons.hasEquipmentAddons && (
+                    <div
+                      style={{
+                        background: 'rgba(9, 13, 22, 0.78)',
+                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        marginBottom: '14px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 900,
+                          color: '#38bdf8',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <PackageCheck size={15} /> Included Equipment & Course Add-Ons (Issue at Reception):
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {scannedBookingAddons.equipmentAddons.map((addon, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.16)',
+                              border: '1px solid rgba(56, 189, 248, 0.4)',
+                              color: '#e0f2fe',
+                              padding: '8px 12px',
+                              borderRadius: '10px',
+                              fontSize: '0.88rem',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            ✓ {addon}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Staff 1-Tap Action Button to Confirm Kitchen Order Placed */}
+                  {!scanResult.booking.kitchen_order_placed ? (
+                    <button
+                      type="button"
+                      onClick={handleMarkKitchenOrderPlacedOnScan}
+                      style={{
+                        width: '100%',
+                        padding: '13px 16px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                        color: '#ffffff',
+                        fontSize: '0.9rem',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 6px 20px rgba(234, 88, 12, 0.4)',
+                      }}
+                    >
+                      <CheckCheck size={18} /> Confirm: Kitchen / Bar Order Placed & Add-Ons Issued
+                    </button>
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        border: '1px solid rgba(16, 185, 129, 0.45)',
+                        color: '#6ee7b7',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        textAlign: 'center',
+                      }}
+                    >
+                      ✓ Staff Confirmed: Pre-Order Sent to Kitchen/Bar & Equipment Handed Over
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* 1. Primary Activity & Booking Ref Banner */}
               <div
                 style={{
@@ -726,7 +1035,7 @@ export function AdminScan() {
                       gap: '6px',
                     }}
                   >
-                    <ClipboardList size={15} /> Included Extras & Booking Notes:
+                    <ClipboardList size={15} /> Full Booking Summary & Notes:
                   </div>
                   <div style={{ fontSize: '0.88rem', color: '#f8fafc', lineHeight: 1.5, fontWeight: 600 }}>
                     {scanResult.booking.notes || 'Standard reservation — no special equipment requests.'}
@@ -896,6 +1205,46 @@ export function AdminScan() {
               >
                 <ShieldCheck size={15} style={{ color: '#10b981' }} /> Point camera at Member Card, Booking Pass, or Voucher QR
               </div>
+
+              {/* Instant Demo Simulate Scan Button on Camera Tab */}
+              <div
+                style={{
+                  marginTop: '14px',
+                  paddingTop: '14px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>
+                  Quick Reception Simulation (No Camera Needed):
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSuccessChime();
+                    handleScannedQr(sampleAddonBookingCode);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'rgba(245, 158, 11, 0.16)',
+                    border: '1px solid rgba(245, 158, 11, 0.45)',
+                    borderRadius: '12px',
+                    color: '#fbbf24',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <Utensils size={15} /> Simulate Scan: Booking Pass w/ Pre-Ordered Food & Add-Ons ({sampleAddonBookingCode})
+                </button>
+              </div>
             </div>
           ) : (
             <div
@@ -925,7 +1274,7 @@ export function AdminScan() {
                     className="form-input"
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="e.g. PG-BK109283 or PG-2445B5"
+                    placeholder="e.g. PG-BK884920 or PG-2445B5"
                     autoFocus
                     style={{
                       background: '#090d16',
@@ -949,6 +1298,25 @@ export function AdminScan() {
                     flexWrap: 'wrap',
                   }}
                 >
+                  <button
+                    type="button"
+                    onClick={() => setManualCode(sampleAddonBookingCode)}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'rgba(245, 158, 11, 0.16)',
+                      border: '1px solid rgba(245, 158, 11, 0.45)',
+                      borderRadius: '10px',
+                      color: '#fbbf24',
+                      fontSize: '0.76rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Utensils size={13} /> Booking + Food Pre-Order ({sampleAddonBookingCode})
+                  </button>
                   <button
                     type="button"
                     onClick={() => setManualCode(sampleBookingCode)}

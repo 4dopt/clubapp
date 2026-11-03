@@ -25,6 +25,9 @@ import {
   CheckCircle2,
   ExternalLink,
   ArrowLeft,
+  Utensils,
+  BellRing,
+  PackageCheck,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, User as MemberUser } from '../api';
@@ -36,6 +39,7 @@ import {
   updateBookingStatus,
   updateBookingDetails,
   parseBookingQrPayload,
+  parseBookingAddons,
   ACTIVITY_METADATA,
 } from '../bookingsStore';
 import { BookingPassModal } from '../components/BookingPassModal';
@@ -138,9 +142,21 @@ export function AdminBookings() {
       }
     }
     setActiveServiceBooking(updated);
+    const addons = parseBookingAddons(updated.notes);
     setMessage(
-      `✅ Checked in ${booking.user_name} for ${booking.activity_name} [${booking.bay_assignment || 'Main Bay'}]! +100 PTS credited.`
+      addons.hasAnyAddons
+        ? `🚨 Checked in ${booking.user_name} (${booking.booking_code})! Guest has PRE-ORDERED ITEMS — please place Kitchen/Bar order & issue add-ons below.`
+        : `✅ Checked in ${booking.user_name} for ${booking.activity_name} [${booking.bay_assignment || 'Main Bay'}]! +100 PTS credited.`
     );
+    setBookings(getStoredBookings());
+  };
+
+  const handleMarkKitchenOrdered = (booking: BookingItem) => {
+    const updated = updateBookingDetails(booking.id, { kitchen_order_placed: true });
+    if (activeServiceBooking && activeServiceBooking.id === booking.id && updated) {
+      setActiveServiceBooking(updated);
+    }
+    setMessage(`🍽️ Kitchen/Bar order placed & add-ons issued for ${booking.user_name} (${booking.booking_code}).`);
     setBookings(getStoredBookings());
   };
 
@@ -317,6 +333,8 @@ export function AdminBookings() {
     }
   };
 
+  const activeServiceAddons = activeServiceBooking ? parseBookingAddons(activeServiceBooking.notes) : null;
+
   return (
     <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
       {/* Back Button */}
@@ -367,7 +385,7 @@ export function AdminBookings() {
             <Calendar size={22} style={{ color: '#10b981', flexShrink: 0 }} /> Bookings & Schedule
           </h1>
           <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-            See who is playing today, check players in, or add a walk-in booking.
+            See who is playing today, check players in, and view pre-ordered food/drinks & equipment add-ons.
           </p>
         </div>
 
@@ -568,6 +586,118 @@ export function AdminBookings() {
             </button>
           </div>
 
+          {/* 🚨 PRE-ORDERED FOOD & ADD-ONS HIGHLIGHT IN SERVICE SHEET 🚨 */}
+          {activeServiceAddons && activeServiceAddons.hasAnyAddons && (
+            <div
+              style={{
+                background: activeServiceBooking.kitchen_order_placed
+                  ? 'rgba(16, 185, 129, 0.16)'
+                  : 'linear-gradient(145deg, rgba(245, 158, 11, 0.24), rgba(220, 38, 38, 0.18))',
+                border: activeServiceBooking.kitchen_order_placed
+                  ? '2px solid #10b981'
+                  : '2px solid #f59e0b',
+                borderRadius: '14px',
+                padding: '14px',
+                marginBottom: '14px',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 900,
+                  color: activeServiceBooking.kitchen_order_placed ? '#34d399' : '#fbbf24',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '8px',
+                }}
+              >
+                <BellRing size={15} />
+                {activeServiceBooking.kitchen_order_placed
+                  ? '✓ Kitchen / Bar Order Placed & Add-Ons Issued'
+                  : '🚨 Staff Action Required — Guest Has Arrived: Place Pre-Order Now!'}
+              </div>
+
+              {activeServiceAddons.hasFoodPreOrders && (
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#fde68a', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Utensils size={13} /> Pre-Ordered Food & Drinks (Send to Kitchen / Bar):
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {activeServiceAddons.foodPreOrders.map((item, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          background: 'rgba(9, 13, 22, 0.85)',
+                          border: '1px solid rgba(245, 158, 11, 0.5)',
+                          color: '#ffffff',
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 800,
+                        }}
+                      >
+                        🍽️ {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeServiceAddons.hasEquipmentAddons && (
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <PackageCheck size={13} /> Equipment Add-Ons to Hand Over:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {activeServiceAddons.equipmentAddons.map((addon, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          background: 'rgba(9, 13, 22, 0.85)',
+                          border: '1px solid rgba(56, 189, 248, 0.45)',
+                          color: '#e0f2fe',
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 800,
+                        }}
+                      >
+                        ⛳ {addon}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!activeServiceBooking.kitchen_order_placed && (
+                <button
+                  type="button"
+                  onClick={() => handleMarkKitchenOrdered(activeServiceBooking)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                    color: '#ffffff',
+                    fontSize: '0.82rem',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <CheckCheck size={16} /> Confirm Kitchen/Bar Order Placed & Add-Ons Issued
+                </button>
+              )}
+            </div>
+          )}
+
           <div
             style={{
               background: 'rgba(56, 189, 248, 0.12)',
@@ -745,7 +875,7 @@ export function AdminBookings() {
         </div>
       </div>
 
-      {/* Activity Type Filter Chips (Color-coded so staff can filter by Course, Minigolf, Darts, Coaching, Fitting) */}
+      {/* Activity Type Filter Chips */}
       <div className="hide-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '12px' }}>
         <button
           type="button"
@@ -1002,6 +1132,7 @@ export function AdminBookings() {
                 bgTint: 'rgba(16, 185, 129, 0.14)',
               };
               const dateBadge = getRelativeDateBadge(b.date);
+              const cardAddons = parseBookingAddons(b.notes);
 
               return (
                 <div
@@ -1021,7 +1152,7 @@ export function AdminBookings() {
                     boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
                   }}
                 >
-                  {/* Top Category Strip: Immediately identifies WHAT booking this is + Date Urgency + Status */}
+                  {/* Top Category Strip */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {/* Prominent Activity Type Pill */}
@@ -1044,7 +1175,7 @@ export function AdminBookings() {
                         {meta.shortTag}
                       </span>
 
-                      {/* Relative Date Badge (TODAY / TOMORROW) */}
+                      {/* Relative Date Badge */}
                       <span
                         style={{
                           background: dateBadge.bg,
@@ -1074,6 +1205,29 @@ export function AdminBookings() {
                       >
                         {b.booking_code}
                       </span>
+
+                      {/* Pre-Order Badge if booking has food or equipment add-ons */}
+                      {cardAddons.hasAnyAddons && (
+                        <span
+                          style={{
+                            background: b.kitchen_order_placed ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.22)',
+                            color: b.kitchen_order_placed ? '#34d399' : '#fbbf24',
+                            border: b.kitchen_order_placed
+                              ? '1px solid rgba(16, 185, 129, 0.45)'
+                              : '1px solid rgba(245, 158, 11, 0.5)',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.64rem',
+                            fontWeight: 900,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Utensils size={11} />
+                          {b.kitchen_order_placed ? 'PRE-ORDER SENT ✓' : 'HAS PRE-ORDER / ADD-ONS'}
+                        </span>
+                      )}
                     </div>
 
                     {/* Booking Status Pill */}
@@ -1175,7 +1329,7 @@ export function AdminBookings() {
                     </button>
                   </div>
 
-                  {/* Structured 4-Box Operational Grid: WHEN, DURATION & PAX, WHERE (BAY), PAYMENT */}
+                  {/* Structured 4-Box Operational Grid */}
                   <div
                     style={{
                       display: 'grid',
@@ -1271,27 +1425,95 @@ export function AdminBookings() {
                     </div>
                   </div>
 
-                  {/* Staff Special Requests / Equipment Notes */}
-                  {b.notes && (
+                  {/* Highlighted Pre-Order Food & Add-Ons Box on Card */}
+                  {cardAddons.hasAnyAddons ? (
                     <div
                       style={{
-                        fontSize: '0.76rem',
-                        color: '#fde68a',
-                        background: 'rgba(251, 191, 36, 0.08)',
-                        border: '1px solid rgba(251, 191, 36, 0.22)',
-                        padding: '8px 11px',
-                        borderRadius: '10px',
+                        background: b.kitchen_order_placed
+                          ? 'rgba(16, 185, 129, 0.1)'
+                          : 'linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(234, 88, 12, 0.12))',
+                        border: b.kitchen_order_placed
+                          ? '1px solid rgba(16, 185, 129, 0.35)'
+                          : '1px solid rgba(245, 158, 11, 0.45)',
+                        padding: '10px 12px',
+                        borderRadius: '12px',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        fontWeight: 600,
+                        flexDirection: 'column',
+                        gap: '6px',
                       }}
                     >
-                      <Sparkles size={14} color="#fbbf24" style={{ flexShrink: 0 }} />
-                      <span>
-                        <strong style={{ color: '#fbbf24' }}>Guest / Equipment Note:</strong> {b.notes}
-                      </span>
+                      <div
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 900,
+                          color: b.kitchen_order_placed ? '#34d399' : '#fbbf24',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '6px',
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <Utensils size={13} />
+                          {b.kitchen_order_placed
+                            ? '✓ Pre-Ordered Items Sent to Kitchen/Bar'
+                            : '🚨 Place Order on Arrival — Pre-Ordered Add-Ons:'}
+                        </span>
+                        {!b.kitchen_order_placed && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkKitchenOrdered(b)}
+                            style={{
+                              background: '#f59e0b',
+                              color: '#090d16',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '3px 8px',
+                              fontSize: '0.66rem',
+                              fontWeight: 900,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Mark Ordered ✓
+                          </button>
+                        )}
+                      </div>
+
+                      {cardAddons.hasFoodPreOrders && (
+                        <div style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: 700 }}>
+                          🍽️ <strong style={{ color: '#fde68a' }}>Food/Drinks:</strong> {cardAddons.foodPreOrders.join(' • ')}
+                        </div>
+                      )}
+                      {cardAddons.hasEquipmentAddons && (
+                        <div style={{ fontSize: '0.78rem', color: '#e0f2fe', fontWeight: 700 }}>
+                          ⛳ <strong style={{ color: '#38bdf8' }}>Equipment:</strong> {cardAddons.equipmentAddons.join(' • ')}
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    b.notes && (
+                      <div
+                        style={{
+                          fontSize: '0.76rem',
+                          color: '#fde68a',
+                          background: 'rgba(251, 191, 36, 0.08)',
+                          border: '1px solid rgba(251, 191, 36, 0.22)',
+                          padding: '8px 11px',
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '7px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <Sparkles size={14} color="#fbbf24" style={{ flexShrink: 0 }} />
+                        <span>
+                          <strong style={{ color: '#fbbf24' }}>Guest / Equipment Note:</strong> {b.notes}
+                        </span>
+                      </div>
+                    )
                   )}
 
                   {b.status === 'completed' && b.checked_in_at && (
@@ -1660,11 +1882,11 @@ export function AdminBookings() {
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Guest / Equipment Notes (Optional)</label>
+                <label className="form-label" style={{ color: '#94a3b8' }}>Guest / Equipment / Pre-Order Notes (Optional)</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Left-handed club hire, electric buggy..."
+                  placeholder="e.g. Extras: Electric Buggy Hire • Pre-Order Food/Drinks: 1x Classic Loaded Nachos (£6.00)"
                   value={bookingNotes}
                   onChange={(e) => setBookingNotes(e.target.value)}
                   style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}

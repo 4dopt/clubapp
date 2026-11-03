@@ -24,6 +24,84 @@ export interface BookingItem {
   notes?: string;
   created_at: string;
   checked_in_at?: string;
+  kitchen_order_placed?: boolean;
+}
+
+export interface ParsedBookingAddons {
+  foodPreOrders: string[];
+  equipmentAddons: string[];
+  otherNotes: string[];
+  hasFoodPreOrders: boolean;
+  hasEquipmentAddons: boolean;
+  hasAnyAddons: boolean;
+}
+
+/**
+ * Extracts Pre-Ordered Food/Drink items and Equipment Add-ons from a booking's notes string
+ * so Reception & Kitchen/Bar staff immediately see what needs to be ordered/prepared on arrival.
+ */
+export function parseBookingAddons(notes?: string): ParsedBookingAddons {
+  if (!notes || !notes.trim()) {
+    return {
+      foodPreOrders: [],
+      equipmentAddons: [],
+      otherNotes: [],
+      hasFoodPreOrders: false,
+      hasEquipmentAddons: false,
+      hasAnyAddons: false,
+    };
+  }
+
+  const segments = notes
+    .split('•')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const foodPreOrders: string[] = [];
+  const equipmentAddons: string[] = [];
+  const otherNotes: string[] = [];
+
+  const foodKeywords = /nachos|wings|beer|pint|burger|pizza|fries|drink|food|meal|platter|prosecco|cocktail|coffee|tea|snack/i;
+  const equipKeywords = /buggy|club hire|trolley|balls|token|gloves|rental|equipment/i;
+
+  for (const seg of segments) {
+    if (/^pre-?order\s*food\/drinks\s*:/i.test(seg)) {
+      const rawItems = seg.replace(/^pre-?order\s*food\/drinks\s*:\s*/i, '').trim();
+      const items = rawItems
+        .split(',')
+        .map((i) => i.trim())
+        .filter(Boolean);
+      foodPreOrders.push(...items);
+    } else if (/^extras\s*:/i.test(seg) || /^add-?ons\s*:/i.test(seg)) {
+      const rawItems = seg.replace(/^(extras|add-?ons)\s*:\s*/i, '').trim();
+      const items = rawItems
+        .split(',')
+        .map((i) => i.trim())
+        .filter(Boolean);
+      for (const item of items) {
+        if (foodKeywords.test(item)) {
+          foodPreOrders.push(item);
+        } else {
+          equipmentAddons.push(item);
+        }
+      }
+    } else if (foodKeywords.test(seg)) {
+      foodPreOrders.push(seg);
+    } else if (equipKeywords.test(seg) && !/^round\s*:/i.test(seg) && !/^package\s*:/i.test(seg)) {
+      equipmentAddons.push(seg);
+    } else {
+      otherNotes.push(seg);
+    }
+  }
+
+  return {
+    foodPreOrders,
+    equipmentAddons,
+    otherNotes,
+    hasFoodPreOrders: foodPreOrders.length > 0,
+    hasEquipmentAddons: equipmentAddons.length > 0,
+    hasAnyAddons: foodPreOrders.length > 0 || equipmentAddons.length > 0,
+  };
 }
 
 const STORAGE_KEY = 'playgolf.bookings';
@@ -199,6 +277,7 @@ export async function syncBookingsFromSupabase(): Promise<BookingItem[]> {
           bay_assignment: enrichedRemote.bay_assignment || existingLocal.bay_assignment,
           price: enrichedRemote.price || existingLocal.price,
           payment_status: enrichedRemote.payment_status || existingLocal.payment_status,
+          kitchen_order_placed: existingLocal.kitchen_order_placed || enrichedRemote.kitchen_order_placed,
         });
       } else {
         byCode.set(code, enrichedRemote);
