@@ -13,6 +13,7 @@ import { BookingDrivingRange } from './pages/BookingDrivingRange';
 import { BookingNineHoles } from './pages/BookingNineHoles';
 import { BookingPuttCrazy } from './pages/BookingPuttCrazy';
 import { BookingDarts } from './pages/BookingDarts';
+import { BookingEvents } from './pages/BookingEvents';
 import { Profile } from './pages/Profile';
 
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -147,6 +148,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <BookingDarts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/events"
+            element={
+              <ProtectedRoute>
+                <BookingEvents />
               </ProtectedRoute>
             }
           />

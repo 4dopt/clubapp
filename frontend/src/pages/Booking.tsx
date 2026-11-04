@@ -13,6 +13,8 @@ import {
   Award,
   Users,
   MapPin,
+  Cake,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import {
@@ -490,6 +492,108 @@ export function Booking() {
             <span>
               Earn <strong style={{ color: 'var(--brand-green)' }}>+100 Loyalty Points</strong> on reception check-in for every reservation.
             </span>
+          </div>
+
+          {/* Kids Parties, Private & Corporate Events Section */}
+          <div
+            onClick={() => navigate('/booking/events')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') navigate('/booking/events');
+            }}
+            style={{
+              background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(14, 165, 233, 0.08) 50%, rgba(255, 255, 255, 0.98) 100%)',
+              border: '1.5px solid rgba(236, 72, 153, 0.35)',
+              borderRadius: '20px',
+              padding: '16px 18px',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(236, 72, 153, 0.35)',
+                  }}
+                >
+                  <Cake size={22} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 900,
+                      color: '#db2777',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Group Bookings & Celebrations
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 900,
+                      color: 'var(--text-primary)',
+                      margin: '2px 0 0 0',
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    Kids Parties, Private & Corporate Events
+                  </h3>
+                </div>
+              </div>
+
+              <span
+                style={{
+                  background: 'rgba(236, 72, 153, 0.12)',
+                  color: '#db2777',
+                  border: '1px solid rgba(236, 72, 153, 0.3)',
+                  fontSize: '0.62rem',
+                  fontWeight: 900,
+                  padding: '3px 8px',
+                  borderRadius: '999px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Putt Crazy & Bays
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: 0 }}>
+              Looking to host a kids birthday party, corporate golf outing, society day, or private celebration in The Bunker Bar or Fairway Room?
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '8px',
+                borderTop: '1px solid rgba(236, 72, 153, 0.2)',
+                color: '#db2777',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+              }}
+            >
+              <span>Explore Party & Event Packages</span>
+              <ArrowRight size={16} />
+            </div>
           </div>
         </div>
       )}

@@ -123,7 +123,6 @@ $$\text{Break-Even Visits per Month} = \frac{£299 \text{ (monthly software cost
 
 ## 7. The Proposal Summary
 
-- **One-Off Setup Fee**: **£2,500** (Full branding, bay configuration, staff onboarding).
 - **Monthly Maintenance & Cloud SLA**: **£249 – £299 / month**.
 - **Break-Even Metric**: **30 off-peak visits per month @ £10** (**just 1 visit/day**).
 - **Projected Net Cash Gain**: **+£20,400 to +£56,400+ per year**.
