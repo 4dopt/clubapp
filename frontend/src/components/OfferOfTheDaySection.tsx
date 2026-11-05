@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -14,6 +14,10 @@ import {
   Ticket,
   ShieldCheck,
   Tag,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import {
@@ -32,15 +36,25 @@ export function OfferOfTheDaySection() {
   const [offers, setOffers] = useState<DailyOffer[]>(() => getDailyOffers());
   const todayOffer = getCurrentDayOffer(offers);
 
-  const [selectedDayKey, setSelectedDayKey] = useState<DayOfWeekKey>(() => todayOffer.dayKey);
+  // Find index of today's offer (0..6)
+  const todayIndex = Math.max(
+    0,
+    offers.findIndex((o) => o.dayKey === todayOffer.dayKey)
+  );
+
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(todayIndex);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const daysStripRef = useRef<HTMLDivElement>(null);
+
   const [activeClaimModal, setActiveClaimModal] = useState<{
     claim: DailyOfferClaim;
     offer: DailyOffer;
   } | null>(null);
   const [showWeeklyModal, setShowWeeklyModal] = useState(false);
-  const [copiedPromo, setCopiedPromo] = useState(false);
+  const [copiedPromo, setCopiedPromo] = useState<string | null>(null);
   const [, setRefreshTick] = useState(0);
 
+  // Listen for offer updates or cross-tab changes
   useEffect(() => {
     const syncOffers = () => {
       const updated = getDailyOffers();
@@ -55,11 +69,53 @@ export function OfferOfTheDaySection() {
     };
   }, []);
 
+  // Initial scroll to today's offer slide
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToSlide(todayIndex, 'auto');
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [todayIndex]);
+
   if (!user) return null;
 
-  const selectedOffer = offers.find((o) => o.dayKey === selectedDayKey) || todayOffer;
-  const isTodaySelected = selectedOffer.dayKey === todayOffer.dayKey;
-  const existingClaim = getUserClaimForToday(user.id, selectedOffer.dayKey);
+  const currentSlideOffer = offers[activeSlideIndex] || todayOffer;
+  const isTodayActive = currentSlideOffer.dayKey === todayOffer.dayKey;
+
+  const scrollToSlide = (index: number, behavior: ScrollBehavior = 'smooth') => {
+    if (!sliderRef.current) return;
+    const cards = sliderRef.current.children;
+    if (cards[index]) {
+      const targetCard = cards[index] as HTMLElement;
+      sliderRef.current.scrollTo({
+        left: targetCard.offsetLeft - 16,
+        behavior,
+      });
+      setActiveSlideIndex(index);
+    }
+  };
+
+  const handleScroll = () => {
+    if (!sliderRef.current) return;
+    const scrollLeft = sliderRef.current.scrollLeft;
+    const firstCard = sliderRef.current.children[0] as HTMLElement | undefined;
+    if (!firstCard) return;
+
+    const cardWidth = firstCard.offsetWidth + 12; // card width + gap
+    const index = Math.round(scrollLeft / cardWidth);
+    const clamped = Math.min(offers.length - 1, Math.max(0, index));
+    if (clamped !== activeSlideIndex) {
+      setActiveSlideIndex(clamped);
+      // Auto-scroll the day strip pill into view
+      if (daysStripRef.current && daysStripRef.current.children[clamped]) {
+        const pill = daysStripRef.current.children[clamped] as HTMLElement;
+        daysStripRef.current.scrollTo({
+          left: pill.offsetLeft - 32,
+          behavior: 'smooth',
+        });
+      }
+    }
+  };
 
   const handleClaimOrOpenPass = (offer: DailyOffer) => {
     const claim = claimDailyOfferPass(offer, user);
@@ -67,21 +123,22 @@ export function OfferOfTheDaySection() {
     setActiveClaimModal({ claim, offer });
   };
 
-  const handleCopyPromo = (code: string) => {
+  const handleCopyPromo = (code: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     navigator.clipboard?.writeText(code);
-    setCopiedPromo(true);
-    setTimeout(() => setCopiedPromo(false), 2000);
+    setCopiedPromo(code);
+    setTimeout(() => setCopiedPromo(null), 2000);
   };
 
   return (
-    <div style={{ margin: '6px 0 18px 0' }}>
-      {/* Section Header */}
+    <div style={{ margin: '8px 0 20px 0' }}>
+      {/* SECTION HEADER: Title, Live Indicator, Navigation Controls */}
       <div
         style={{
           padding: '0 16px 10px 16px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-end',
+          alignItems: 'center',
           gap: '8px',
         }}
       >
@@ -89,11 +146,11 @@ export function OfferOfTheDaySection() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
             <span
               style={{
-                width: '7px',
-                height: '7px',
+                width: '8px',
+                height: '8px',
                 borderRadius: '50%',
                 background: '#f59e0b',
-                boxShadow: '0 0 8px #f59e0b',
+                boxShadow: '0 0 10px #f59e0b',
                 display: 'inline-block',
                 flexShrink: 0,
               }}
@@ -109,10 +166,23 @@ export function OfferOfTheDaySection() {
             >
               DAILY CLUB SPOTLIGHT
             </span>
+            <span
+              style={{
+                background: '#fef3c7',
+                color: '#b45309',
+                fontSize: '0.62rem',
+                fontWeight: 800,
+                padding: '2px 7px',
+                borderRadius: '999px',
+                border: '1px solid #fde68a',
+              }}
+            >
+              {activeSlideIndex + 1} / {offers.length}
+            </span>
           </div>
           <h3
             style={{
-              fontSize: '1.08rem',
+              fontSize: '1.12rem',
               fontWeight: 800,
               color: 'var(--text-primary)',
               margin: 0,
@@ -125,65 +195,118 @@ export function OfferOfTheDaySection() {
           </h3>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowWeeklyModal(true)}
-          style={{
-            background: '#fffbeb',
-            border: '1px solid #fde68a',
-            color: '#b45309',
-            padding: '6px 12px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '0.72rem',
-            fontWeight: 800,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-sm)',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}
-        >
-          <Calendar size={13} /> Weekly Lineup
-        </button>
+        {/* Carousel Prev/Next & Weekly Lineup Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              type="button"
+              onClick={() => scrollToSlide(Math.max(0, activeSlideIndex - 1))}
+              disabled={activeSlideIndex === 0}
+              aria-label="Previous day offer slide"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                border: '1px solid var(--border-color)',
+                background: '#ffffff',
+                color: activeSlideIndex === 0 ? '#cbd5e1' : 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: activeSlideIndex === 0 ? 'default' : 'pointer',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSlide(Math.min(offers.length - 1, activeSlideIndex + 1))}
+              disabled={activeSlideIndex === offers.length - 1}
+              aria-label="Next day offer slide"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                border: '1px solid var(--border-color)',
+                background: '#ffffff',
+                color: activeSlideIndex === offers.length - 1 ? '#cbd5e1' : 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: activeSlideIndex === offers.length - 1 ? 'default' : 'pointer',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowWeeklyModal(true)}
+            style={{
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#b45309',
+              padding: '6px 11px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            <Calendar size={13} /> Lineup
+          </button>
+        </div>
       </div>
 
-      {/* Mon–Sun Interactive Day Selector Strip */}
+      {/* MON–SUN INTERACTIVE DAY SELECTOR STRIP */}
       <div
+        ref={daysStripRef}
         className="hide-scrollbar"
         style={{
           display: 'flex',
           gap: '6px',
           overflowX: 'auto',
-          padding: '0 16px 10px 16px',
+          padding: '0 16px 12px 16px',
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        {offers.map((item) => {
+        {offers.map((item, index) => {
           const isToday = item.dayKey === todayOffer.dayKey;
-          const isSelected = item.dayKey === selectedOffer.dayKey;
+          const isActive = index === activeSlideIndex;
+          const claimed = getUserClaimForToday(user.id, item.dayKey);
+
           return (
             <button
               key={item.dayKey}
               type="button"
-              onClick={() => setSelectedDayKey(item.dayKey)}
+              onClick={() => scrollToSlide(index)}
               style={{
                 flex: '1 0 auto',
-                minWidth: '52px',
-                padding: '7px 10px',
-                borderRadius: '12px',
-                border: isSelected
+                minWidth: '56px',
+                padding: '7px 8px',
+                borderRadius: '14px',
+                border: isActive
                   ? '1.5px solid var(--brand-green)'
                   : isToday
-                  ? '1px solid #fcd34d'
+                  ? '1.5px solid #f59e0b'
                   : '1px solid var(--border-color)',
-                background: isSelected
+                background: isActive
                   ? 'var(--brand-green)'
                   : isToday
                   ? '#fffbeb'
                   : '#ffffff',
-                color: isSelected
+                color: isActive
                   ? '#ffffff'
                   : isToday
                   ? '#b45309'
@@ -194,26 +317,58 @@ export function OfferOfTheDaySection() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '2px',
-                boxShadow: isSelected
-                  ? '0 4px 12px rgba(4, 120, 87, 0.25)'
-                  : 'var(--shadow-sm)',
-                transition: 'all 0.2s ease',
+                boxShadow: isActive
+                  ? '0 6px 16px rgba(4, 120, 87, 0.28)'
+                  : '0 1px 3px rgba(0,0,0,0.04)',
+                transform: isActive ? 'scale(1.03)' : 'scale(1)',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                position: 'relative',
               }}
             >
-              <span
+              <div
                 style={{
-                  fontSize: '0.6rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  opacity: isSelected ? 0.92 : 0.75,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
                 }}
               >
-                {isToday ? 'TODAY' : item.shortDay}
-              </span>
+                {isToday && (
+                  <span
+                    style={{
+                      width: '5px',
+                      height: '5px',
+                      borderRadius: '50%',
+                      background: isActive ? '#fde68a' : '#f59e0b',
+                    }}
+                  />
+                )}
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    opacity: isActive ? 0.95 : 0.8,
+                  }}
+                >
+                  {isToday ? 'TODAY' : item.shortDay}
+                </span>
+                {claimed && (
+                  <span
+                    style={{
+                      color: isActive ? '#a7f3d0' : '#059669',
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+              </div>
               <span
                 style={{
-                  fontSize: '0.76rem',
+                  fontSize: '0.78rem',
                   fontWeight: 800,
                 }}
               >
@@ -224,253 +379,378 @@ export function OfferOfTheDaySection() {
         })}
       </div>
 
-      {/* Main Offer of the Day Hero Card */}
-      <div style={{ padding: '0 16px' }}>
-        <div
-          style={{
-            position: 'relative',
-            borderRadius: '22px',
-            overflow: 'hidden',
-            background: '#0f172a',
-            boxShadow: '0 12px 28px -8px rgba(15, 23, 42, 0.26)',
-            border: isTodaySelected
-              ? '1.5px solid rgba(16, 185, 129, 0.45)'
-              : '1px solid rgba(255, 255, 255, 0.15)',
-          }}
-        >
-          {/* Background Image */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: `url(${selectedOffer.imageUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'brightness(0.82) contrast(1.06)',
-            }}
-          />
+      {/* HORIZONTAL SWIPEABLE SLIDE CAROUSEL */}
+      <div
+        ref={sliderRef}
+        onScroll={handleScroll}
+        className="hide-scrollbar"
+        style={{
+          display: 'flex',
+          gap: '12px',
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+          padding: '2px 16px 6px 16px',
+        }}
+      >
+        {offers.map((offer, index) => {
+          const isToday = offer.dayKey === todayOffer.dayKey;
+          const isSlideActive = index === activeSlideIndex;
+          const existingClaim = getUserClaimForToday(user.id, offer.dayKey);
 
-          {/* Dark Readability Overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'linear-gradient(180deg, rgba(15, 23, 42, 0.5) 0%, rgba(15, 23, 42, 0.78) 45%, rgba(15, 23, 42, 0.97) 100%)',
-            }}
-          />
-
-          {/* Top Bar: Day Status + Time Window */}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              padding: '14px 16px 8px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
+          return (
             <div
+              key={offer.dayKey}
               style={{
-                background: selectedOffer.badgeGradient,
-                padding: '5px 11px',
-                borderRadius: '9999px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.28)',
-              }}
-            >
-              <Sparkles size={13} color="#ffffff" />
-              <span
-                style={{
-                  fontSize: '0.64rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.05em',
-                  color: '#ffffff',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {isTodaySelected
-                  ? `TODAY'S OFFER • ${selectedOffer.dayName.toUpperCase()}`
-                  : `${selectedOffer.dayName.toUpperCase()} OFFER`}
-              </span>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(15, 23, 42, 0.72)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                padding: '4px 10px',
-                borderRadius: '9999px',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                color: '#f8fafc',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Clock size={11} style={{ color: '#fbbf24' }} />
-              {selectedOffer.timeWindow}
-            </div>
-          </div>
-
-          {/* Card Content Body */}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              padding: '12px 16px 16px 16px',
-            }}
-          >
-            {/* Deal Badge + Promo Code Pill */}
-            <div
-              style={{
+                flex: '0 0 calc(100% - 16px)',
+                maxWidth: '430px',
+                scrollSnapAlign: 'center',
+                position: 'relative',
+                borderRadius: '24px',
+                overflow: 'hidden',
+                background: '#090d16',
+                boxShadow: isSlideActive
+                  ? '0 16px 36px -10px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12)'
+                  : '0 8px 24px -8px rgba(15, 23, 42, 0.2)',
+                border: isToday
+                  ? '1.5px solid rgba(16, 185, 129, 0.6)'
+                  : '1px solid rgba(255, 255, 255, 0.14)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                flexWrap: 'wrap',
-                marginBottom: '8px',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minHeight: '380px',
+                transition: 'transform 0.25s ease, box-shadow 0.25s ease',
               }}
             >
-              <span
+              {/* Background Cover Image with cinematic lighting */}
+              <div
                 style={{
-                  background: 'rgba(251, 191, 36, 0.22)',
-                  color: '#fde68a',
-                  border: '1px solid rgba(251, 191, 36, 0.45)',
-                  padding: '3px 9px',
-                  borderRadius: '6px',
-                  fontSize: '0.66rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: `url(${offer.imageUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'brightness(0.85) contrast(1.08)',
+                  transform: isSlideActive ? 'scale(1.02)' : 'scale(1)',
+                  transition: 'transform 0.4s ease',
                 }}
-              >
-                🔥 {selectedOffer.dealBadge}
-              </span>
+              />
 
-              <span
+              {/* Multi-Stop Gradient Scrim for Perfect Typography Contrast */}
+              <div
                 style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: '#e2e8f0',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  fontSize: '0.64rem',
-                  fontWeight: 700,
-                  fontFamily: 'monospace',
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'linear-gradient(180deg, rgba(9, 13, 22, 0.3) 0%, rgba(9, 13, 22, 0.62) 42%, rgba(9, 13, 22, 0.98) 96%)',
                 }}
-              >
-                CODE: {selectedOffer.promoCode}
-              </span>
-            </div>
+              />
 
-            <h4
-              style={{
-                fontSize: '1.18rem',
-                fontWeight: 800,
-                color: '#ffffff',
-                margin: '0 0 4px 0',
-                lineHeight: 1.25,
-                textShadow: '0 2px 4px rgba(0,0,0,0.45)',
-              }}
-            >
-              {selectedOffer.title}
-            </h4>
-
-            <div
-              style={{
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                color: '#34d399',
-                marginBottom: '6px',
-              }}
-            >
-              {selectedOffer.subtitle}
-            </div>
-
-            <p
-              style={{
-                fontSize: '0.78rem',
-                color: '#cbd5e1',
-                lineHeight: 1.45,
-                margin: '0 0 14px 0',
-              }}
-            >
-              {selectedOffer.description}
-            </p>
-
-            {/* Action Buttons Row */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1.35fr 1fr',
-                gap: '8px',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => handleClaimOrOpenPass(selectedOffer)}
+              {/* TOP BAR: Day Tag + Time Window */}
+              <div
                 style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  padding: '14px 16px 8px 16px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  background: existingClaim
-                    ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                    : 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-                  color: '#ffffff',
-                  padding: '11px 12px',
-                  borderRadius: '12px',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)',
-                  whiteSpace: 'nowrap',
+                  justifyContent: 'space-between',
+                  gap: '8px',
                 }}
               >
-                <QrCode size={15} />
-                <span>
-                  {existingClaim
-                    ? 'Show Offer Pass'
-                    : isTodaySelected
-                    ? 'Claim Today’s Pass'
-                    : `Get ${selectedOffer.shortDay} Pass`}
-                </span>
-              </button>
+                <div
+                  style={{
+                    background: isToday
+                      ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)'
+                      : offer.badgeGradient,
+                    padding: '5px 12px',
+                    borderRadius: '9999px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                  }}
+                >
+                  {isToday ? (
+                    <Flame size={13} color="#fef08a" />
+                  ) : (
+                    <Sparkles size={13} color="#ffffff" />
+                  )}
+                  <span
+                    style={{
+                      fontSize: '0.64rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.05em',
+                      color: '#ffffff',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {isToday
+                      ? `TODAY'S SPECIAL • ${offer.dayName.toUpperCase()}`
+                      : `${offer.dayName.toUpperCase()} PERK`}
+                  </span>
+                </div>
 
-              <Link
-                to={selectedOffer.bookingPath}
+                <div
+                  style={{
+                    background: 'rgba(9, 13, 22, 0.72)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                    padding: '4px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '0.66rem',
+                    fontWeight: 700,
+                    color: '#f8fafc',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  <Clock size={11} style={{ color: '#fbbf24' }} />
+                  {offer.timeWindow}
+                </div>
+              </div>
+
+              {/* CARD BODY: Deal Sticker, Titles, Benefits, and Action CTAs */}
+              <div
                 style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  padding: '12px 16px 16px 16px',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '5px',
-                  background: 'rgba(255, 255, 255, 0.12)',
-                  backdropFilter: 'blur(8px)',
-                  WebkitBackdropFilter: 'blur(8px)',
-                  color: '#ffffff',
-                  padding: '11px 12px',
-                  borderRadius: '12px',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  textDecoration: 'none',
-                  border: '1px solid rgba(255, 255, 255, 0.22)',
-                  whiteSpace: 'nowrap',
+                  flexDirection: 'column',
+                  gap: '8px',
                 }}
               >
-                <span>{selectedOffer.bookingLabel}</span>
-                <ArrowRight size={14} />
-              </Link>
+                {/* Deal Tag + 1-Tap Copy Promo Code */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    style={{
+                      background: 'rgba(251, 191, 36, 0.24)',
+                      color: '#fef08a',
+                      border: '1px solid rgba(251, 191, 36, 0.55)',
+                      padding: '3px 9px',
+                      borderRadius: '8px',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Zap size={11} /> {offer.dealBadge}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleCopyPromo(offer.promoCode, e)}
+                    title="Click to copy promo code"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      backdropFilter: 'blur(6px)',
+                      color: '#f1f5f9',
+                      border: '1px solid rgba(255, 255, 255, 0.22)',
+                      padding: '3px 9px',
+                      borderRadius: '8px',
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>CODE: {offer.promoCode}</span>
+                    {copiedPromo === offer.promoCode ? (
+                      <Check size={11} color="#34d399" />
+                    ) : (
+                      <Copy size={11} opacity={0.7} />
+                    )}
+                  </button>
+                </div>
+
+                {/* Offer Title & Subtitle */}
+                <div>
+                  <h4
+                    style={{
+                      fontSize: '1.24rem',
+                      fontWeight: 800,
+                      color: '#ffffff',
+                      margin: '0 0 3px 0',
+                      lineHeight: 1.25,
+                      textShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    {offer.title}
+                  </h4>
+
+                  <div
+                    style={{
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      color: isToday ? '#34d399' : '#38bdf8',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    {offer.subtitle}
+                  </div>
+
+                  <p
+                    style={{
+                      fontSize: '0.78rem',
+                      color: '#cbd5e1',
+                      lineHeight: 1.45,
+                      margin: 0,
+                    }}
+                  >
+                    {offer.description}
+                  </p>
+                </div>
+
+                {/* Micro Perks Tag Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '0.68rem',
+                    color: '#94a3b8',
+                    padding: '4px 0',
+                    borderTop: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <ShieldCheck size={12} color="#10b981" /> 2-Sec Counter QR Scan
+                  </span>
+                  <span>•</span>
+                  <span>0% Booking Fee</span>
+                  <span>•</span>
+                  <span style={{ color: '#fde68a' }}>+100 VIP Points</span>
+                </div>
+
+                {/* Dual Action CTAs */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.35fr 1fr',
+                    gap: '8px',
+                    marginTop: '2px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleClaimOrOpenPass(offer)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      background: existingClaim
+                        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                        : 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                      color: '#ffffff',
+                      padding: '11px 12px',
+                      borderRadius: '14px',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
+                      whiteSpace: 'nowrap',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    <QrCode size={15} />
+                    <span>
+                      {existingClaim
+                        ? 'Show Offer Pass'
+                        : isToday
+                        ? "Claim Today's Pass"
+                        : `Get ${offer.shortDay} Pass`}
+                    </span>
+                  </button>
+
+                  <Link
+                    to={offer.bookingPath}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      background: 'rgba(255, 255, 255, 0.14)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      color: '#ffffff',
+                      padding: '11px 12px',
+                      borderRadius: '14px',
+                      fontSize: '0.76rem',
+                      fontWeight: 800,
+                      textDecoration: 'none',
+                      border: '1px solid rgba(255, 255, 255, 0.24)',
+                      whiteSpace: 'nowrap',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    <span>{offer.bookingLabel}</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })}
+      </div>
+
+      {/* BOTTOM DOT PAGINATION INDICATORS */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '6px',
+          marginTop: '8px',
+        }}
+      >
+        {offers.map((item, index) => {
+          const isActive = index === activeSlideIndex;
+          const isToday = item.dayKey === todayOffer.dayKey;
+
+          return (
+            <button
+              key={item.dayKey}
+              type="button"
+              onClick={() => scrollToSlide(index)}
+              aria-label={`Go to ${item.dayName} offer slide`}
+              style={{
+                border: 'none',
+                cursor: 'pointer',
+                height: '7px',
+                width: isActive ? '24px' : '7px',
+                borderRadius: '999px',
+                background: isActive
+                  ? 'var(--brand-green)'
+                  : isToday
+                  ? '#f59e0b'
+                  : '#cbd5e1',
+                transition: 'all 0.25s ease',
+                padding: 0,
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* DAILY OFFER QR PASS MODAL */}
@@ -649,7 +929,11 @@ export function OfferOfTheDaySection() {
                 >
                   <Tag size={12} />
                   {activeClaimModal.offer.promoCode}
-                  {copiedPromo ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedPromo === activeClaimModal.offer.promoCode ? (
+                    <Check size={12} color="#10b981" />
+                  ) : (
+                    <Copy size={12} />
+                  )}
                 </button>
               </div>
             </div>
@@ -775,7 +1059,7 @@ export function OfferOfTheDaySection() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {offers.map((item) => {
+              {offers.map((item, index) => {
                 const isToday = item.dayKey === todayOffer.dayKey;
                 const claimedToday = getUserClaimForToday(user.id, item.dayKey);
 
@@ -783,7 +1067,7 @@ export function OfferOfTheDaySection() {
                   <div
                     key={item.dayKey}
                     onClick={() => {
-                      setSelectedDayKey(item.dayKey);
+                      scrollToSlide(index);
                       setShowWeeklyModal(false);
                     }}
                     style={{
@@ -869,7 +1153,7 @@ export function OfferOfTheDaySection() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedDayKey(item.dayKey);
+                        scrollToSlide(index);
                         setShowWeeklyModal(false);
                         handleClaimOrOpenPass(item);
                       }}
