@@ -12,9 +12,9 @@ user_data = os.path.join(tempfile.gettempdir(), 'chrome_pitch_pdf_render_hd')
 shutil.rmtree(user_data, ignore_errors=True)
 
 images = []
-print("Rendering 8 ultra-sharp 2400x1350 QHD presentation slides...", flush=True)
+print("Rendering 10 ultra-sharp 2400x1350 QHD presentation slides...", flush=True)
 
-for slide_num in range(1, 9):
+for slide_num in range(1, 11):
     shot_path = os.path.join(temp_dir, f'slide_{slide_num}.png')
     if os.path.exists(shot_path):
         os.remove(shot_path)
@@ -37,7 +37,7 @@ for slide_num in range(1, 9):
     if os.path.exists(shot_path):
         img = Image.open(shot_path).convert('RGB')
         images.append(img)
-        print(f"Slide {slide_num}/8 captured: {img.size} ({os.path.getsize(shot_path)} bytes)", flush=True)
+        print(f"Slide {slide_num}/10 captured: {img.size} ({os.path.getsize(shot_path)} bytes)", flush=True)
     else:
         print(f"Warning: Failed to capture slide {slide_num}", flush=True)
 

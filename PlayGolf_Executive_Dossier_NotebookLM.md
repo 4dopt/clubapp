@@ -70,7 +70,7 @@ $$\text{Break-Even Visits per Month} = \frac{£299 \text{ (monthly software cost
 - Right now, £10 off-peak golfers don't enter the clubhouse because they have no reason to.
 - The app offers a tier reward: *"Redeem 300 points for a Free Barista Coffee or Half-Price Clubhouse Pint"*.
 - To redeem it, the golfer **must walk into the clubhouse**.
-- Once inside, over **75% of golfers buy a sandwich, bacon roll, or a second drink**.
+- Once inside, over **75% of golfers buy a pizza, burger, or a second drink**.
 - The visit spend jumps from **£10.00 to £18.00 – £22.00+**.
 
 ### Step 3: Monetizing Empty Off-Peak Bays (Zero Marginal Cost)
