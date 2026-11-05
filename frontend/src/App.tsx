@@ -15,6 +15,7 @@ import { BookingPuttCrazy } from './pages/BookingPuttCrazy';
 import { BookingDarts } from './pages/BookingDarts';
 import { BookingEvents } from './pages/BookingEvents';
 import { Profile } from './pages/Profile';
+import { HelpSupport } from './pages/HelpSupport';
 
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminAnalytics } from './pages/AdminAnalytics';
@@ -167,6 +168,15 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/support"
+            element={
+              <ProtectedRoute>
+                <HelpSupport />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/help" element={<Navigate to="/support" replace />} />
           <Route path="/history" element={<Navigate to="/profile" replace />} />
 
           {/* Admin Protected Routes */}

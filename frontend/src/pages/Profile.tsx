@@ -1,5 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { User as UserIcon, Mail, Calendar, ShieldCheck, Award, History, QrCode, LogOut, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  User as UserIcon,
+  Mail,
+  Calendar,
+  ShieldCheck,
+  Award,
+  History,
+  QrCode,
+  LogOut,
+  ArrowDownLeft,
+  ArrowUpRight,
+  HelpCircle,
+  BookOpen,
+  MessageCircle,
+  ChevronRight,
+} from 'lucide-react';
 import { useAuth } from '../auth';
 import { api, Transaction } from '../api';
 import { QrModal } from '../components/QrModal';
@@ -221,6 +237,131 @@ export function Profile() {
               {new Date(user.created_at || '2026-01-01').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Help and Support Section */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '18px 16px',
+          boxShadow: 'var(--shadow-sm)',
+          marginBottom: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <HelpCircle size={18} style={{ color: 'var(--brand-green)' }} /> Help & Support
+          </h3>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              color: '#059669',
+              background: '#ecfdf5',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              border: '1px solid #a7f3d0',
+            }}
+          >
+            24/7 Concierge
+          </span>
+        </div>
+
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: 1.45 }}>
+          Have questions about your loyalty tier, bookings, or vouchers? Access our app knowledge base or reach our front-desk team directly.
+        </p>
+
+        {/* Quick Knowledge Base Link Card */}
+        <Link
+          to="/support"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 14px',
+            background: 'var(--bg-subtle)',
+            borderRadius: '14px',
+            textDecoration: 'none',
+            border: '1px solid var(--border-color)',
+            marginBottom: '10px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                background: 'var(--brand-green-subtle)',
+                color: 'var(--brand-green)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <BookOpen size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Knowledge Base & FAQs
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--slate-grey)', marginTop: '1px' }}>
+                Guides on points, tiers, booking & QR vouchers
+              </div>
+            </div>
+          </div>
+          <ChevronRight size={18} color="var(--slate-grey)" />
+        </Link>
+
+        {/* WhatsApp & Email Quick Contacts */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <a
+            href="https://wa.me/442089086500?text=Hello%20PlayGolf%20Northwick%20Park%2C%20I%20am%20a%20member%20and%20need%20assistance"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '10px 8px',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '12px',
+              color: '#15803d',
+              fontSize: '0.76rem',
+              fontWeight: 800,
+              textDecoration: 'none',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            }}
+          >
+            <MessageCircle size={15} /> WhatsApp Support
+          </a>
+
+          <Link
+            to="/support#contact"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '10px 8px',
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              color: 'var(--text-primary)',
+              fontSize: '0.76rem',
+              fontWeight: 800,
+              textDecoration: 'none',
+            }}
+          >
+            <Mail size={15} /> Email Form
+          </Link>
         </div>
       </div>
 
