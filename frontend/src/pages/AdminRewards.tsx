@@ -1507,9 +1507,14 @@ export function AdminRewards() {
               )}
 
               {/* Curated Golf Image Picker + Device Upload */}
-              <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Reward Image (Pick Preset or Upload)</span>
+              <div className="form-group" style={{ marginBottom: '14px' }}>
+                <label className="form-label" style={{ color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>Reward Image</span>
+                    <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 800, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      1200 × 900 px (4:3)
+                    </span>
+                  </span>
                   <button
                     type="button"
                     onClick={() => setShowUrlInput(!showUrlInput)}
@@ -1518,6 +1523,28 @@ export function AdminRewards() {
                     {showUrlInput ? 'Use Presets / Upload' : 'Paste Image URL'}
                   </button>
                 </label>
+
+                {/* Perfect Size & Design Guidelines Banner */}
+                <div style={{
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '10px',
+                  padding: '8px 12px',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  fontSize: '0.72rem',
+                  color: '#94a3b8'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontWeight: 700 }}>
+                    <span>📐 Perfect Upload Specs:</span>
+                    <span style={{ color: '#ffffff' }}>1200 × 900 px (4:3 aspect ratio) • JPG/PNG • Max 2MB</span>
+                  </div>
+                  <div style={{ color: '#94a3b8', lineHeight: 1.35 }}>
+                    🎯 <strong style={{ color: '#e2e8f0' }}>Center the subject:</strong> Mobile & desktop cards crop slightly on edges. Keep key visuals within the center 80% safe zone to avoid cutoff.
+                  </div>
+                </div>
 
                 {!showUrlInput ? (
                   <div>

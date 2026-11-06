@@ -14,6 +14,9 @@ import {
   HelpCircle,
   BookOpen,
   MessageCircle,
+  Sparkles,
+  Percent,
+  Zap,
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -42,9 +45,17 @@ export function Profile() {
 
   const currentPoints = user.points ?? user.points_balance ?? 0;
   const visualTier = resolveCardVisualTier(user);
-  const nextTierName = visualTier === 'Green' ? 'Silver' : visualTier === 'Silver' ? 'Gold' : visualTier === 'Gold' ? 'Platinum' : 'Max';
-  const nextTierPoints = visualTier === 'Green' ? 500 : visualTier === 'Silver' ? 1000 : visualTier === 'Gold' ? 5000 : currentPoints;
-  const progressPercent = visualTier === 'Platinum' ? 100 : Math.min(100, Math.round((currentPoints / nextTierPoints) * 100));
+  const nextTierName =
+    visualTier === 'Green' ? 'Silver' : visualTier === 'Silver' ? 'Gold' : visualTier === 'Gold' ? 'Platinum' : 'Max';
+  const nextTierPoints =
+    visualTier === 'Green' ? 500 : visualTier === 'Silver' ? 1000 : visualTier === 'Gold' ? 5000 : currentPoints;
+  const progressPercent =
+    visualTier === 'Platinum' ? 100 : Math.min(100, Math.round((currentPoints / nextTierPoints) * 100));
+
+  const currentDiscountPct =
+    visualTier === 'Platinum' ? 25 : visualTier === 'Gold' ? 15 : visualTier === 'Silver' ? 10 : 0;
+  const currentMultiplier =
+    visualTier === 'Platinum' ? '2.0×' : visualTier === 'Gold' ? '1.5×' : visualTier === 'Silver' ? '1.25×' : '1.0×';
 
   return (
     <div style={{ padding: '16px 16px 28px 16px' }}>
@@ -95,7 +106,16 @@ export function Profile() {
         >
           {user.name}
         </h2>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
           <span className="tier-pill" style={{ background: 'var(--slate-dark)', color: '#fff', fontSize: '0.66rem' }}>
             {visualTier === 'Green' ? 'CLUB MEMBER' : `${visualTier} TIER`}
           </span>
@@ -141,38 +161,166 @@ export function Profile() {
           marginBottom: '16px',
         }}
       >
-        <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Award size={18} style={{ color: '#d97706' }} /> Loyalty & Tier Status
-        </h3>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            marginBottom: '12px',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: '0.98rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Award size={18} style={{ color: '#d97706' }} /> Loyalty &amp; Tier Status
+          </h3>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              padding: '3px 9px',
+              borderRadius: '9999px',
+              background: currentDiscountPct > 0 ? 'var(--brand-green-subtle)' : 'var(--bg-subtle)',
+              color: currentDiscountPct > 0 ? 'var(--brand-green)' : 'var(--slate-grey)',
+              border: currentDiscountPct > 0 ? '1px solid rgba(4, 120, 87, 0.25)' : '1px solid var(--border-color)',
+            }}
+          >
+            {currentDiscountPct > 0 ? `${currentDiscountPct}% Booking Discount Active` : 'Base Tier (0% Discount)'}
+          </span>
+        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: visualTier !== 'Platinum' ? '14px' : '0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
           <div style={{ background: 'var(--bg-subtle)', padding: '12px 14px', borderRadius: '12px' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--slate-grey)', textTransform: 'uppercase', fontWeight: 700 }}>Points Balance</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--slate-grey)', textTransform: 'uppercase', fontWeight: 700 }}>
+              Points Balance
+            </div>
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-green)', marginTop: '2px' }}>
               {currentPoints.toLocaleString()} <span style={{ fontSize: '0.72rem' }}>PTS</span>
             </div>
           </div>
 
           <div style={{ background: 'var(--bg-subtle)', padding: '12px 14px', borderRadius: '12px' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--slate-grey)', textTransform: 'uppercase', fontWeight: 700 }}>Lifetime YTD</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--slate-grey)', textTransform: 'uppercase', fontWeight: 700 }}>
+              Lifetime YTD
+            </div>
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--slate-dark)', marginTop: '2px' }}>
               {(user.points_ytd || currentPoints).toLocaleString()} <span style={{ fontSize: '0.72rem' }}>PTS</span>
             </div>
           </div>
         </div>
 
+        {/* Active Tier Perks Summary Strip */}
+        <div
+          style={{
+            background: '#f8fafc',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            padding: '10px 12px',
+            marginBottom: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <Percent size={14} style={{ color: 'var(--brand-green)' }} />
+            <span>
+              Booking Discount: <strong style={{ color: 'var(--brand-green)' }}>{currentDiscountPct}% OFF</strong>
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <Zap size={14} style={{ color: '#d97706' }} />
+            <span>
+              Earn Rate: <strong>{currentMultiplier} PTS</strong>
+            </span>
+          </div>
+        </div>
+
         {/* Tier Progress Bar */}
         {visualTier !== 'Platinum' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--slate-grey)', marginBottom: '6px', fontWeight: 700 }}>
+          <div style={{ marginBottom: '14px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.74rem',
+                color: 'var(--slate-grey)',
+                marginBottom: '6px',
+                fontWeight: 700,
+              }}
+            >
               <span>Tier Progress to {nextTierName}</span>
-              <span style={{ color: 'var(--brand-green)', fontWeight: 800 }}>{currentPoints.toLocaleString()} / {nextTierPoints.toLocaleString()} PTS</span>
+              <span style={{ color: 'var(--brand-green)', fontWeight: 800 }}>
+                {currentPoints.toLocaleString()} / {nextTierPoints.toLocaleString()} PTS
+              </span>
             </div>
             <div style={{ width: '100%', height: '8px', background: 'var(--bg-subtle)', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ width: `${progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, var(--brand-green), var(--brand-green-light))', borderRadius: '4px' }} />
+              <div
+                style={{
+                  width: `${progressPercent}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-green-light))',
+                  borderRadius: '4px',
+                }}
+              />
             </div>
           </div>
         )}
+
+        {/* Button to Open Dedicated Upgrade & Tier Benefits Page */}
+        <Link
+          to="/profile/upgrade"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            width: '100%',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #090d16 0%, #0f172a 60%, #047857 100%)',
+            color: '#ffffff',
+            textDecoration: 'none',
+            boxShadow: '0 4px 14px rgba(15, 23, 42, 0.16)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <div
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: 'rgba(255, 255, 255, 0.14)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Sparkles size={17} style={{ color: '#fbbf24' }} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.25 }}>
+                Upgrade Membership &amp; Tier Perks
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 600, marginTop: '2px' }}>
+                Plans from £10, £20 &amp; £30/mo &bull; Up to 25% off bookings
+              </div>
+            </div>
+          </div>
+          <ChevronRight size={18} style={{ color: '#34d399', flexShrink: 0 }} />
+        </Link>
       </div>
 
       {/* Account Info Details */}
@@ -186,7 +334,17 @@ export function Profile() {
           marginBottom: '16px',
         }}
       >
-        <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <h3
+          style={{
+            fontSize: '0.98rem',
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            marginBottom: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
           <UserIcon size={18} style={{ color: 'var(--brand-green)' }} /> Account Details
         </h3>
 
@@ -234,7 +392,11 @@ export function Profile() {
               <Calendar size={15} /> Joined Club
             </span>
             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-              {new Date(user.created_at || '2026-01-01').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              {new Date(user.created_at || '2026-01-01').toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
             </span>
           </div>
         </div>
@@ -375,9 +537,28 @@ export function Profile() {
           boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div style={{ padding: '15px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-          <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-            <History size={18} style={{ color: 'var(--brand-green)' }} /> Activity & History Log
+        <div
+          style={{
+            padding: '15px 16px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: '0.98rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              margin: 0,
+            }}
+          >
+            <History size={18} style={{ color: 'var(--brand-green)' }} /> Activity &amp; History Log
           </h3>
           <span style={{ fontSize: '0.74rem', color: 'var(--slate-grey)', fontWeight: 700, whiteSpace: 'nowrap' }}>
             {transactions.length} Records
@@ -385,9 +566,13 @@ export function Profile() {
         </div>
 
         {loading ? (
-          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--slate-grey)', fontSize: '0.84rem' }}>Loading activity history...</div>
+          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--slate-grey)', fontSize: '0.84rem' }}>
+            Loading activity history...
+          </div>
         ) : transactions.length === 0 ? (
-          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--slate-grey)', fontSize: '0.84rem' }}>No activity history found.</div>
+          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--slate-grey)', fontSize: '0.84rem' }}>
+            No activity history found.
+          </div>
         ) : (
           transactions.map((t, idx, arr) => (
             <div

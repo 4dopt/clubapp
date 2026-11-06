@@ -16,6 +16,7 @@ import { BookingDarts } from './pages/BookingDarts';
 import { BookingEvents } from './pages/BookingEvents';
 import { Profile } from './pages/Profile';
 import { HelpSupport } from './pages/HelpSupport';
+import { MembershipUpgrade } from './pages/MembershipUpgrade';
 
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminAnalytics } from './pages/AdminAnalytics';
@@ -165,6 +166,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/upgrade"
+            element={
+              <ProtectedRoute>
+                <MembershipUpgrade />
               </ProtectedRoute>
             }
           />

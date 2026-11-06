@@ -44,7 +44,7 @@ export default function AdminRewards() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.7,
+        quality: 0.85,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -234,7 +234,25 @@ export default function AdminRewards() {
                   />
                 ) : null}
 
-                <Text style={modalStyles.label}>REWARD IMAGE</Text>
+                <View style={modalStyles.imageHeaderRow}>
+                  <Text style={modalStyles.label}>REWARD IMAGE</Text>
+                  <View style={modalStyles.specBadge}>
+                    <Text style={modalStyles.specBadgeText}>1200 × 900 px (4:3)</Text>
+                  </View>
+                </View>
+
+                <View style={modalStyles.guideBox}>
+                  <View style={modalStyles.guideTitleRow}>
+                    <Ionicons name="sparkles" size={13} color="#E6C25F" />
+                    <Text style={modalStyles.guideTitle}>Perfect Upload Dimensions:</Text>
+                  </View>
+                  <Text style={modalStyles.guideText}>
+                    • Resolution: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>1200 × 900 px</Text> (4:3 ratio) • Max 2MB
+                  </Text>
+                  <Text style={modalStyles.guideText}>
+                    • <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Keep subject centered:</Text> Leave ~10% margin around edges so cards don't cut off details.
+                  </Text>
+                </View>
                 <View style={modalStyles.imageUploadContainer}>
                   {editing?.image_url ? (
                     <View style={modalStyles.previewContainer}>
@@ -438,5 +456,51 @@ const modalStyles = StyleSheet.create({
     color: '#E6C25F',
     fontSize: 13,
     fontWeight: '700',
+  },
+  imageHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    marginBottom: 6,
+  },
+  specBadge: {
+    backgroundColor: 'rgba(230, 194, 95, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(230, 194, 95, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  specBadgeText: {
+    color: '#E6C25F',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  guideBox: {
+    backgroundColor: '#151E19',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 10,
+    marginBottom: 6,
+    gap: 4,
+  },
+  guideTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 2,
+  },
+  guideTitle: {
+    color: '#E6C25F',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  guideText: {
+    color: '#7B8E85',
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

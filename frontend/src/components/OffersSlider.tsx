@@ -78,17 +78,25 @@ export function OffersSlider() {
     if (!sliderRef.current) return;
     const scrollLeft = sliderRef.current.scrollLeft;
     const firstCard = sliderRef.current.children[0] as HTMLElement | undefined;
-    const cardWidth = firstCard ? firstCard.offsetWidth + 14 : sliderRef.current.offsetWidth * 0.85;
+    const cardWidth = firstCard ? firstCard.offsetWidth + 18 : sliderRef.current.offsetWidth * 0.85;
     const index = Math.round(scrollLeft / cardWidth);
     setActiveIndex(Math.min(offers.length - 1, Math.max(0, index)));
   };
 
   const scrollToOffer = (index: number) => {
     if (!sliderRef.current) return;
+    if (index === 0) {
+      sliderRef.current.scrollTo({
+        left: 0,
+        behavior: 'smooth',
+      });
+      setActiveIndex(0);
+      return;
+    }
     const targetCard = sliderRef.current.children[index] as HTMLElement;
     if (targetCard) {
       sliderRef.current.scrollTo({
-        left: targetCard.offsetLeft - 16,
+        left: Math.max(0, targetCard.offsetLeft - 22),
         behavior: 'smooth',
       });
       setActiveIndex(index);
@@ -96,11 +104,11 @@ export function OffersSlider() {
   };
 
   return (
-    <div style={{ marginTop: '20px', marginBottom: '12px' }}>
+    <div style={{ marginTop: '22px', marginBottom: '14px' }}>
       {/* Section Header */}
       <div
         style={{
-          padding: '0 16px 12px 16px',
+          padding: '0 22px 12px 22px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -198,9 +206,11 @@ export function OffersSlider() {
         className="hide-scrollbar"
         style={{
           display: 'flex',
-          gap: '14px',
+          gap: '18px',
           overflowX: 'auto',
-          padding: '4px 16px 14px 16px',
+          padding: '6px 22px 16px 22px',
+          scrollPaddingLeft: '22px',
+          scrollPaddingRight: '22px',
           scrollSnapType: 'x mandatory',
           WebkitOverflowScrolling: 'touch',
         }}
@@ -209,9 +219,9 @@ export function OffersSlider() {
           <div
             key={offer.id}
             style={{
-              flex: '0 0 calc(100% - 28px)',
-              maxWidth: '336px',
-              minWidth: '266px',
+              flex: '0 0 calc(100% - 40px)',
+              maxWidth: '332px',
+              minWidth: '264px',
               scrollSnapAlign: 'start',
               position: 'relative',
               borderRadius: '22px',
@@ -251,7 +261,7 @@ export function OffersSlider() {
               style={{
                 position: 'relative',
                 zIndex: 2,
-                padding: '14px 16px',
+                padding: '16px 18px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -313,7 +323,7 @@ export function OffersSlider() {
               style={{
                 position: 'relative',
                 zIndex: 2,
-                padding: '14px 16px 16px 16px',
+                padding: '14px 18px 18px 18px',
                 background: 'linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.85) 35%, rgba(15, 23, 42, 0.98) 100%)',
               }}
             >

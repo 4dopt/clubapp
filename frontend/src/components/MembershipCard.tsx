@@ -23,13 +23,35 @@ interface Props {
 
 export type CardVisualTier = 'Green' | 'Silver' | 'Gold' | 'Platinum';
 
+export const UPGRADED_TIER_STORAGE_PREFIX = 'playgolf.upgraded_tier.';
+
+export function getMemberUpgradedTier(userId?: string): CardVisualTier | null {
+  if (!userId) return null;
+  try {
+    const val = localStorage.getItem(`${UPGRADED_TIER_STORAGE_PREFIX}${userId}`);
+    if (val === 'Silver' || val === 'Gold' || val === 'Platinum') return val;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function setMemberUpgradedTier(userId: string, tier: CardVisualTier): void {
+  try {
+    localStorage.setItem(`${UPGRADED_TIER_STORAGE_PREFIX}${userId}`, tier);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function resolveCardVisualTier(user: User): CardVisualTier {
   const pts = Number(user.points ?? user.points_balance ?? 0);
   const rawTier = (user.tier || '').toLowerCase();
+  const upgraded = getMemberUpgradedTier(user.id);
 
-  if (pts >= 5000 || rawTier === 'platinum') return 'Platinum';
-  if (pts >= 1000 || rawTier === 'gold') return 'Gold';
-  if (pts > 500) return 'Silver';
+  if (pts >= 5000 || rawTier === 'platinum' || upgraded === 'Platinum') return 'Platinum';
+  if (pts >= 1000 || rawTier === 'gold' || upgraded === 'Gold') return 'Gold';
+  if (pts > 500 || upgraded === 'Silver') return 'Silver';
   return 'Green';
 }
 

@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlayGolf Club App — Official User & Staff Visual Handbook</title>
+  <style>
+    :root {
+      --bg-canvas: #E2E8F0;
+      --bg-page: #FFFFFF;
+      --bg-soft: #F8FAFC;
+      --bg-green-tint: #ECFDF5;
+      --bg-blue-tint: #F0F9FF;
+      --bg-amber-tint: #FFFBEB;
+      --club-green: #064E3B;
+      --club-green-mid: #047857;
+      --club-green-accent: #10B981;
+      --staff-navy: #0F172A;
+      --staff-blue: #0284C7;
+      --gold-dark: #B45309;
+      --gold-border: #F59E0B;
+      --text-dark: #0F172A;
+      --text-body: #334155;
+      --text-muted: #64748B;
+      --border-color: #CBD5E1;
+      --border-subtle: #E2E8F0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-canvas);
+      color: var(--text-dark);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.45;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Top Web Toolbar (Hidden in PDF/Print) */
+    .web-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      background: #0F172A;
+      color: #FFFFFF;
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #10B981;
+    }
+
+    .web-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .web-badge {
+      background: #10B981;
+      color: #064E3B;
+      font-weight: 900;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .web-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .print-btn {
+      background: #10B981;
+      color: #064E3B;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    /* A4 Page Stack Container */
+    .pages-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      padding: 28px 16px 60px;
+    }
+
+    /* Exact A4 Sheet (210mm x 297mm) */
+    .a4-page {
+      width: 210mm;
+      height: 297mm;
+      background: var(--bg-page);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+      padding: 11mm 13mm 10mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Page Running Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 7px;
+      border-bottom: 2px solid var(--club-green);
+      flex-shrink: 0;
+    }
+
+    .page-header.staff-theme {
+      border-bottom-color: var(--staff-blue);
+    }
+
+    .ph-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ph-pill {
+      background: var(--club-green);
+      color: #FFFFFF;
+      font-size: 9.5px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .ph-pill.staff {
+      background: var(--staff-blue);
+    }
+
+    .ph-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-dark);
+    }
+
+    .ph-right {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    /* Page Running Footer */
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* Code / ID Pill */
+    .code-pill {
+      display: inline-block;
+      background: #E2E8F0;
+      color: #0F172A;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* Cover Banner on Page 1 */
+    .cover-hero {
+      background: linear-gradient(135deg, #064E3B 0%, #047857 65%, #0F172A 100%);
+      color: #FFFFFF;
+      border-radius: 14px;
+      padding: 20px 22px;
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .cover-eyebrow {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.25);
+      border: 1px solid #34D399;
+      color: #A7F3D0;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .cover-hero h1 {
+      font-size: 23px;
+      font-weight: 900;
+      line-height: 1.16;
+      margin-bottom: 6px;
+    }
+
+    .cover-hero p {
+      font-size: 11.5px;
+      color: #D1FAE5;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+
+    .cover-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .cover-chip {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 6px;
+    }
+
+    .cover-summary-box {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+
+    .cover-summary-box h3 {
+      font-size: 10.5px;
+      color: #6EE7B7;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    /* Infographic Card */
+    .info-panel {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .info-panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .info-panel-head h2 {
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--text-dark);
+    }
+
+    .info-panel-head span {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* 4-Column Horizontal Flow Grid (Locked 4 Columns!) */
+    .flow-4col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .flow-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--border-color);
+      border-top: 4px solid var(--club-green);
+      border-radius: 10px;
+      padding: 10px 11px;
+    }
+
+    .flow-card.staff {
+      border-top-color: var(--staff-blue);
+    }
+
+    .flow-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .step-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--club-green);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flow-card.staff .step-circle {
+      background: var(--staff-blue);
+    }
+
+    .role-tag {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      background: var(--bg-green-tint);
+      color: var(--club-green);
+    }
+
+    .flow-card.staff .role-tag {
+      background: var(--bg-blue-tint);
+      color: var(--staff-blue);
+    }
+
+    .flow-card h4 {
+      font-size: 11.5px;
+      font-weight: 800;
+      margin-bottom: 3px;
+      color: var(--text-dark);
+    }
+
+    .flow-card p {
+      font-size: 10.2px;
+      color: var(--text-body);
+      line-height: 1.38;
+    }
+
+    /* 4-Tier Ladder Grid */
+    .tier-4col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .tier-card {
+      border-radius: 10px;
+      padding: 10px 11px;
+      border: 1.5px solid var(--border-color);
+    }
+
+    .tier-card.t-green { background: #ECFDF5; border-color: #6EE7B7; }
+    .tier-card.t-silver { background: #F8FAFC; border-color: #CBD5E1; }
+    .tier-card.t-gold { background: #FFFBEB; border-color: #FCD34D; }
+    .tier-card.t-plat { background: #0F172A; border-color: #38BDF8; color: #FFFFFF; }
+
+    .tier-pts-tag {
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+
+    .tier-card h4 {
+      font-size: 13px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .tier-card p {
+      font-size: 10px;
+      line-height: 1.38;
+    }
+
+    /* Feature Module Block (2 Per A4 Page — Side-by-Side Locked!) */
+    .feature-module {
+      background: #FFFFFF;
+      border: 1.5px solid var(--border-color);
+      border-radius: 13px;
+      padding: 13px 15px;
+      display: grid;
+      grid-template-columns: 205px 1fr;
+      gap: 18px;
+      align-items: center;
+      height: 129mm;
+    }
+
+    .feature-module.wide-shot {
+      grid-template-columns: 280px 1fr;
+      gap: 16px;
+    }
+
+    /* Annotated Screenshot Frame */
+    .shot-stage {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-subtle);
+      border-radius: 11px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      position: relative;
+    }
+
+    .phone-frame {
+      position: relative;
+      height: 106mm;
+      width: auto;
+      background: #0F172A;
+      border: 3px solid #334155;
+      border-radius: 18px;
+      padding: 4px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .phone-frame img {
+      height: 100%;
+      width: auto;
+      border-radius: 13px;
+      display: block;
+    }
+
+    .desktop-frame {
+      position: relative;
+      width: 100%;
+      background: #0F172A;
+      border: 3px solid #334155;
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+    }
+
+    .desktop-frame img {
+      width: 100%;
+      height: auto;
+      max-height: 92mm;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 6px;
+      display: block;
+    }
+
+    /* Precision Edge Callout Pins (Never Cover Important Text!) */
+    .c-pin {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #DC2626;
+      color: #FFFFFF;
+      font-size: 10.5px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+      z-index: 10;
+      transform: translate(-50%, -50%);
+    }
+
+    .c-pin.green { background: #059669; }
+    .c-pin.blue { background: #0284C7; }
+    .c-pin.amber { background: #D97706; }
+
+    .shot-caption {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: var(--club-green);
+      margin-top: 5px;
+      text-align: center;
+    }
+
+    .feature-module.wide-shot .shot-caption {
+      color: var(--staff-blue);
+    }
+
+    /* Right Side Feature Details */
+    .mod-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .mod-eyebrow {
+      display: inline-block;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg-green-tint);
+      color: var(--club-green);
+      margin-bottom: 4px;
+    }
+
+    .mod-eyebrow.staff {
+      background: var(--bg-blue-tint);
+      color: var(--staff-blue);
+    }
+
+    .mod-content h3 {
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text-dark);
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .mod-desc {
+      font-size: 11px;
+      color: var(--text-body);
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+
+    .callout-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .callout-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 6px 9px;
+    }
+
+    .c-num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #DC2626;
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .c-num.green { background: #059669; }
+    .c-num.blue { background: #0284C7; }
+    .c-num.amber { background: #D97706; }
+
+    .c-body {
+      font-size: 10.5px;
+      color: var(--text-body);
+      line-height: 1.38;
+    }
+
+    .c-body strong {
+      color: var(--text-dark);
+      font-weight: 800;
+    }
+
+    .c-body > strong:first-child {
+      display: block;
+      margin-bottom: 1px;
+    }
+
+    .impact-strip {
+      background: var(--bg-amber-tint);
+      border-left: 3.5px solid var(--gold-border);
+      padding: 6px 10px;
+      border-radius: 0 7px 7px 0;
+      font-size: 10.2px;
+      color: #78350F;
+      line-height: 1.35;
+    }
+
+    .impact-strip strong {
+      color: #92400E;
+      font-weight: 800;
+    }
+
+    /* Compact Cheat Sheet Table on Page 6 */
+    .cheat-sheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .cheat-sheet-table th {
+      background: var(--staff-navy);
+      color: #FFFFFF;
+      padding: 7px 10px;
+      text-align: left;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .cheat-sheet-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-body);
+      background: #FFFFFF;
+      line-height: 1.35;
+    }
+
+    .cheat-sheet-table tr:nth-child(even) td {
+      background: var(--bg-soft);
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      body {
+        background: #FFFFFF !important;
+      }
+      .web-toolbar {
+        display: none !important;
+      }
+      .pages-wrapper {
+        padding: 0 !important;
+        gap: 0 !important;
+      }
+      .a4-page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Web Toolbar -->
+  <div class="web-toolbar">
+    <div class="web-toolbar-left">
+      <span class="web-badge">Precision A4 Handbook</span>
+      <span class="web-title">PlayGolf Club App — Official Visual User &amp; Staff Guide (6 A4 Pages)</span>
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨️ Print / Save A4 PDF</button>
+  </div>
+
+  <div class="pages-wrapper">
+
+    <!-- =================================================================== -->
+    <!-- PAGE 1 OF 6: COVER, SYSTEM ARCHITECTURE & LOYALTY TIER LADDER       -->
+    <!-- =================================================================== -->
+    <section class="a4-page">
+      <div class="page-header">
+        <div class="ph-left">
+          <span class="ph-pill">Official Handbook</span>
+          <span class="ph-title">PlayGolf Northwick Park — User &amp; Staff Master Guide</span>
+        </div>
+        <span class="ph-right">Part 1: System Overview &amp; Infographics</span>
+      </div>
+
+      <!-- Cover Hero -->
+      <div class="cover-hero">
+        <div>
+          <span class="cover-eyebrow">Complete Visual Reference Manual</span>
+          <h1>PlayGolf Club App:<br/>Golfer &amp; Reception Staff Guide</h1>
+          <p>
+            A step-by-step visual guide showing how the Golfer Mobile App and the Reception Staff Terminal work together. Every screen is annotated with numbered callouts for instant reference.
+          </p>
+          <div class="cover-chips">
+            <span class="cover-chip">📱 Digital VIP Pass &amp; QR Check-In</span>
+            <span class="cover-chip">⛳ Live Range Rates (£10–£17.50)</span>
+            <span class="cover-chip">📷 2-Second Desk Scanner</span>
+            <span class="cover-chip">💷 1-Click Daily Till Report</span>
+          </div>
+        </div>
+        <div class="cover-summary-box">
+          <h3>Two Sides of One System</h3>
+          <p style="margin-bottom:6px; color:#FFFFFF;">
+            🟢 <strong>Golfer Side (Pages 2–3):</strong> 3D Digital Membership Card, Pop-Up QR Pass, Live TrackMan Range Pricing, Activity Booking, and Rewards Shop.
+          </p>
+          <p style="margin-bottom:0; color:#FFFFFF;">
+            🔵 <strong>Staff Side (Pages 4–6):</strong> Reception Command Center, Universal QR Scanner, Live Tee Sheet, Daily Till Report, and Marketing Studio.
+          </p>
+        </div>
+      </div>
+
+      <!-- Infographic 1: 4-Step Ecosystem Journey -->
+      <div class="info-panel">
+        <div class="info-panel-head">
+          <h2>Infographic 1: How the Golfer Phone &amp; Reception Desk Connect</h2>
+          <span>The 4-step loop from mobile sign-up to end-of-day till reconciliation</span>
+        </div>
+
+        <div class="flow-4col">
+          <div class="flow-card">
+            <div class="flow-card-top">
+              <span class="step-circle">1</span>
+              <span class="role-tag">Golfer Phone</span>
+            </div>
+            <h4>Join &amp; Get Digital Pass</h4>
+            <p>Golfer registers in 20 seconds, receives <strong>+250 Welcome Points</strong>, and gets an official Digital QR Card (<span class="code-pill">PG-204891</span>).</p>
+          </div>
+
+          <div class="flow-card">
+            <div class="flow-card-top">
+              <span class="step-circle">2</span>
+              <span class="role-tag">Golfer Phone</span>
+            </div>
+            <h4>Book Bay or Claim Offer</h4>
+            <p>Golfer checks live TrackMan bay rates (£10–£17.50), books 9-Hole Golf, Minigolf, or Darts, or claims today's <strong>Offer of the Day</strong>.</p>
+          </div>
+
+          <div class="flow-card staff">
+            <div class="flow-card-top">
+              <span class="step-circle">3</span>
+              <span class="role-tag">Reception Desk</span>
+            </div>
+            <h4>2-Second QR Scan</h4>
+            <p>Staff click <strong>Scan QR Code</strong> on the counter tablet/PC. The camera reads the golfer's phone, plays an audio chime, and awards <strong>+100 pts</strong>.</p>
+          </div>
+
+          <div class="flow-card staff">
+            <div class="flow-card-top">
+              <span class="step-circle">4</span>
+              <span class="role-tag">Club Manager</span>
+            </div>
+            <h4>Points &amp; Till Auto-Sync</h4>
+            <p>The golfer's tier progress climbs toward Gold/Platinum, and the booking revenue automatically updates the <strong>End-of-Day Till Report</strong>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Infographic 2: 4-Tier Loyalty Ladder -->
+      <div class="info-panel">
+        <div class="info-panel-head">
+          <h2>Infographic 2: The 4-Tier Member Loyalty Ladder</h2>
+          <span>Every visit and purchase earns points—motivating golfers to stay loyal to your venue</span>
+        </div>
+
+        <div class="tier-4col">
+          <div class="tier-card t-green">
+            <div class="tier-pts-tag" style="color:#047857;">0 – 499 Points</div>
+            <h4 style="color:#064E3B;">🟢 Green Tier</h4>
+            <p style="color:#065F46;">Instant entry tier on sign-up (+250 Welcome Bonus Points). Unlocks Digital QR Pass, online booking, and coffee/range ball rewards.</p>
+          </div>
+
+          <div class="tier-card t-silver">
+            <div class="tier-pts-tag" style="color:#475569;">500 – 999 Points</div>
+            <h4 style="color:#0F172A;">⚪ Silver Tier</h4>
+            <p style="color:#334155;">Unlocks 20% Off Pro Shop Apparel &amp; Footwear vouchers, priority off-peak weekday offers, and metallic Silver card styling.</p>
+          </div>
+
+          <div class="tier-card t-gold">
+            <div class="tier-pts-tag" style="color:#B45309;">1,000 – 4,999 Points</div>
+            <h4 style="color:#92400E;">🟡 Gold VIP</h4>
+            <p style="color:#78350F;">Unlocks 1-Hour PGA Pro Coaching rewards, priority weekend tee times, and prestigious brushed-gold VIP membership card.</p>
+          </div>
+
+          <div class="tier-card t-plat">
+            <div class="tier-pts-tag" style="color:#38BDF8;">5,000+ Points</div>
+            <h4 style="color:#FFFFFF;">💎 Platinum Elite</h4>
+            <p style="color:#CBD5E1;">Top club ambassadors. Unlocks all VIP rewards, complimentary guest passes, and signature black-and-emerald Platinum card.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <span>PlayGolf Club App — Official User &amp; Staff Visual Handbook</span>
+        <span>Page 1 of 6</span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 2 OF 6: MEMBER SIDE (HOME DASHBOARD & POP-UP QR PASS)          -->
+    <!-- =================================================================== -->
+    <section class="a4-page">
+      <div class="page-header">
+        <div class="ph-left">
+          <span class="ph-pill">Part 2 • Member Guide</span>
+          <span class="ph-title">Golfer Mobile App — Digital VIP Card &amp; Instant QR Check-In</span>
+        </div>
+        <span class="ph-right">Screens 1 &amp; 2</span>
+      </div>
+
+      <!-- MODULE 1: MEMBER HOME DASHBOARD -->
+      <div class="feature-module">
+        <div class="shot-stage">
+          <div class="phone-frame">
+            <img src="guide_assets/member_dashboard.png" alt="Member Dashboard" />
+            <span class="c-pin green" style="top: 10%; left: 93%;">1</span>
+            <span class="c-pin green" style="top: 26%; left: 8%;">2</span>
+            <span class="c-pin amber" style="top: 46%; left: 8%;">3</span>
+            <span class="c-pin blue" style="top: 60%; left: 8%;">4</span>
+            <span class="c-pin" style="top: 78%; left: 8%;">5</span>
+          </div>
+          <div class="shot-caption">Member Home Tab (/dashboard)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow">Member Screen 1 • Home Card Tab</span>
+            <h3>3D Digital Membership Card &amp; Live Dashboard</h3>
+            <p class="mod-desc">
+              As soon as a golfer opens the app, their official club membership card, loyalty points balance, and active reservation are displayed immediately on a single screen.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>One-Tap "QR Pass" Button</strong>
+                  Opens the high-contrast barcode modal for instant scanning at the reception desk.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num green">2</span>
+                <div class="c-body">
+                  <strong>Interactive 3D VIP Card (With 3D Flip)</strong>
+                  Shows Member ID (<span class="code-pill">PG-204891</span>), Full Name, active Tier (<span class="code-pill">GOLD MEMBER</span>), and spendable Points (<span class="code-pill">1,450 PTS</span>).
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">3</span>
+                <div class="c-body">
+                  <strong>Gamified Tier Progress Bar</strong>
+                  Shows exact points needed to unlock the next tier (e.g., <em>1,450 / 5,000 PTS to Platinum</em>).
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">4</span>
+                <div class="c-body">
+                  <strong>Quick Action Shortcuts (Book Activity &amp; Browse Rewards)</strong>
+                  Large, touch-friendly cards to book bays/courses or claim loyalty perks.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num">5</span>
+                <div class="c-body">
+                  <strong>Upcoming Reservation Banner &amp; "Offer of the Day"</strong>
+                  Displays today's booked bay pass (<span class="code-pill">PG-BK-8492</span>) and daily club spotlight deals.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Why Golfers Love It:</strong> Replaces lost plastic cards permanently. Large, high-contrast buttons make it effortless for 60+ year-old golfers to use.
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 2: POP-UP QR CHECK-IN MODAL -->
+      <div class="feature-module">
+        <div class="shot-stage">
+          <div class="phone-frame">
+            <img src="guide_assets/member_qr_modal.png" alt="Member QR Pass Modal" />
+            <span class="c-pin green" style="top: 29%; left: 14%;">1</span>
+            <span class="c-pin amber" style="top: 43%; left: 14%;">2</span>
+            <span class="c-pin blue" style="top: 56%; left: 14%;">3</span>
+          </div>
+          <div class="shot-caption">Pop-Up Reception QR Pass</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow">Member Screen 2 • Reception Check-In</span>
+            <h3>The Pop-Up Optical QR Check-In Pass</h3>
+            <p class="mod-desc">
+              When arriving at the reception desk, tapping the green <strong>QR Pass</strong> button or the <strong>Scan Pass</strong> button on the card opens this clean, high-brightness check-in pass.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>Verified Member Header &amp; Tier Status</strong>
+                  Displays the golfer's full name, Member ID (<span class="code-pill">ID: PG-204891</span>), and verified tier badge (<span class="code-pill">Gold Tier</span>).
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">2</span>
+                <div class="c-body">
+                  <strong>High-Contrast Optical QR Code</strong>
+                  Framed on a pure white card so counter webcams, iPads, and tablets scan it in under 2 seconds—even in bright sunlight.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">3</span>
+                <div class="c-body">
+                  <strong>Readable Backup Token (<span class="code-pill">QR_MEMBER_PG204891</span>)</strong>
+                  If reception prefers not to use a camera, staff can type the 6-digit Member ID directly into the Staff Home screen.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Business Impact:</strong> Cuts reception queue times from 2 minutes of manual name lookups down to a 2-second scan, while automatically awarding +100 visit points.
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <span>PlayGolf Club App — Official User &amp; Staff Visual Handbook</span>
+        <span>Page 2 of 6</span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 3 OF 6: MEMBER SIDE (DRIVING RANGE PRICING & REWARDS SHOP)     -->
+    <!-- =================================================================== -->
+    <section class="a4-page">
+      <div class="page-header">
+        <div class="ph-left">
+          <span class="ph-pill">Part 2 • Member Guide</span>
+          <span class="ph-title">Golfer Mobile App — Live Range Pricing, Booking &amp; Rewards Shop</span>
+        </div>
+        <span class="ph-right">Screens 3 &amp; 4</span>
+      </div>
+
+      <!-- MODULE 3: DRIVING RANGE PRICING & BOOKING -->
+      <div class="feature-module">
+        <div class="shot-stage">
+          <div class="phone-frame">
+            <img src="guide_assets/member_booking_range.png" alt="Driving Range Bay Pricing" />
+            <span class="c-pin green" style="top: 23%; left: 8%;">1</span>
+            <span class="c-pin amber" style="top: 55%; left: 8%;">2</span>
+            <span class="c-pin blue" style="top: 76%; left: 8%;">3</span>
+            <span class="c-pin" style="top: 90%; left: 8%;">4</span>
+          </div>
+          <div class="shot-caption">Driving Range Pricing (/booking/driving-range)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow">Member Screen 3 • Booking Tab</span>
+            <h3>Live Driving Range Pricing (£10–£17.50) &amp; Reservations</h3>
+            <p class="mod-desc">
+              Members can view live <strong>TrackMan 4 Driving Range Bay Rates</strong> (with automatic <em>Active Now</em> highlighting) and book <strong>9 Holes (from £12.50)</strong>, <strong>Putt Crazy (from £6.95)</strong>, and <strong>AR Darts (£20/lane)</strong>.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>56 TrackMan 4 Bays Overview</strong>
+                  Highlights Dual Radar telemetry, 56 covered &amp; floodlit bays, and up to 6 players per bay.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">2</span>
+                <div class="c-body">
+                  <strong>Mon–Fri Daytime (9:00 AM – 5:00 PM) + "Active Now" Badge</strong>
+                  Automatically highlights the current rate: <strong>£10 Downstairs (Ground Level)</strong> vs. <strong>£12.50 Upstairs (Upper Deck)</strong>.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">3</span>
+                <div class="c-body">
+                  <strong>Mon–Fri Evening Sessions (5:00 PM – 9:00 PM)</strong>
+                  Displays <strong>£12.50 Downstairs</strong> and <strong>£15.00 Upstairs</strong> side-by-side—nudging +£2.50 Upper Deck upgrades.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num">4</span>
+                <div class="c-body">
+                  <strong>Weekend All-Day (£15 / £17.50) &amp; YourGolfBooking Portal</strong>
+                  Shows Saturday &amp; Sunday rates (<strong>£15 Downstairs / £17.50 Upstairs</strong>) and links directly to the official <strong>YourGolfBooking</strong> live portal.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Business Impact:</strong> Captures the 42% of bookings made after 8:00 PM when phone lines are shut, and nudges golfers from Downstairs to Upstairs bays (+£2.50).
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 4: REWARDS CATALOG -->
+      <div class="feature-module">
+        <div class="shot-stage">
+          <div class="phone-frame">
+            <img src="guide_assets/member_rewards.png" alt="Rewards Catalog" />
+            <span class="c-pin green" style="top: 12%; left: 92%;">1</span>
+            <span class="c-pin blue" style="top: 19%; left: 8%;">2</span>
+            <span class="c-pin amber" style="top: 43%; left: 8%;">3</span>
+            <span class="c-pin" style="top: 68%; left: 8%;">4</span>
+          </div>
+          <div class="shot-caption">Rewards Marketplace (/rewards)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow">Member Screen 4 • Rewards Tab</span>
+            <h3>The Loyalty Rewards &amp; Cross-Sell Marketplace</h3>
+            <p class="mod-desc">
+              Instead of discounting range bays for walk-ins, golfers spend earned loyalty points on perks that pull them inside the clubhouse café, bar, and pro shop.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>Live Spendable Points Badge (<span class="code-pill">1,450 PTS</span>)</strong>
+                  Shows the golfer's current point balance at the top of the catalog.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">2</span>
+                <div class="c-body">
+                  <strong>Category Filter Pills (All, Driving Range, Pro Shop, Coaching)</strong>
+                  Lets golfers filter perks by department in one tap.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">3</span>
+                <div class="c-body">
+                  <strong>One-Tap Reward Redemption (<span class="code-pill">150 PTS</span> / <span class="code-pill">120 PTS</span>)</strong>
+                  Golfers claim complimentary range balls, Clubhouse Coffee &amp; Pastry, or 2-for-1 Minigolf passes.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num">4</span>
+                <div class="c-body">
+                  <strong>Pro Shop &amp; Coaching Cross-Sell Cards (<span class="code-pill">300 PTS</span>)</strong>
+                  Drives high-margin apparel sales (20% Off Pro Shop Gear) and PGA lesson bookings.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Business Impact:</strong> A free coffee costs the club <strong>35p in beans</strong>, but brings a range player inside the bar where 75% buy a bacon roll, sandwich, or second drink (+£6 to +£8).
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <span>PlayGolf Club App — Official User &amp; Staff Visual Handbook</span>
+        <span>Page 3 of 6</span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 4 OF 6: STAFF SIDE (RECEPTION HOME & UNIVERSAL QR SCANNER)     -->
+    <!-- =================================================================== -->
+    <section class="a4-page">
+      <div class="page-header staff-theme">
+        <div class="ph-left">
+          <span class="ph-pill staff">Part 3 • Staff &amp; Manager Guide</span>
+          <span class="ph-title">Reception Desk Terminal — Home Command Center &amp; QR Scanner</span>
+        </div>
+        <span class="ph-right">Staff Screens 1 &amp; 2</span>
+      </div>
+
+      <!-- MODULE 5: STAFF DASHBOARD -->
+      <div class="feature-module wide-shot">
+        <div class="shot-stage">
+          <div class="desktop-frame">
+            <img src="guide_assets/staff_dashboard.png" alt="Staff Reception Home" />
+            <span class="c-pin green" style="top: 30%; left: 8%;">1</span>
+            <span class="c-pin blue" style="top: 25%; left: 94%;">2</span>
+            <span class="c-pin amber" style="top: 55%; left: 8%;">3</span>
+            <span class="c-pin" style="top: 74%; left: 8%;">4</span>
+          </div>
+          <div class="shot-caption">Reception Home Terminal (/admin)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow staff">Staff Screen 1 • Reception Home</span>
+            <h3>Reception Command Center ("Today at a Glance")</h3>
+            <p class="mod-desc">
+              Accessed via the Staff Security PIN on any counter iPad, tablet, or PC. Designed with oversized buttons and plain English so staff need zero training.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>Primary "Scan QR Code" Button</strong>
+                  Launches the camera scanner for Member Cards, Bookings, and Reward Vouchers.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">2</span>
+                <div class="c-body">
+                  <strong>Quick Check-In by Member ID (<span class="code-pill">PG-XXXXXX</span>)</strong>
+                  Type any member's ID and click <strong>Check In</strong> to award +100 visit points without a camera.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">3</span>
+                <div class="c-body">
+                  <strong>Live End-of-Day App Takings Banner (<span class="code-pill">£140.50</span>)</strong>
+                  Displays real-time £ revenue generated today; click to open the full Till Report.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num">4</span>
+                <div class="c-body">
+                  <strong>4 Live KPI Cards &amp; Reception To-Do Alerts</strong>
+                  Shows Visits Today, Bookings Arriving, Waiting Vouchers, and Total Members.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Operational Benefit:</strong> Gives reception staff a clear daily checklist of arriving bookings and waiting reward vouchers right on the home screen.
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 6: STAFF UNIVERSAL SCANNER -->
+      <div class="feature-module wide-shot">
+        <div class="shot-stage">
+          <div class="desktop-frame">
+            <img src="guide_assets/staff_scanner.png" alt="Staff Universal Scanner" />
+            <span class="c-pin green" style="top: 23%; left: 32%;">1</span>
+            <span class="c-pin blue" style="top: 23%; left: 68%;">2</span>
+            <span class="c-pin amber" style="top: 52%; left: 50%;">3</span>
+          </div>
+          <div class="shot-caption">Universal QR &amp; Code Scanner (/admin/scan)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow staff">Staff Screen 2 • Universal Scanner</span>
+            <h3>One Scanner for Everything (Camera + Manual Fallback)</h3>
+            <p class="mod-desc">
+              Staff never have to guess which screen to open. Point the camera at the customer's phone and the scanner automatically detects the QR type and plays an audio chime:
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>Use Camera Mode (Optical Webcam / Tablet Scanner)</strong>
+                  Scans any QR code in 2 seconds and plays an instant confirmation beep.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">2</span>
+                <div class="c-body">
+                  <strong>Type Code Manually Mode</strong>
+                  Lets staff type a Member ID (<span class="code-pill">PG-204891</span>), Booking Ref (<span class="code-pill">PG-BK-8492</span>), or Voucher Code (<span class="code-pill">PLAYGOLF20</span>).
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">3</span>
+                <div class="c-body">
+                  <strong>Automatic 4-Way Recognition</strong>
+                  Automatically processes: (1) Member Visit Check-In (+100 pts), (2) Activity Booking Check-In + Bay Assignment, (3) Reward Voucher Fulfillment, and (4) Daily Offer Claims.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Zero Hardware Cost:</strong> Uses the built-in camera on your existing reception tablet, laptop, or PC—no external barcode guns required.
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <span>PlayGolf Club App — Official User &amp; Staff Visual Handbook</span>
+        <span>Page 4 of 6</span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 5 OF 6: STAFF SIDE (BOOKINGS TEE SHEET & DAILY TILL REPORT)    -->
+    <!-- =================================================================== -->
+    <section class="a4-page">
+      <div class="page-header staff-theme">
+        <div class="ph-left">
+          <span class="ph-pill staff">Part 3 • Staff &amp; Manager Guide</span>
+          <span class="ph-title">Reception Desk Terminal — Live Tee Sheet &amp; Daily Till Reconciliation</span>
+        </div>
+        <span class="ph-right">Staff Screens 3 &amp; 4</span>
+      </div>
+
+      <!-- MODULE 7: BOOKINGS & SCHEDULE -->
+      <div class="feature-module wide-shot">
+        <div class="shot-stage">
+          <div class="desktop-frame">
+            <img src="guide_assets/staff_bookings.png" alt="Staff Bookings Schedule" />
+            <span class="c-pin green" style="top: 28%; left: 8%;">1</span>
+            <span class="c-pin blue" style="top: 43%; left: 92%;">2</span>
+            <span class="c-pin amber" style="top: 86%; left: 42%;">3</span>
+            <span class="c-pin" style="top: 96%; left: 22%;">4</span>
+          </div>
+          <div class="shot-caption">Bookings &amp; Schedule Manager (/admin/bookings)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow staff">Staff Screen 3 • Bookings Sheet</span>
+            <h3>Live Schedule, Payment Flags &amp; Walk-In Entry</h3>
+            <p class="mod-desc">
+              Gives reception staff a real-time view of all arriving players across the Driving Range, 9-Hole Course, Putt Crazy Minigolf, and Interactive Darts.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>Arrival &amp; Payment Summary Counters</strong>
+                  Shows Today's Bookings, Waiting to Arrive, Already Checked In, and Pay at Reception counts.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">2</span>
+                <div class="c-body">
+                  <strong>Fast Booking Ref Check-In &amp; "+ Add Walk-In Booking"</strong>
+                  Verify a booking code in one click or log a walk-in customer at the counter.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">3</span>
+                <div class="c-body">
+                  <strong>Clear Payment Status Badges (<span class="code-pill">PRE-PAID</span> vs. <span class="code-pill">COLLECT @ DESK</span>)</strong>
+                  Immediately alerts staff if a customer still needs to pay £24.00 at reception before playing.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num">4</span>
+                <div class="c-body">
+                  <strong>One-Click "Check-In (+100 PTS)" &amp; Bay Assignment</strong>
+                  Marks the guest as arrived, awards +100 loyalty points, and lets staff edit bay/lane numbers.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Prevents Revenue Leaks:</strong> Reception staff can never accidentally wave through an unpaid booking—every unpaid reservation is flagged in bright amber.
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 8: DAILY PAYMENTS & TILL REPORT -->
+      <div class="feature-module wide-shot">
+        <div class="shot-stage">
+          <div class="desktop-frame">
+            <img src="guide_assets/staff_payments_till.png" alt="Daily Till Report" />
+            <span class="c-pin green" style="top: 40%; left: 92%;">1</span>
+            <span class="c-pin amber" style="top: 58%; left: 8%;">2</span>
+            <span class="c-pin blue" style="top: 73%; left: 8%;">3</span>
+            <span class="c-pin" style="top: 90%; left: 8%;">4</span>
+          </div>
+          <div class="shot-caption">End-of-Day Till &amp; Z-Report (/admin/analytics?tab=payments)</div>
+        </div>
+
+        <div class="mod-content">
+          <div>
+            <span class="mod-eyebrow staff">Staff Screen 4 • Cashing Up</span>
+            <h3>End-of-Day Payments &amp; Till Reconciliation Report</h3>
+            <p class="mod-desc">
+              Built for club owners and duty managers at closing time. Answers <em>"Exactly how much money did the app make today?"</em> in one click.
+            </p>
+
+            <div class="callout-list">
+              <div class="callout-row">
+                <span class="c-num green">1</span>
+                <div class="c-body">
+                  <strong>Date Filter (Today / Yesterday / 7 Days) &amp; "Save Z-Report (CSV)"</strong>
+                  Downloads an accountant-ready Excel/CSV spreadsheet or prints the daily till summary.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num amber">2</span>
+                <div class="c-body">
+                  <strong>Total Takings Split: Paid Online vs. Pay at Reception Desk</strong>
+                  Separates pre-paid app revenue (<span class="code-pill">£116.50</span>) from counter payments (<span class="code-pill">£24.00</span>).
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num blue">3</span>
+                <div class="c-body">
+                  <strong>Revenue Breakdown by Club Activity</strong>
+                  Shows exact £ takings and share across Driving Range, 9-Hole Course, Minigolf, and Darts.
+                </div>
+              </div>
+              <div class="callout-row">
+                <span class="c-num">4</span>
+                <div class="c-body">
+                  <strong>Itemized Receipt Journal</strong>
+                  Lists every transaction receipt with time, member name, bay number, and £ amount.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="impact-strip">
+            <strong>💡 Bookkeeper Ready:</strong> Cuts end-of-night cashing-up paperwork down to a single click with full CSV export.
+          </div>
+        </div>
+      </div>
+
+      <div class="page-footer">
+        <span>PlayGolf Club App — Official User &amp; Staff Visual Handbook</span>
+        <span>Page 5 of 6</span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 6 OF 6: MARKETING STUDIO, MEMBER CRM & DESK CHEAT SHEET        -->
+    <!-- =================================================================== -->
+    <section class="a4-page">
+      <div class="page-header staff-theme">
+        <div class="ph-left">
+          <span class="ph-pill staff">Part 4 • Marketing, CRM &amp; Quick Cheat Sheet</span>
+          <span class="ph-title">Offer of the Day Studio, Member Directory &amp; Reception Cheat Sheet</span>
+        </div>
+        <span class="ph-right">Staff Screens 5 &amp; 6 + Cheat Sheet</span>
+      </div>
+
+      <!-- MODULE 9: OFFER OF THE DAY & MEMBER DIRECTORY (COMPACT DUAL OVERVIEW) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <!-- Left Card: Offer of the Day Studio -->
+        <div style="background:#FFFFFF; border:1.5px solid var(--border-color); border-radius:12px; padding:12px;">
+          <div class="desktop-frame" style="margin-bottom:8px;">
+            <img src="guide_assets/staff_daily_offers.png" alt="Offer of the Day Studio" style="max-height:54mm;" />
+            <span class="c-pin green" style="top: 44%; left: 48%;">1</span>
+            <span class="c-pin amber" style="top: 66%; left: 25%;">2</span>
+          </div>
+          <span class="mod-eyebrow staff">Staff Screen 5 • /admin/rewards?tab=daily</span>
+          <h3 style="font-size:14px; font-weight:900; margin-bottom:4px;">"Offer of the Day" Studio (Mon–Sun)</h3>
+          <p style="font-size:10.3px; color:var(--text-body); margin-bottom:6px;">
+            Customize daily promotions for every day of the week to fill quiet 9:00 AM – 5:00 PM weekday bays.
+          </p>
+          <div class="callout-list" style="margin-bottom:0;">
+            <div class="callout-row">
+              <span class="c-num green">1</span>
+              <div class="c-body">
+                <strong>Switch Catalog, Vouchers &amp; Daily Offers</strong>
+                Add new rewards, verify voucher codes, or edit Mon–Sun deals.
+              </div>
+            </div>
+            <div class="callout-row">
+              <span class="c-num amber">2</span>
+              <div class="c-body">
+                <strong>Instant Live Push to Member Phones</strong>
+                Edit any day's title, discount badge, or valid hours in 10 seconds.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Card: Member CRM Directory -->
+        <div style="background:#FFFFFF; border:1.5px solid var(--border-color); border-radius:12px; padding:12px;">
+          <div class="desktop-frame" style="margin-bottom:8px;">
+            <img src="guide_assets/staff_members.png" alt="Member CRM Directory" style="max-height:54mm;" />
+            <span class="c-pin blue" style="top: 48%; left: 25%;">1</span>
+            <span class="c-pin amber" style="top: 66%; left: 25%;">2</span>
+          </div>
+          <span class="mod-eyebrow staff">Staff Screen 6 • /admin/members</span>
+          <h3 style="font-size:14px; font-weight:900; margin-bottom:4px;">Member CRM Directory &amp; Points Control</h3>
+          <p style="font-size:10.3px; color:var(--text-body); margin-bottom:6px;">
+            Every registered golfer is stored in your searchable club database with full contact details and point history.
+          </p>
+          <div class="callout-list" style="margin-bottom:0;">
+            <div class="callout-row">
+              <span class="c-num blue">1</span>
+              <div class="c-body">
+                <strong>Search by Name, Email, or Member ID</strong>
+                Look up any golfer in seconds if they left their phone in the car.
+              </div>
+            </div>
+            <div class="callout-row">
+              <span class="c-num amber">2</span>
+              <div class="c-body">
+                <strong>1-Click "+100 Check-In" or Adjust Points</strong>
+                Credit bonus points or export the full member list to CSV.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FRONT-DESK QUICK REFERENCE CHEAT SHEET TABLE -->
+      <div class="info-panel" style="padding: 12px 14px;">
+        <div class="info-panel-head" style="margin-bottom: 8px;">
+          <h2>30-Second Daily Cheat Sheet for Front-Desk Reception Staff</h2>
+          <span>Keep this page at the reception desk for quick daily reference</span>
+        </div>
+
+        <table class="cheat-sheet-table">
+          <thead>
+            <tr>
+              <th style="width: 28%;">Customer Situation at Desk</th>
+              <th style="width: 36%;">What the Staff Member Does</th>
+              <th style="width: 36%;">What Happens Automatically</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. Member arrives for Driving Range (Walk-In)</strong></td>
+              <td>Click <strong>Scan QR Code</strong> on Staff Home and scan their phone (or type their <span class="code-pill">PG-XXXXXX</span> ID).</td>
+              <td>Logs visit, awards <strong>+100 Loyalty Points</strong>, updates tier progress, and increments Visits Today.</td>
+            </tr>
+            <tr>
+              <td><strong>2. Member arrives for a Pre-Booked Activity</strong></td>
+              <td>Scan their <strong>Booking QR Pass (<span class="code-pill">PG-BK-XXXX</span>)</strong> or click <strong>Check-In (+100 PTS)</strong> on Bookings Sheet.</td>
+              <td>Confirms if <strong>PRE-PAID</strong> or <strong>COLLECT @ DESK</strong>, shows assigned Bay/Tee/Lane, and awards +100 pts.</td>
+            </tr>
+            <tr>
+              <td><strong>3. Member claims a Free Coffee or Pro Shop Voucher</strong></td>
+              <td>Scan their <strong>Reward Voucher QR</strong> (or verify code under <em>Rewards &amp; Offers → Vouchers</em>).</td>
+              <td>Marks the voucher as <strong>Fulfilled/Used</strong> immediately so it cannot be used twice.</td>
+            </tr>
+            <tr>
+              <td><strong>4. Member forgot their phone in the car</strong></td>
+              <td>Open <strong>Members</strong> tab, type their surname, and click <strong>+100 Check-In</strong> on their card.</td>
+              <td>Credits their loyalty account immediately without needing their phone.</td>
+            </tr>
+            <tr>
+              <td><strong>5. End of Day — Cashing Up the Reception Till</strong></td>
+              <td>Click the green <strong>End-of-Day App Takings</strong> banner on Staff Home → Click <strong>Save Z-Report (CSV)</strong>.</td>
+              <td>Shows total £ collected online vs. at desk, broken down by activity, with itemized receipts.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="page-footer">
+        <span>PlayGolf Club App — Official User &amp; Staff Visual Handbook</span>
+        <span>Page 6 of 6</span>
+      </div>
+    </section>
+
+  </div>
+
+</body>
+</html>
