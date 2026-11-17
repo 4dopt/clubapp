@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Gift, Calendar, User, QrCode, Users } from 'lucide-react';
+import { Home, Gift, Calendar, User, QrCode, Users, Trophy } from 'lucide-react';
 import { useAuth } from '../auth';
 
 export function BottomNav() {
@@ -47,14 +47,19 @@ export function BottomNav() {
         <span>Card</span>
       </NavLink>
 
-      <NavLink to="/rewards" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-        <Gift size={20} />
-        <span>Rewards</span>
+      <NavLink to="/journey" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+        <Trophy size={20} />
+        <span>Journey</span>
       </NavLink>
 
       <NavLink to="/booking" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
         <Calendar size={20} />
         <span>Booking</span>
+      </NavLink>
+
+      <NavLink to="/rewards" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+        <Gift size={20} />
+        <span>Rewards</span>
       </NavLink>
 
       <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>

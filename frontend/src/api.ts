@@ -1,5 +1,10 @@
 import { API_BASE } from './config';
 import {
+  checkRateLimit,
+  clearRateLimit,
+  checkMemberQrScanCooldown,
+} from './utils/securityGuard';
+import {
   logVisitInSupabaseOrStore,
   adjustMemberPointsInSupabase,
   fetchCurrentUserFromSupabase,
@@ -47,6 +52,8 @@ export interface Reward {
   retail_value?: string;
   validity_days?: number;
   terms?: string;
+  is_early_win?: boolean;
+  club_unit_cost?: string;
 }
 
 export interface RewardRedemption {
@@ -151,6 +158,25 @@ const REDEMPTIONS_STORAGE_KEY = 'playgolf.reward_redemptions';
 
 const DEFAULT_REWARDS: Reward[] = [
   {
+    id: 'rew_early_1',
+    title: 'Early Win: Welcome Barista Coffee or 30-Ball Warm-Up Basket',
+    description: 'Experience your first instant club reward! Redeem after your very first visit for a freshly brewed barista coffee/tea or a 30-ball warm-up basket.',
+    points_cost: 50,
+    category: 'Early Win Starter',
+    image_url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?crop=entropy&cs=srgb&fm=jpg&q=80',
+    active: true,
+    redemption_type: 'qr',
+    min_tier: 'All',
+    featured: true,
+    stock_limit: null,
+    redeemed_count: 14,
+    retail_value: '£4.50',
+    validity_days: 30,
+    terms: 'Designed as your instant Early Win reward. One-tap QR redemption at Reception or Clubhouse Café.',
+    is_early_win: true,
+    club_unit_cost: '~£0.35 cost to club',
+  },
+  {
     id: 'rew_1',
     title: 'Complimentary Bucket of 100 Range Balls',
     description: 'Enjoy a free range session with 100 premium Srixon range balls & TrackMan tracking.',
@@ -166,6 +192,7 @@ const DEFAULT_REWARDS: Reward[] = [
     retail_value: '£14.00',
     validity_days: 30,
     terms: 'Valid any day at Northwick Park Driving Range. Present QR pass at reception.',
+    club_unit_cost: '~£0.40 marginal cost',
   },
   {
     id: 'rew_2',
@@ -247,7 +274,14 @@ export function getStoredRewards(): Reward[] {
       return DEFAULT_REWARDS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_REWARDS;
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_REWARDS;
+    const hasEarlyWin = parsed.some((r: Reward) => r.id === 'rew_early_1');
+    if (!hasEarlyWin) {
+      const merged = [DEFAULT_REWARDS[0], ...parsed];
+      localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
   } catch {
     return DEFAULT_REWARDS;
   }
@@ -336,8 +370,14 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
   }
 
   if (path === '/api/admin/login') {
+    const rl = checkRateLimit('admin_pin_login', 4, 5 * 60 * 1000, 90 * 1000);
+    if (!rl.allowed) {
+      throw new Error(`Security Lockout: Too many failed Admin PIN attempts. Locked for ${rl.retryAfterSeconds}s.`);
+    }
     const pin = (body.pin || '').trim();
-    if (pin === '123456' || pin.length > 0) {
+    const expectedPin = (import.meta as any).env?.VITE_ADMIN_PIN || '123456';
+    if (pin === expectedPin) {
+      clearRateLimit('admin_pin_login');
       return { admin_token: 'demo-admin-token-jay' } as unknown as T;
     }
     throw new Error('Invalid Admin PIN');
@@ -434,6 +474,13 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     const targetId = (body.member_id || body.user_id || '').trim();
     const cleanId = targetId.replace('QR_MEMBER_', '');
 
+    const scanCheck = checkMemberQrScanCooldown(cleanId || targetId);
+    if (!scanCheck.allowed) {
+      throw new Error(
+        `Duplicate QR Scan Blocked: Member was already checked in recently. Please wait ${scanCheck.remainingSeconds}s.`
+      );
+    }
+
     let targetMember = MOCK_MEMBER_USER;
     if (targetId && !targetId.includes('2445B5') && !targetId.includes('alex')) {
       targetMember = {
@@ -450,19 +497,20 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
       };
     }
 
-    targetMember.points = (targetMember.points || 0) + 100;
-    targetMember.points_ytd = (targetMember.points_ytd || 0) + 100;
+    const visitPoints = typeof body.points === 'number' && body.points > 0 ? body.points : 100;
+    targetMember.points = (targetMember.points || 0) + visitPoints;
+    targetMember.points_ytd = (targetMember.points_ytd || 0) + visitPoints;
     if (targetMember.points >= 5000) targetMember.tier = 'Platinum';
     else if (targetMember.points >= 1000) targetMember.tier = 'Gold';
     else targetMember.tier = 'Silver';
 
     MOCK_ADMIN_STATS.visits_today += 1;
-    MOCK_ADMIN_STATS.points_issued_today += 100;
+    MOCK_ADMIN_STATS.points_issued_today += visitPoints;
     MOCK_ADMIN_STATS.recent.unshift({
       id: 'rec_' + Date.now(),
       type: 'earn',
-      title: 'Range Visit Check-in',
-      points: 100,
+      title: visitPoints >= 200 ? 'Quiet-Time 2× Range Visit Check-in' : 'Range Visit Check-in',
+      points: visitPoints,
       member_name: targetMember.name,
       member_id: targetMember.member_id,
       created_at: new Date().toISOString(),
@@ -474,6 +522,7 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
       member_name: targetMember.name,
       member_id: targetMember.member_id,
       new_points: targetMember.points,
+      points_awarded: visitPoints,
       tier: targetMember.tier,
     } as unknown as T;
   }
@@ -525,6 +574,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   } catch (err: any) {
     if (
       err.message === 'Invalid Admin PIN' ||
+      err.message?.includes('Security Lockout') ||
+      err.message?.includes('Duplicate QR Scan') ||
+      err.message?.includes('suspended') ||
       err.message === 'Invalid admin password' ||
       err.message === 'Invalid verification code' ||
       err.message === 'Invalid OTP code'
@@ -693,20 +745,24 @@ export const adminApi = {
     });
   },
 
-  async logVisit(adminToken: string, memberId: string) {
+  async logVisit(adminToken: string, memberId: string, pointsToAward = 100) {
     try {
-      const sbRes = await logVisitInSupabaseOrStore(memberId, 100);
+      const sbRes = await logVisitInSupabaseOrStore(memberId, pointsToAward);
       if (sbRes && sbRes.ok) {
-        return sbRes;
+        return { ...sbRes, points_awarded: pointsToAward };
       }
-    } catch { /* ignore fallback */ }
+    } catch (err: any) {
+      if (err?.message?.includes('Duplicate QR Scan') || err?.message?.includes('suspended')) {
+        throw err;
+      }
+    }
 
-    return request<{ message: string; user_id: string; member_name: string; member_id: string; new_points: number }>(
+    return request<{ message: string; user_id: string; member_name: string; member_id: string; new_points: number; points_awarded?: number }>(
       '/api/admin/log-visit',
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${adminToken}` },
-        body: JSON.stringify({ member_id: memberId }),
+        body: JSON.stringify({ member_id: memberId, points: pointsToAward }),
       }
     );
   },

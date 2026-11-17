@@ -32,6 +32,7 @@ import {
   supabaseResetPassword,
   supabaseUpdatePassword,
 } from '../supabaseService';
+import { registerPendingReferral } from '../loyaltyJourneyStore';
 
 export function Login() {
   const [showOnboarding, setShowOnboarding] = useState<boolean>(true);
@@ -51,6 +52,7 @@ export function Login() {
   const [signUpPhone, setSignUpPhone] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState('');
+  const [signUpReferralCode, setSignUpReferralCode] = useState('');
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
   // Forgot / Recovery Password fields
@@ -139,6 +141,15 @@ export function Login() {
     setLoading(true);
     try {
       const res = await supabaseSignUp(signUpEmail, signUpPassword, signUpName, signUpPhone);
+
+      if (signUpReferralCode.trim()) {
+        registerPendingReferral({
+          referrerCode: signUpReferralCode.trim().toUpperCase(),
+          friendName: res.profile.name,
+          friendEmail: res.profile.email,
+          friendMemberId: res.profile.member_id,
+        });
+      }
 
       if (res.requiresEmailConfirmation) {
         setSuccessMsg(
@@ -1381,6 +1392,19 @@ export function Login() {
                 onChange={(e) => setSignUpConfirmPassword(e.target.value)}
                 autoComplete="new-password"
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Gift size={14} /> Friend Referral Code (Optional • +200 PTS on 1st Paid Visit)
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. PG-ALEX-45B5"
+                value={signUpReferralCode}
+                onChange={(e) => setSignUpReferralCode(e.target.value.toUpperCase())}
               />
             </div>
 

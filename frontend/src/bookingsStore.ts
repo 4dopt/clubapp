@@ -3,6 +3,7 @@ import {
   saveBookingToSupabase,
   updateBookingStatusInSupabase,
 } from './supabaseService';
+import { validateBookingAntiAbuse } from './utils/securityGuard';
 
 export interface BookingItem {
   id: string;
@@ -320,6 +321,19 @@ export function createBooking(params: {
   notes?: string;
 }): BookingItem {
   const bookings = getStoredBookings();
+
+  // Security & Anti-Squatting Guard: Max 3 bookings per day / Max 6 upcoming bookings per member
+  const abuseCheck = validateBookingAntiAbuse(
+    bookings,
+    params.user_id,
+    params.date,
+    params.time,
+    params.activity_id
+  );
+  if (!abuseCheck.allowed) {
+    throw new Error(abuseCheck.reason || 'Booking limit reached.');
+  }
+
   const randomNum = Math.floor(100000 + Math.random() * 900000);
   const meta = ACTIVITY_METADATA[params.activity_id];
 

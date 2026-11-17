@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Gift, CheckCircle, AlertCircle, Copy, Check } from 'lucide-react';
+import { Gift, CheckCircle, AlertCircle, Copy, Check, Target, Zap, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth';
 import { api, Reward } from '../api';
 import { QRCodeSVG } from 'qrcode.react';
+import {
+  getChosenRewardProgress,
+  setChosenRewardId,
+  recordRedemptionInJourney,
+  getVisitPointsRate,
+} from '../loyaltyJourneyStore';
 
 export function Rewards() {
   const { user, token, refresh } = useAuth();
@@ -13,6 +19,7 @@ export function Rewards() {
   const [redemptionResult, setRedemptionResult] = useState<any>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [error, setError] = useState('');
+  const [goalRefreshTick, setGoalRefreshTick] = useState(0);
 
   useEffect(() => {
     if (token) {
@@ -34,7 +41,8 @@ export function Rewards() {
     setRedeeming(reward.id);
     try {
       const result = await api.redeemReward(token, reward.id);
-      setRedemptionResult({ ...result, rewardTitle: reward.title });
+      recordRedemptionInJourney();
+      setRedemptionResult({ ...result, rewardTitle: reward.title, pointsCost: reward.points_cost });
       await refresh();
     } catch (err: any) {
       setError(err.message || 'Redemption failed');
@@ -46,6 +54,9 @@ export function Rewards() {
   if (!user) return null;
 
   const userPoints = user.points ?? user.points_balance ?? 0;
+  const chosenGoal = getChosenRewardProgress(userPoints, rewards);
+  const visitRate = getVisitPointsRate();
+  void goalRefreshTick;
   const derivedCategories = Array.from(new Set(rewards.map((r) => r.category).filter(Boolean)));
   const categories = ['All', ...derivedCategories];
 
@@ -100,6 +111,87 @@ export function Rewards() {
           {userPoints.toLocaleString()} PTS
         </div>
       </div>
+
+      {/* Chosen Target Reward Banner */}
+      {chosenGoal && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #064e3b 0%, #047857 100%)',
+            color: '#ffffff',
+            borderRadius: '16px',
+            padding: '14px 16px',
+            marginBottom: '14px',
+            boxShadow: '0 6px 18px rgba(4, 120, 87, 0.2)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span
+              style={{
+                fontSize: '0.66rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: '#a7f3d0',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Target size={13} /> MY CHOSEN REWARD GOAL
+            </span>
+            <span
+              style={{
+                fontSize: '0.68rem',
+                fontWeight: 800,
+                background: 'rgba(255,255,255,0.16)',
+                padding: '2px 8px',
+                borderRadius: '999px',
+              }}
+            >
+              {chosenGoal.progressPct}% ({Math.min(userPoints, chosenGoal.cost)}/{chosenGoal.cost} PTS)
+            </span>
+          </div>
+
+          <div style={{ fontSize: '0.94rem', fontWeight: 800, marginBottom: '6px' }}>
+            “I’m saving for: {chosenGoal.reward.title}”
+          </div>
+
+          <div
+            style={{
+              width: '100%',
+              height: '7px',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '999px',
+              overflow: 'hidden',
+              marginBottom: '8px',
+            }}
+          >
+            <div
+              style={{
+                width: `${chosenGoal.progressPct}%`,
+                height: '100%',
+                background: '#34d399',
+                borderRadius: '999px',
+              }}
+            />
+          </div>
+
+          <div style={{ fontSize: '0.74rem', color: '#ecfdf5', fontWeight: 700, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+            {chosenGoal.canRedeemNow ? (
+              <span>✓ Goal Reached — 0 visits remaining! Tap Redeem below.</span>
+            ) : (
+              <>
+                <span>
+                  🎯 <strong>{chosenGoal.visitsStandard} standard visit{chosenGoal.visitsStandard === 1 ? '' : 's'}</strong> remaining ({chosenGoal.pointsRemaining} PTS needed)
+                </span>
+                <span style={{ color: '#fde68a' }}>
+                  ⚡ Or {chosenGoal.visitsQuietTime} Quiet-Time 2× visit{chosenGoal.visitsQuietTime === 1 ? '' : 's'}!
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Category Filter Pills */}
       {categories.length > 1 && (
@@ -186,13 +278,21 @@ export function Rewards() {
           {filteredRewards.map((r) => {
             const canAfford = userPoints >= r.points_cost;
             const pointsNeeded = Math.max(0, r.points_cost - userPoints);
+            const visitsStandard = pointsNeeded === 0 ? 0 : Math.ceil(pointsNeeded / 100);
+            const visitsQuietTime = pointsNeeded === 0 ? 0 : Math.ceil(pointsNeeded / 200);
+            const isChosenGoal = chosenGoal?.reward.id === r.id;
+            const isEarlyWin = Boolean(r.is_early_win || r.id === 'rew_early_1' || r.points_cost <= 75);
 
             return (
               <div
                 key={r.id}
                 style={{
                   background: '#ffffff',
-                  border: '1px solid var(--border-color)',
+                  border: isChosenGoal
+                    ? '2px solid var(--brand-green)'
+                    : isEarlyWin
+                    ? '1.5px solid #f59e0b'
+                    : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-lg)',
                   overflow: 'hidden',
                   display: 'flex',
@@ -213,6 +313,28 @@ export function Rewards() {
                       background: 'linear-gradient(180deg, rgba(15,23,42,0.15) 0%, rgba(15,23,42,0.05) 50%, rgba(15,23,42,0.5) 100%)',
                     }}
                   />
+                  {isEarlyWin && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        left: '12px',
+                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        color: '#ffffff',
+                        fontWeight: 900,
+                        fontSize: '0.68rem',
+                        letterSpacing: '0.04em',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                      }}
+                    >
+                      <Sparkles size={12} /> EARLY WIN STARTER
+                    </div>
+                  )}
                   <div
                     style={{
                       position: 'absolute',
@@ -255,30 +377,92 @@ export function Rewards() {
                   <h4 style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', lineHeight: 1.3 }}>
                     {r.title}
                   </h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '14px', lineHeight: 1.45 }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.45 }}>
                     {r.description}
                   </p>
 
-                  <button
-                    onClick={() => handleRedeem(r)}
-                    disabled={!canAfford || redeeming === r.id}
-                    className={canAfford ? 'btn-primary' : 'btn-secondary'}
+                  {/* Visits Remaining & Quiet-Time Info Bar */}
+                  <div
                     style={{
-                      height: '46px',
-                      opacity: canAfford ? 1 : 0.75,
-                      cursor: canAfford ? 'pointer' : 'not-allowed',
-                      fontWeight: 800,
-                      fontSize: '0.86rem',
+                      background: canAfford ? '#f0fdf4' : '#f8fafc',
+                      border: canAfford ? '1px solid #bbf7d0' : '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      padding: '8px 10px',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                      fontSize: '0.73rem',
                     }}
                   >
-                    {redeeming === r.id ? (
-                      'Redeeming...'
-                    ) : canAfford ? (
-                      <>Redeem for {r.points_cost} PTS</>
+                    {canAfford ? (
+                      <span style={{ color: '#047857', fontWeight: 800 }}>
+                        ✓ Unlocked (0 visits remaining) — Ready for 1-Tap Redemption
+                      </span>
                     ) : (
-                      <>Need {pointsNeeded} More Points</>
+                      <>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>
+                          🎯 {visitsStandard} standard visit{visitsStandard === 1 ? '' : 's'} remaining ({pointsNeeded} PTS)
+                        </span>
+                        <span style={{ color: '#b45309', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Zap size={12} /> {visitsQuietTime} in Quiet-Time 2×
+                        </span>
+                      </>
                     )}
-                  </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleRedeem(r)}
+                      disabled={!canAfford || redeeming === r.id}
+                      className={canAfford ? 'btn-primary' : 'btn-secondary'}
+                      style={{
+                        flex: 1,
+                        height: '44px',
+                        opacity: canAfford ? 1 : 0.75,
+                        cursor: canAfford ? 'pointer' : 'not-allowed',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      {redeeming === r.id ? (
+                        'Redeeming...'
+                      ) : canAfford ? (
+                        <>1-Tap Redeem ({r.points_cost} PTS)</>
+                      ) : (
+                        <>Need {pointsNeeded} More PTS</>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChosenRewardId(r.id);
+                        setGoalRefreshTick((t) => t + 1);
+                      }}
+                      style={{
+                        padding: '0 12px',
+                        height: '44px',
+                        borderRadius: '12px',
+                        border: isChosenGoal ? '1.5px solid var(--brand-green)' : '1px solid var(--border-color)',
+                        background: isChosenGoal ? 'var(--brand-green-subtle)' : '#ffffff',
+                        color: isChosenGoal ? 'var(--brand-green)' : 'var(--slate-dark)',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Target size={14} />
+                      {isChosenGoal ? 'My Goal ✓' : 'Set as Goal'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );

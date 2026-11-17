@@ -35,6 +35,7 @@ import {
   ACTIVITY_METADATA,
 } from '../bookingsStore';
 import { parseDailyOfferQrPayload } from '../dailyOffersStore';
+import { getVisitPointsRate, recordVerifiedReceptionVisit } from '../loyaltyJourneyStore';
 
 // Web Audio API feedback chime for instant scan confirmation
 function playSuccessChime() {
@@ -71,6 +72,7 @@ export function AdminScan() {
   const [loading, setLoading] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [scannerKey, setScannerKey] = useState(0);
+  const visitRate = getVisitPointsRate();
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const isProcessingRef = useRef(false);
@@ -281,13 +283,27 @@ export function AdminScan() {
           };
 
           let newPoints = 0;
+          let awardedPts = 0;
+          let verifiedReferral = null;
           if (!alreadyCheckedIn) {
-            try {
-              const res = await adminApi.logVisit(token, foundBk.user_member_id || foundBk.user_id);
-              newPoints = res.new_points;
-              await refresh().catch(() => {});
-            } catch {
-              /* ignore points error */
+            const verification = await recordVerifiedReceptionVisit(
+              foundBk.user_member_id || foundBk.user_id,
+              foundBk.activity_id
+            );
+            awardedPts = verification.pointsAwarded + (verification.verifiedReferral ? 200 : 0);
+            verifiedReferral = verification.verifiedReferral;
+            if (awardedPts > 0) {
+              try {
+                const res = await adminApi.logVisit(
+                  token,
+                  foundBk.user_member_id || foundBk.user_id,
+                  awardedPts
+                );
+                newPoints = res.new_points;
+                await refresh().catch(() => {});
+              } catch {
+                /* ignore points error */
+              }
             }
           }
 
@@ -305,6 +321,9 @@ export function AdminScan() {
             memberName: updatedBk.user_name || 'Club Member',
             memberId: updatedBk.user_member_id || qrText,
             newPoints,
+            pointsAwarded: awardedPts,
+            isQuietTime: visitRate.isQuietTime,
+            verifiedReferral,
             rawCode: updatedBk.booking_code,
           });
         } else {
@@ -312,14 +331,43 @@ export function AdminScan() {
         }
       } else {
         // 3. Member Digital Card QR Pass (QR_MEMBER_..., PG-..., Member ID, etc.)
-        const res = await adminApi.logVisit(token, qrText);
-        await refresh().catch(() => {});
+        const verification = await recordVerifiedReceptionVisit(qrText, 'driving-range');
+        const totalToCredit = verification.pointsAwarded + (verification.verifiedReferral ? 200 : 0);
+        let memberName = 'Member';
+        let memberId = qrText;
+        let newPoints = 0;
+
+        if (totalToCredit > 0) {
+          const res = await adminApi.logVisit(token, qrText, totalToCredit);
+          memberName = res.member_name || 'Member';
+          memberId = res.member_id || qrText;
+          newPoints = res.new_points;
+          await refresh().catch(() => {});
+        } else {
+          try {
+            const m = await adminApi.getMember(token, qrText);
+            memberName = m?.name || 'Member';
+            memberId = m?.member_id || qrText;
+            newPoints = m?.points ?? 0;
+          } catch {
+            /* fallback */
+          }
+        }
+
         setScanResult({
           type: 'visit',
-          title: 'Member Visit Checked In!',
-          memberName: res.member_name || 'Member',
-          memberId: res.member_id || qrText,
-          newPoints: res.new_points,
+          title: verification.alreadyCheckedInToday
+            ? 'Member Already Checked In Today (Daily Limit Reached)'
+            : visitRate.isQuietTime
+            ? 'Member Checked In (⚡ Quiet-Time 2× Points!)'
+            : 'Member Visit Checked In!',
+          alreadyCheckedInToday: verification.alreadyCheckedInToday,
+          memberName,
+          memberId,
+          newPoints,
+          pointsAwarded: totalToCredit,
+          isQuietTime: visitRate.isQuietTime,
+          verifiedReferral: verification.verifiedReferral,
           rawCode: qrText,
         });
       }
@@ -396,13 +444,31 @@ export function AdminScan() {
       </button>
 
       {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2, marginBottom: '6px' }}>
-          QR Code & Pass Scanner
-        </h1>
-        <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-          Scan a member card, booking pass, or reward voucher to see their full details, pre-ordered food/drinks, and check them in.
-        </p>
+      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2, marginBottom: '6px' }}>
+            QR Code & Pass Scanner
+          </h1>
+          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
+            Scan a member card, booking pass, or reward voucher to verify check-ins, referrals, and pre-ordered items.
+          </p>
+        </div>
+        <div
+          style={{
+            background: visitRate.isQuietTime ? 'rgba(16, 185, 129, 0.16)' : 'rgba(255, 255, 255, 0.06)',
+            border: visitRate.isQuietTime ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.15)',
+            color: visitRate.isQuietTime ? '#34d399' : '#cbd5e1',
+            padding: '8px 12px',
+            borderRadius: '12px',
+            fontSize: '0.76rem',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {visitRate.isQuietTime
+            ? '⚡ Quiet-Time 2× Window Active (+200 PTS / Scan)'
+            : 'Standard Rate (+100 PTS / Scan • Max 1/Day)'}
+        </div>
       </div>
 
       {/* Mode Switcher Tabs */}
@@ -1069,24 +1135,53 @@ export function AdminScan() {
                 </div>
               </div>
 
+              {scanResult.verifiedReferral && (
+                <div
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    border: '1.5px solid #fbbf24',
+                    padding: '14px',
+                    borderRadius: '16px',
+                    color: '#fde047',
+                    marginBottom: '16px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: '0.74rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    🤝 FAIR BUDDY REFERRAL VERIFIED (1ST PAID VISIT)
+                  </div>
+                  <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>
+                    +200 Bonus PTS Credited to {scanResult.verifiedReferral.friendName} &amp; Referrer ({scanResult.verifiedReferral.referrerCode})
+                  </div>
+                </div>
+              )}
+
               {scanResult.type === 'visit' ? (
                 <div
                   style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: scanResult.alreadyCheckedInToday
+                      ? 'rgba(245, 158, 11, 0.15)'
+                      : 'rgba(16, 185, 129, 0.15)',
+                    border: scanResult.alreadyCheckedInToday
+                      ? '1px solid rgba(245, 158, 11, 0.4)'
+                      : '1px solid rgba(16, 185, 129, 0.3)',
                     padding: '16px',
                     borderRadius: '16px',
-                    color: '#10b981',
+                    color: scanResult.alreadyCheckedInToday ? '#fbbf24' : '#10b981',
                     marginBottom: '20px',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '0.8rem', color: '#6ee7b7', fontWeight: 700 }}>Visit Points Added</div>
+                  <div style={{ fontSize: '0.8rem', color: scanResult.alreadyCheckedInToday ? '#fde68a' : '#6ee7b7', fontWeight: 700 }}>
+                    {scanResult.alreadyCheckedInToday ? 'Daily Visit Anti-Passback Active' : 'Visit Points Added'}
+                  </div>
                   <div style={{ fontSize: '1.3rem', fontWeight: 900, marginTop: '4px' }}>
-                    +100 PTS Credited
+                    {scanResult.alreadyCheckedInToday
+                      ? '0 PTS (Already Credited Today)'
+                      : `+${scanResult.pointsAwarded || 100} PTS Credited`}
                   </div>
                   <div style={{ fontSize: '0.86rem', color: '#a7f3d0', marginTop: '4px' }}>
-                    New Balance: <strong>{scanResult.newPoints} PTS</strong>
+                    Balance: <strong>{scanResult.newPoints} PTS</strong>
                   </div>
                 </div>
               ) : (
@@ -1205,46 +1300,6 @@ export function AdminScan() {
               >
                 <ShieldCheck size={15} style={{ color: '#10b981' }} /> Point camera at Member Card, Booking Pass, or Voucher QR
               </div>
-
-              {/* Instant Demo Simulate Scan Button on Camera Tab */}
-              <div
-                style={{
-                  marginTop: '14px',
-                  paddingTop: '14px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>
-                  Quick Reception Simulation (No Camera Needed):
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    playSuccessChime();
-                    handleScannedQr(sampleAddonBookingCode);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    background: 'rgba(245, 158, 11, 0.16)',
-                    border: '1px solid rgba(245, 158, 11, 0.45)',
-                    borderRadius: '12px',
-                    color: '#fbbf24',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <Utensils size={15} /> Simulate Scan: Booking Pass w/ Pre-Ordered Food & Add-Ons ({sampleAddonBookingCode})
-                </button>
-              </div>
             </div>
           ) : (
             <div
@@ -1268,7 +1323,7 @@ export function AdminScan() {
                 >
                   Enter Booking Reference, Member ID, or Voucher Code:
                 </label>
-                <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <div style={{ position: 'relative', marginBottom: '18px' }}>
                   <input
                     type="text"
                     className="form-input"
@@ -1284,87 +1339,6 @@ export function AdminScan() {
                       fontWeight: 600,
                     }}
                   />
-                </div>
-
-                <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600 }}>
-                  Quick test codes (tap to fill):
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '8px',
-                    marginBottom: '18px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setManualCode(sampleAddonBookingCode)}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'rgba(245, 158, 11, 0.16)',
-                      border: '1px solid rgba(245, 158, 11, 0.45)',
-                      borderRadius: '10px',
-                      color: '#fbbf24',
-                      fontSize: '0.76rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
-                  >
-                    <Utensils size={13} /> Booking + Food Pre-Order ({sampleAddonBookingCode})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setManualCode(sampleBookingCode)}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'rgba(56, 189, 248, 0.14)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      borderRadius: '10px',
-                      color: '#38bdf8',
-                      fontSize: '0.76rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Booking Pass ({sampleBookingCode})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setManualCode('PG-2445B5')}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'rgba(16, 185, 129, 0.14)',
-                      border: '1px solid rgba(16, 185, 129, 0.35)',
-                      borderRadius: '10px',
-                      color: '#34d399',
-                      fontSize: '0.76rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Member Card (PG-2445B5)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setManualCode('QR_REDEEM_8821A')}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'rgba(251, 191, 36, 0.14)',
-                      border: '1px solid rgba(251, 191, 36, 0.35)',
-                      borderRadius: '10px',
-                      color: '#fbbf24',
-                      fontSize: '0.76rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Reward Voucher (QR_REDEEM_8821A)
-                  </button>
                 </div>
 
                 <button

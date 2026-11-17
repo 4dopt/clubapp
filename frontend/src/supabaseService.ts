@@ -1,6 +1,16 @@
 import { supabase } from './supabase';
 import { User, Reward, Transaction, AdminStats } from './api';
 import { BookingItem } from './bookingsStore';
+import {
+  validateEmailSecurity,
+  isAuthorizedAdminUser,
+  checkRateLimit,
+  clearRateLimit,
+  acquireActionMutex,
+  releaseActionMutex,
+  checkMemberQrScanCooldown,
+  logSecurityAuditEvent,
+} from './utils/securityGuard';
 
 export const USER_CACHE_KEY = 'playgolf.user';
 
@@ -107,8 +117,34 @@ export async function supabaseSignUp(
   name: string,
   phone?: string
 ) {
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanName = name.trim();
+  const emailSec = validateEmailSecurity(email);
+  if (!emailSec.valid) {
+    throw new Error(emailSec.reason || 'Invalid email address.');
+  }
+  const cleanEmail = emailSec.normalizedEmail;
+  const cleanName = name.replace(/[<>]/g, '').trim().slice(0, 80);
+  if (!cleanName) {
+    throw new Error('Please enter a valid full name.');
+  }
+
+  // Anti-Bot Sybil Rate Limit: Max 3 account registrations per 15 minutes per device
+  const signupLimit = checkRateLimit('auth_signup', 3, 15 * 60 * 1000, 10 * 60 * 1000);
+  if (!signupLimit.allowed) {
+    throw new Error(
+      `Security protection: Too many account registrations from this device. Please wait ${signupLimit.retryAfterSeconds} seconds.`
+    );
+  }
+
+  // Log if someone tried the '%admin%' email substring privilege escalation trick
+  if (cleanEmail.includes('admin') && cleanEmail !== 'jay@gmail.com') {
+    logSecurityAuditEvent({
+      event_type: 'ADMIN_PRIVILEGE_ESCALATION_BLOCKED',
+      severity: 'critical',
+      actor: cleanEmail,
+      details: `Blocked "%admin%" email substring privilege escalation attempt during signup (${cleanEmail}). Forced role to member.`,
+    });
+  }
+
   const memberId = await generateUniqueMemberId();
 
   // 1. Create auth user in Supabase Auth
@@ -155,15 +191,17 @@ export async function supabaseSignUp(
   }
 
   const finalMemberId = existingProfile?.member_id || memberId;
+  // SECURITY FIX: Never grant admin based on cleanEmail.includes('admin')
+  const safeRole = isAuthorizedAdminUser(cleanEmail, existingProfile?.role) ? 'admin' : 'member';
   const newProfile: User = {
     id: userObj.id,
     email: cleanEmail,
     name: cleanName,
-    role: existingProfile?.role || (cleanEmail === 'jay@gmail.com' || cleanEmail.includes('admin') ? 'admin' : 'member'),
+    role: safeRole,
     member_id: finalMemberId,
     tier: existingProfile?.tier || 'Silver',
-    points: existingProfile?.points ?? 250,
-    points_ytd: existingProfile?.points_ytd ?? 250,
+    points: Math.min(existingProfile?.points ?? 250, 250),
+    points_ytd: Math.min(existingProfile?.points_ytd ?? 250, 250),
     qr_token: buildMemberQrToken(finalMemberId, existingProfile?.qr_token),
     created_at: existingProfile?.created_at || new Date().toISOString(),
   };
@@ -197,6 +235,14 @@ export async function supabaseSignUp(
 export async function supabaseSignIn(email: string, password: string) {
   const cleanEmail = email.trim().toLowerCase();
 
+  // Brute-Force Protection: Max 5 sign-in attempts per 5 minutes
+  const signInLimit = checkRateLimit(`auth_signin_${cleanEmail}`, 5, 5 * 60 * 1000, 60 * 1000);
+  if (!signInLimit.allowed) {
+    throw new Error(
+      `Too many failed sign-in attempts. Account temporarily locked for ${signInLimit.retryAfterSeconds} seconds.`
+    );
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
     password,
@@ -210,6 +256,9 @@ export async function supabaseSignIn(email: string, password: string) {
   }
   if (!data.user) throw new Error('Invalid email or password');
 
+  // Clear brute-force counter on successful authentication
+  clearRateLimit(`auth_signin_${cleanEmail}`);
+
   // Fetch or construct & sync user profile from Supabase DB
   const profile = await fetchProfileFromSupabase(
     data.user.id,
@@ -221,6 +270,12 @@ export async function supabaseSignIn(email: string, password: string) {
     throw new Error('Unable to load member profile. Please try again.');
   }
 
+  if (profile.suspended) {
+    await supabase.auth.signOut();
+    setCachedUser(null);
+    throw new Error('Your member account has been suspended. Please contact club reception.');
+  }
+
   setCachedUser(profile);
 
   return { session: data.session, user: profile };
@@ -228,6 +283,10 @@ export async function supabaseSignIn(email: string, password: string) {
 
 export async function supabaseResetPassword(email: string) {
   const cleanEmail = email.trim().toLowerCase();
+  const resetLimit = checkRateLimit(`auth_reset_${cleanEmail}`, 3, 10 * 60 * 1000, 5 * 60 * 1000);
+  if (!resetLimit.allowed) {
+    throw new Error(`Please wait ${resetLimit.retryAfterSeconds} seconds before requesting another password reset email.`);
+  }
   const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
     redirectTo: `${window.location.origin}/login`,
   });
@@ -345,7 +404,8 @@ export async function fetchProfileFromSupabase(
       const pointsYtd = typeof legacyUser.lifetime_points === 'number' ? legacyUser.lifetime_points : points;
       const memberId = legacyUser.member_id || deriveMemberIdFromUuid(userId);
       const emailStr = (legacyUser.email || fallbackEmail || '').toLowerCase();
-      const isAdmin = legacyUser.role === 'admin' || emailStr === 'jay@gmail.com' || emailStr.includes('admin');
+      // SECURITY FIX: Use strict admin check (no '%admin%' substring match)
+      const isAdmin = isAuthorizedAdminUser(emailStr, legacyUser.role);
 
       const migratedProfile: User = {
         id: legacyUser.id,
@@ -370,7 +430,8 @@ export async function fetchProfileFromSupabase(
     if (fallbackEmail) {
       const cleanEmail = fallbackEmail.trim().toLowerCase();
       const memberId = userMetadata?.member_id || (await generateUniqueMemberId());
-      const isAdmin = cleanEmail === 'jay@gmail.com' || cleanEmail.includes('admin');
+      // SECURITY FIX: Use strict admin check (no '%admin%' substring match)
+      const isAdmin = isAuthorizedAdminUser(cleanEmail, null);
       const createdProfile: User = {
         id: userId,
         email: cleanEmail,
@@ -568,9 +629,50 @@ export async function redeemRewardInSupabase(rewardId: string): Promise<{
   qr_code_token?: string;
   remaining_points: number;
 } | null> {
+  // 1. In-flight Mutex to block concurrent parallel race-condition double-spend attacks
+  const mutexKey = `redeem_${rewardId}`;
+  if (!acquireActionMutex(mutexKey)) {
+    logSecurityAuditEvent({
+      event_type: 'DOUBLE_SPEND_RACE_BLOCKED',
+      severity: 'critical',
+      actor: getCachedUser()?.id || 'member',
+      target: rewardId,
+      details: `Blocked parallel duplicate redemption request for reward ${rewardId} (Race-Condition Shield).`,
+    });
+    throw new Error('Redemption already in progress. Please wait.');
+  }
+
   try {
+    const rl = checkRateLimit(`redeem_rate_${getCachedUser()?.id || 'anon'}`, 3, 15 * 1000, 10 * 1000);
+    if (!rl.allowed) {
+      throw new Error(`Please wait ${rl.retryAfterSeconds} seconds before redeeming another reward.`);
+    }
+
     const profile = await fetchCurrentUserFromSupabase();
     if (!profile || profile.id.startsWith('usr_')) return null;
+
+    if (profile.suspended) {
+      throw new Error('Account is suspended. Please contact club reception.');
+    }
+
+    // 2. Try Server-Side Atomic Postgres RPC first (uses FOR UPDATE row lock)
+    try {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('rpc_redeem_reward', {
+        p_reward_id: rewardId,
+      });
+      if (!rpcError && rpcResult && typeof rpcResult.remaining_points === 'number') {
+        setCachedUser({ ...profile, points: rpcResult.remaining_points });
+        return {
+          redemption_id: rpcResult.redemption_id,
+          redemption_type: rpcResult.redemption_type,
+          discount_code: rpcResult.discount_code || undefined,
+          qr_code_token: rpcResult.qr_code_token || undefined,
+          remaining_points: rpcResult.remaining_points,
+        };
+      }
+    } catch {
+      /* Fallback to optimistic-concurrency client query if RPC migration not yet run */
+    }
 
     const { data: rewardData, error: rewardErr } = await supabase
       .from('rewards')
@@ -592,11 +694,18 @@ export async function redeemRewardInSupabase(rewardId: string): Promise<{
         ? `QR_REDEEM_${Math.random().toString(36).substring(2, 10).toUpperCase()}`
         : undefined;
 
-    // Update points in profiles and users
-    await supabase
+    // Optimistic concurrency guard: only update if database points >= reward.points_cost
+    const { data: updatedProfile, error: updateErr } = await supabase
       .from('profiles')
       .update({ points: newPoints })
-      .eq('id', profile.id);
+      .eq('id', profile.id)
+      .gte('points', reward.points_cost)
+      .select('points')
+      .maybeSingle();
+
+    if (updateErr || !updatedProfile) {
+      throw new Error('Could not verify points balance for redemption. Please refresh and try again.');
+    }
 
     await supabase
       .from('users')
@@ -629,16 +738,26 @@ export async function redeemRewardInSupabase(rewardId: string): Promise<{
       remaining_points: newPoints,
     };
   } catch (err: any) {
-    if (err.message?.includes('Insufficient points')) throw err;
+    if (
+      err.message?.includes('Insufficient points') ||
+      err.message?.includes('Redemption already') ||
+      err.message?.includes('Please wait') ||
+      err.message?.includes('suspended')
+    ) {
+      throw err;
+    }
     return null;
+  } finally {
+    releaseActionMutex(mutexKey);
   }
 }
 
 export async function fetchAllMembersFromSupabase(searchQuery?: string): Promise<User[] | null> {
   try {
+    // Egress Cost Protection: bound query to 500 rows max instead of unbounded table dump
     const [{ data: profilesData }, { data: usersData }] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('users').select('*'),
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('users').select('*').limit(500),
     ]);
 
     const map = new Map<string, User>();
@@ -980,10 +1099,12 @@ function unpackBookingFromSupabase(row: any): BookingItem {
 
 export async function fetchBookingsFromSupabase(): Promise<BookingItem[]> {
   try {
+    // Egress Cost Protection: bound to 500 most recent bookings
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     if (error || !data) return [];
     return data.map(unpackBookingFromSupabase);
@@ -1077,8 +1198,22 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
       });
 
       if (match) {
-        const newPoints = (match.points || 0) + pointsDelta;
-        const newYtd = (match.points_ytd || 0) + pointsDelta;
+        if (match.suspended) {
+          throw new Error(`Member ${match.name} (${match.member_id}) is currently suspended.`);
+        }
+
+        // Security Guard: Prevent QR Replay / Double-Scan Point Farming (3-minute cooldown per member)
+        const scanCheck = checkMemberQrScanCooldown(match.member_id || match.id);
+        if (!scanCheck.allowed) {
+          throw new Error(
+            `Duplicate QR Scan Blocked: ${match.name} (${match.member_id}) was already checked in recently. Please wait ${scanCheck.remainingSeconds}s before scanning again.`
+          );
+        }
+
+        // Clamp pointsDelta to safe bounds (1 to 1,000 points per check-in)
+        const safeDelta = Math.min(Math.max(Math.round(pointsDelta), 1), 1000);
+        const newPoints = (match.points || 0) + safeDelta;
+        const newYtd = (match.points_ytd || 0) + safeDelta;
         const newTier = newPoints >= 5000 ? 'Platinum' : newPoints >= 1000 ? 'Gold' : 'Silver';
 
         const updatedUser: User = {
@@ -1100,7 +1235,7 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
           user_id: match.id,
           type: 'earn',
           title: 'Range Visit Check-in',
-          points: pointsDelta,
+          points: safeDelta,
           created_at: new Date().toISOString(),
         });
 
@@ -1115,7 +1250,10 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
         };
       }
     }
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.message?.includes('Duplicate QR Scan') || e?.message?.includes('suspended')) {
+      throw e;
+    }
     console.warn('Supabase logVisit fallback:', e);
   }
 
@@ -1189,10 +1327,22 @@ export async function adjustMemberPointsInSupabase(
   reason: string = 'Staff adjustment'
 ) {
   try {
+    // Clamp manual adjustment to [-25000, +25000] to prevent accidental or malicious million-point minting
+    const clampedDelta = Math.max(-25000, Math.min(25000, Math.round(pointsDelta)));
+    if (Math.abs(clampedDelta) >= 1000) {
+      logSecurityAuditEvent({
+        event_type: 'HIGH_VALUE_POINTS_ALERT',
+        severity: 'warning',
+        actor: 'staff_admin',
+        target: userId,
+        details: `Large manual point adjustment (${clampedDelta > 0 ? '+' : ''}${clampedDelta} PTS) on member ${userId}. Reason: ${reason}`,
+      });
+    }
+
     const profile = await fetchProfileFromSupabase(userId);
     if (profile) {
-      const newPoints = Math.max(0, (profile.points || 0) + pointsDelta);
-      const newYtd = Math.max(0, (profile.points_ytd || 0) + (pointsDelta > 0 ? pointsDelta : 0));
+      const newPoints = Math.max(0, (profile.points || 0) + clampedDelta);
+      const newYtd = Math.max(0, (profile.points_ytd || 0) + (clampedDelta > 0 ? clampedDelta : 0));
       const newTier = newPoints >= 5000 ? 'Platinum' : newPoints >= 1000 ? 'Gold' : 'Silver';
 
       const updatedUser: User = {
@@ -1211,9 +1361,9 @@ export async function adjustMemberPointsInSupabase(
 
       await supabase.from('transactions').insert({
         user_id: profile.id,
-        type: pointsDelta >= 0 ? 'earn' : 'adjust',
+        type: clampedDelta >= 0 ? 'earn' : 'adjust',
         title: reason || 'Points Adjustment',
-        points: Math.abs(pointsDelta),
+        points: Math.abs(clampedDelta),
         by_admin: true,
         created_at: new Date().toISOString(),
       });

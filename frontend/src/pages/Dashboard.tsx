@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Gift, Calendar, QrCode, TrendingUp, ChevronRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Gift, Calendar, QrCode, TrendingUp, ChevronRight, ArrowDownLeft, ArrowUpRight, Target, Zap, Trophy } from 'lucide-react';
 import { useAuth } from '../auth';
 import { MembershipCard, resolveCardVisualTier } from '../components/MembershipCard';
 import { OfferOfTheDaySection } from '../components/OfferOfTheDaySection';
@@ -9,6 +9,7 @@ import { QrModal } from '../components/QrModal';
 import { BookingPassModal } from '../components/BookingPassModal';
 import { BookingItem, getStoredBookings } from '../bookingsStore';
 import { api, Transaction } from '../api';
+import { getChosenRewardProgress, getVisitPointsRate } from '../loyaltyJourneyStore';
 
 export function Dashboard() {
   const { user, token } = useAuth();
@@ -36,6 +37,8 @@ export function Dashboard() {
   const nextTierTarget = visualTier === 'Green' ? 500 : visualTier === 'Silver' ? 1000 : 5000;
   const progressPct = Math.min(100, Math.round((currentPoints / nextTierTarget) * 100));
   const pointsRemaining = Math.max(0, nextTierTarget - currentPoints + (visualTier === 'Green' ? 1 : 0));
+  const chosenGoal = getChosenRewardProgress(currentPoints);
+  const visitRate = getVisitPointsRate();
 
   return (
     <div style={{ padding: '16px 0 28px 0' }}>
@@ -140,6 +143,102 @@ export function Dashboard() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Compact Chosen Reward Goal & Golf Journey Card */}
+      {chosenGoal && (
+        <Link
+          to="/journey"
+          style={{
+            margin: '0 16px 16px 16px',
+            background: 'linear-gradient(135deg, #090d16 0%, #064e3b 100%)',
+            color: '#ffffff',
+            borderRadius: 'var(--radius-lg)',
+            padding: '14px 16px',
+            boxShadow: '0 8px 20px rgba(6, 78, 59, 0.2)',
+            textDecoration: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                fontSize: '0.64rem',
+                fontWeight: 900,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: '#6ee7b7',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Target size={13} /> MY CHOSEN REWARD GOAL
+            </span>
+            {visitRate.isQuietTime && (
+              <span
+                style={{
+                  background: '#fbbf24',
+                  color: '#090d16',
+                  fontSize: '0.62rem',
+                  fontWeight: 900,
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Zap size={10} /> 2× QUIET-TIME ACTIVE
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.25 }}>
+                {chosenGoal.reward.title}
+              </div>
+              <div style={{ fontSize: '0.73rem', color: '#a7f3d0', fontWeight: 700, marginTop: '2px' }}>
+                {chosenGoal.canRedeemNow
+                  ? '✓ 0 visits remaining — Ready for 1-Tap Redemption!'
+                  : `🎯 Only ${chosenGoal.visitsStandard} standard visit${
+                      chosenGoal.visitsStandard === 1 ? '' : 's'
+                    } left (or ${chosenGoal.visitsQuietTime} in 2× Quiet-Time)`}
+              </div>
+            </div>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.14)',
+                borderRadius: '10px',
+                padding: '7px 10px',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              <Trophy size={13} style={{ color: '#fbbf24' }} /> Journey <ChevronRight size={14} />
+            </div>
+          </div>
+
+          <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.16)', borderRadius: '999px', overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${chosenGoal.progressPct}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #34d399, #fbbf24)',
+                borderRadius: '999px',
+              }}
+            />
+          </div>
+        </Link>
       )}
 
       {/* Quick Action Grid */}

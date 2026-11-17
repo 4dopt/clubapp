@@ -7,6 +7,7 @@ import { SplashScreen } from './components/SplashScreen';
 
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { GolfJourney } from './pages/GolfJourney';
 import { Rewards } from './pages/Rewards';
 import { Booking } from './pages/Booking';
 import { BookingDrivingRange } from './pages/BookingDrivingRange';
@@ -102,6 +103,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/journey"
+            element={
+              <ProtectedRoute>
+                <GolfJourney />
               </ProtectedRoute>
             }
           />

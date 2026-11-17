@@ -1,11 +1,14 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import time
 import logging
 import secrets
 import string
+from collections import defaultdict
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
@@ -23,6 +26,65 @@ ADMIN_PIN = os.environ.get('ADMIN_PIN', '123456')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# ============= In-Memory Sliding Window Rate Limiter & Anti-DDoS Shield =============
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(key: str, max_requests: int, window_seconds: int) -> bool:
+    now = time.time()
+    cutoff = now - window_seconds
+    timestamps = [ts for ts in _rate_buckets[key] if ts > cutoff]
+    if len(timestamps) >= max_requests:
+        _rate_buckets[key] = timestamps
+        return False
+    timestamps.append(now)
+    _rate_buckets[key] = timestamps
+    return True
+
+
+@app.middleware("http")
+async def security_and_rate_limit_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    path = request.url.path
+
+    # 1. Global L7 API Flood Protection (120 req / 60s per IP)
+    if not _check_rate_limit(f"global:{client_ip}", 120, 60):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests from this IP. Please slow down."},
+        )
+
+    # 2. Strict Brute-Force Lockout on Admin PIN Login (4 attempts / 5 mins per IP)
+    if path.endswith("/admin/login") and request.method == "POST":
+        if not _check_rate_limit(f"admin_pin:{client_ip}", 4, 300):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Security Lockout: Too many Admin PIN attempts. Try again in 5 minutes."},
+            )
+
+    # 3. OTP Request / Verify Anti-Abuse (6 attempts / 5 mins per IP)
+    if ("/auth/request-otp" in path or "/auth/verify-otp" in path) and request.method == "POST":
+        if not _check_rate_limit(f"otp:{client_ip}", 6, 300):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many OTP attempts. Please wait 5 minutes."},
+            )
+
+    # 4. Redemption Anti-Double-Spend Burst Limit (4 req / 30s per IP)
+    if path.endswith("/redeem") and request.method == "POST":
+        if not _check_rate_limit(f"redeem:{client_ip}", 4, 30):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Redemption rate limit reached. Please wait 30 seconds."},
+            )
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
 
 
 # ============= Helpers =============
@@ -268,17 +330,27 @@ async def get_reward(reward_id: str):
 
 @api_router.post("/redeem")
 async def redeem(payload: RedeemIn, user: dict = Depends(get_current_user)):
+    if user.get("suspended"):
+        raise HTTPException(status_code=403, detail="Account suspended")
     reward = await db.rewards.find_one({"id": payload.reward_id}, {"_id": 0})
     if not reward:
         raise HTTPException(status_code=404, detail="Reward not found")
     if not reward.get("active", True):
         raise HTTPException(status_code=400, detail="Reward not available")
     cost = int(reward["points_cost"])
-    if user["points_balance"] < cost:
+    if cost <= 0 or user["points_balance"] < cost:
         raise HTTPException(status_code=400, detail="Not enough points")
 
-    new_balance = user["points_balance"] - cost
-    await db.users.update_one({"id": user["id"]}, {"$set": {"points_balance": new_balance}})
+    # Atomic conditional deduction prevents race-condition double-spending
+    res = await db.users.update_one(
+        {"id": user["id"], "points_balance": {"$gte": cost}},
+        {"$inc": {"points_balance": -cost}},
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Not enough points or concurrent redemption blocked")
+
+    updated_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "points_balance": 1})
+    new_balance = int(updated_user.get("points_balance", user["points_balance"] - cost)) if updated_user else (user["points_balance"] - cost)
 
     code = gen_code(8)
     txn = Transaction(
@@ -311,10 +383,11 @@ async def list_transactions(user: dict = Depends(get_current_user)):
 
 
 @api_router.post("/points/add")
-async def add_points(payload: AddPointsIn, user: dict = Depends(get_current_user)):
+async def add_points(payload: AddPointsIn, user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    # SECURITY FIX: Require staff/admin token so members cannot self-mint 10,000 points via API
     pts = int(payload.points)
-    if pts <= 0 or pts > 10000:
-        raise HTTPException(status_code=400, detail="Invalid points")
+    if pts <= 0 or pts > 2500:
+        raise HTTPException(status_code=400, detail="Invalid points (max 2500 per transaction)")
     new_balance = user["points_balance"] + pts
     new_lifetime = user["lifetime_points"] + pts
     new_tier = compute_tier(new_lifetime)
