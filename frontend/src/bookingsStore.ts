@@ -4,6 +4,7 @@ import {
   updateBookingStatusInSupabase,
 } from './supabaseService';
 import { validateBookingAntiAbuse } from './utils/securityGuard';
+import { sendPushNotification } from './utils/pushNotifications';
 
 export interface BookingItem {
   id: string;
@@ -364,6 +365,15 @@ export function createBooking(params: {
   // Sync to Supabase DB
   saveBookingToSupabase(newBk).catch(() => {});
 
+  // Send instant Booking Confirmation Push Alert
+  sendPushNotification({
+    user_id: newBk.user_id,
+    category: 'booking',
+    title: `✅ Booking Confirmed (${newBk.booking_code})`,
+    body: `${newBk.activity_name} on ${newBk.date} at ${newBk.time} (${newBk.bay_assignment}). Tap to open your QR pass.`,
+    action_url: '/booking',
+  }).catch(() => {});
+
   return newBk;
 }
 
@@ -389,6 +399,17 @@ export function updateBookingStatus(
 
   // Sync status update to Supabase DB
   updateBookingStatusInSupabase(bookingId, status).catch(() => {});
+
+  if (updatedBooking && status === 'completed') {
+    const bk = updatedBooking as BookingItem;
+    sendPushNotification({
+      user_id: bk.user_id,
+      category: 'booking',
+      title: `🏌️ Checked In: ${bk.activity_name}`,
+      body: `Welcome to PlayGolf! Your booking (${bk.booking_code}) is checked in at ${bk.bay_assignment}.`,
+      action_url: '/dashboard',
+    }).catch(() => {});
+  }
 
   return updatedBooking;
 }

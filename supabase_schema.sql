@@ -519,7 +519,53 @@ BEGIN
   END IF;
 END $$;
 
--- 12. Performance & Cost Optimization Indexes (Prevents Sequential Table Scans)
+-- 12. Push Notifications & Subscriptions Tables (RLS Protected)
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  category TEXT DEFAULT 'offer' CHECK (category IN ('points', 'booking', 'reward', 'offer', 'security')),
+  title TEXT NOT NULL CHECK (char_length(title) <= 140),
+  body TEXT NOT NULL CHECK (char_length(body) <= 500),
+  action_url TEXT DEFAULT '/dashboard',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow read notifications for target user or broadcast" ON public.notifications;
+CREATE POLICY "Allow read notifications for target user or broadcast" ON public.notifications
+  FOR SELECT USING (
+    user_id IS NULL
+    OR user_id IN ('ALL', 'TIER_VIP')
+    OR auth.uid()::text = user_id::text
+    OR public.is_admin()
+    OR auth.role() = 'authenticated'
+  );
+
+DROP POLICY IF EXISTS "Allow insert notifications" ON public.notifications;
+CREATE POLICY "Allow insert notifications" ON public.notifications
+  FOR INSERT WITH CHECK (
+    auth.uid()::text = user_id::text
+    OR public.is_admin()
+    OR auth.role() = 'authenticated'
+  );
+
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  user_id TEXT PRIMARY KEY,
+  endpoint TEXT NOT NULL,
+  user_agent TEXT,
+  prefs JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow user manage own push subscription" ON public.push_subscriptions;
+CREATE POLICY "Allow user manage own push subscription" ON public.push_subscriptions
+  FOR ALL USING (auth.uid()::text = user_id::text OR public.is_admin());
+
+-- 13. Performance & Cost Optimization Indexes (Prevents Sequential Table Scans)
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON public.notifications(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_profiles_member_id ON public.profiles(member_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 CREATE INDEX IF NOT EXISTS idx_bookings_date_status ON public.bookings(date, status);

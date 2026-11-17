@@ -11,6 +11,7 @@ import {
   checkMemberQrScanCooldown,
   logSecurityAuditEvent,
 } from './utils/securityGuard';
+import { sendPushNotification } from './utils/pushNotifications';
 
 export const USER_CACHE_KEY = 'playgolf.user';
 
@@ -1239,6 +1240,14 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
           created_at: new Date().toISOString(),
         });
 
+        sendPushNotification({
+          user_id: match.id,
+          category: 'points',
+          title: `⛳ +${safeDelta} PTS Added — Welcome to PlayGolf!`,
+          body: `Hi ${match.name.split(' ')[0]}, your range check-in is complete. Your new balance is ${newPoints.toLocaleString()} PTS (${newTier} Tier).`,
+          action_url: '/rewards',
+        }).catch(() => {});
+
         return {
           ok: true,
           message: 'Visit logged successfully',
@@ -1367,6 +1376,17 @@ export async function adjustMemberPointsInSupabase(
         by_admin: true,
         created_at: new Date().toISOString(),
       });
+
+      sendPushNotification({
+        user_id: profile.id,
+        category: 'points',
+        title:
+          clampedDelta >= 0
+            ? `✨ +${clampedDelta} Loyalty Points Credited`
+            : `Loyalty Points Adjusted (${clampedDelta} PTS)`,
+        body: `${reason || 'Club staff update'} • Your updated balance is ${newPoints.toLocaleString()} PTS (${newTier} Tier).`,
+        action_url: '/rewards',
+      }).catch(() => {});
 
       return {
         ok: true,

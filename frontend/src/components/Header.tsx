@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { resolveCardVisualTier } from './MembershipCard';
+import { NotificationBellButton } from './NotificationCenter';
 
 export function Header() {
   const { user, signOut } = useAuth();
@@ -122,6 +123,8 @@ export function Header() {
 
           {/* User Info & Sign Out */}
           <div className="admin-header-user-section">
+            <NotificationBellButton isAdminTheme />
+
             <div className="admin-user-pill">
               <span className="admin-user-name">{user.name || 'Staff User'}</span>
               <span className="admin-user-role">Club Manager</span>
@@ -171,28 +174,32 @@ export function Header() {
         <span className="brand-badge">{visualTier === 'Green' ? 'Member' : visualTier}</span>
       </Link>
 
-      <Link
-        to="/rewards"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '5px',
-          background: '#fffbeb',
-          border: '1px solid #fde68a',
-          color: '#b45309',
-          padding: '5px 11px',
-          borderRadius: 'var(--radius-full)',
-          fontSize: '0.75rem',
-          fontWeight: 800,
-          textDecoration: 'none',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
-        <Award size={13} style={{ color: '#d97706' }} />
-        <span>{pointsBalance.toLocaleString()} PTS</span>
-      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <Link
+          to="/rewards"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            color: '#b45309',
+            padding: '5px 11px',
+            borderRadius: 'var(--radius-full)',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <Award size={13} style={{ color: '#d97706' }} />
+          <span>{pointsBalance.toLocaleString()} PTS</span>
+        </Link>
+
+        <NotificationBellButton />
+      </div>
     </header>
   );
 }

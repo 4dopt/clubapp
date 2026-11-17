@@ -11,10 +11,13 @@ import {
   UserCheck,
   Bell,
   Receipt,
+  Send,
+  Zap,
 } from 'lucide-react';
 import { adminApi, AdminStats, getStoredRedemptions } from '../api';
 import { getStoredBookings, syncBookingsFromSupabase, BookingItem } from '../bookingsStore';
 import { useAuth } from '../auth';
+import { sendPushNotification } from '../utils/pushNotifications';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -28,6 +31,58 @@ export function AdminDashboard() {
   const [memberIdInput, setMemberIdInput] = useState('');
   const [checkinMessage, setCheckinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Admin Push Broadcast Composer state
+  const [pushAudience, setPushAudience] = useState<'ALL' | 'TIER_VIP' | 'SINGLE'>('ALL');
+  const [pushTargetMember, setPushTargetMember] = useState('');
+  const [pushTitle, setPushTitle] = useState('⚡ Quiet-Time 2× Points Active Now!');
+  const [pushBody, setPushBody] = useState(
+    'Drop into PlayGolf Northwick Park over the next 3 hours to earn DOUBLE loyalty points on all Driving Range bays!'
+  );
+  const [pushFeedback, setPushFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [sendingPush, setSendingPush] = useState(false);
+
+  const handleSendPushBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pushTitle.trim() || !pushBody.trim()) return;
+    setSendingPush(true);
+    setPushFeedback(null);
+    try {
+      const targetUserId =
+        pushAudience === 'ALL'
+          ? null
+          : pushAudience === 'TIER_VIP'
+          ? 'TIER_VIP'
+          : pushTargetMember.trim().toUpperCase() || null;
+
+      await sendPushNotification({
+        user_id: targetUserId,
+        category: 'offer',
+        title: pushTitle,
+        body: pushBody,
+        action_url: '/booking',
+        isBroadcast: true,
+      });
+
+      setPushFeedback({
+        type: 'success',
+        text: `Push notification delivered to ${
+          pushAudience === 'ALL'
+            ? 'All Club Members'
+            : pushAudience === 'TIER_VIP'
+            ? 'Gold & Platinum VIPs'
+            : pushTargetMember.trim().toUpperCase()
+        }!`,
+      });
+    } catch (err: any) {
+      setPushFeedback({
+        type: 'error',
+        text: err?.message || 'Failed to send push broadcast.',
+      });
+    } finally {
+      setSendingPush(false);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
@@ -576,7 +631,210 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      {/* 5. RECENT ACTIVITY (SIMPLE, CLEAN LIST) */}
+      {/* 5. PUSH NOTIFICATION BROADCAST COMPOSER */}
+      <div
+        style={{
+          background: 'linear-gradient(145deg, #111827 0%, #0f172a 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          borderRadius: '20px',
+          padding: '22px 20px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Bell size={19} style={{ color: '#34d399' }} />
+            <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
+              Send Push Notification to Members
+            </h2>
+          </div>
+          <span
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 800,
+              color: '#34d399',
+              background: 'rgba(16, 185, 129, 0.14)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              padding: '4px 10px',
+              borderRadius: '999px',
+            }}
+          >
+            REAL-TIME OS & IN-APP PUSH
+          </span>
+        </div>
+        <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginBottom: '14px' }}>
+          Broadcast instant lock-screen push alerts for quiet-hour 2× points, open bays, or special clubhouse offers.
+        </p>
+
+        {/* 1-Tap Quick Templates */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+          {[
+            {
+              label: '⚡ 2× Quiet-Time Points',
+              title: '⚡ Quiet-Time 2× Points Active Now!',
+              body: 'Drop into PlayGolf Northwick Park over the next 3 hours to earn DOUBLE loyalty points on all Driving Range bays!',
+            },
+            {
+              label: '🍔 Golf & Wings Flash Deal',
+              title: '🍔 Clubhouse Flash Offer: Free Drink with Range Bucket',
+              body: 'Book any TrackMan bay this evening and claim a complimentary drink or basket of wings at the Clubhouse Bar!',
+            },
+            {
+              label: '🏌️ Open TrackMan Bays Now',
+              title: '🏌️ Prime TrackMan 4 Bays Open Right Now',
+              body: 'Looking for a quick practice session? Floodlit TrackMan bays are open with zero wait time — tap to reserve.',
+            },
+          ].map((tpl) => (
+            <button
+              key={tpl.label}
+              type="button"
+              onClick={() => {
+                setPushTitle(tpl.title);
+                setPushBody(tpl.body);
+              }}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#cbd5e1',
+                padding: '6px 12px',
+                borderRadius: '999px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {tpl.label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSendPushBroadcast} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'ALL', label: 'All Club Members' },
+              { id: 'TIER_VIP', label: 'Gold & Platinum VIPs Only' },
+              { id: 'SINGLE', label: 'Single Member ID' },
+            ].map((aud) => (
+              <button
+                key={aud.id}
+                type="button"
+                onClick={() => setPushAudience(aud.id as any)}
+                style={{
+                  padding: '7px 13px',
+                  borderRadius: '10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  border: pushAudience === aud.id ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                  background: pushAudience === aud.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
+                  color: pushAudience === aud.id ? '#34d399' : '#94a3b8',
+                }}
+              >
+                {aud.label}
+              </button>
+            ))}
+
+            {pushAudience === 'SINGLE' && (
+              <input
+                type="text"
+                placeholder="Member ID (e.g. PG-2445B5)"
+                value={pushTargetMember}
+                onChange={(e) => setPushTargetMember(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  background: '#090d16',
+                  color: '#ffffff',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                }}
+              />
+            )}
+          </div>
+
+          <input
+            type="text"
+            placeholder="Notification Title"
+            value={pushTitle}
+            onChange={(e) => setPushTitle(e.target.value)}
+            maxLength={90}
+            style={{
+              padding: '11px 14px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              background: '#090d16',
+              color: '#ffffff',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+            }}
+          />
+
+          <textarea
+            placeholder="Notification Message..."
+            value={pushBody}
+            onChange={(e) => setPushBody(e.target.value)}
+            rows={2}
+            maxLength={240}
+            style={{
+              padding: '11px 14px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              background: '#090d16',
+              color: '#ffffff',
+              fontSize: '0.86rem',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+            }}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              Protected by Anti-Spam Rate Guard (max 6 broadcasts/hour)
+            </span>
+            <button
+              type="submit"
+              disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                color: '#ffffff',
+                padding: '11px 20px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              <Send size={15} />
+              <span>{sendingPush ? 'Sending Push...' : 'Send Push Broadcast Now'}</span>
+            </button>
+          </div>
+
+          {pushFeedback && (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: '10px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                background:
+                  pushFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: pushFeedback.type === 'success' ? '#34d399' : '#f87171',
+                border: `1px solid ${
+                  pushFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'
+                }`,
+              }}
+            >
+              {pushFeedback.text}
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* 6. RECENT ACTIVITY (SIMPLE, CLEAN LIST) */}
       <div
         style={{
           background: '#111827',
