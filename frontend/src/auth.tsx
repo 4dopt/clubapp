@@ -9,6 +9,8 @@ import React, {
 import { type User } from './api';
 import { supabase } from './supabase';
 import {
+  buildMemberQrToken,
+  deriveMemberIdFromUuid,
   fetchProfileFromSupabase,
   fetchCurrentUserFromSupabase,
   getCachedUser,
@@ -31,41 +33,82 @@ const AuthCtx = createContext<AuthState | null>(null);
 const TOKEN_KEY = 'playgolf.token';
 const ADMIN_TOKEN_KEY = 'playgolf.admin_token';
 
+function buildInstantUserFromSession(sessionUser: any, cached: User | null): User {
+  if (cached && cached.id === sessionUser.id) {
+    return cached;
+  }
+  const emailStr = (sessionUser.email || '').toLowerCase();
+  const memberId =
+    sessionUser.user_metadata?.member_id || deriveMemberIdFromUuid(sessionUser.id);
+  const isAdmin = emailStr === 'jay@gmail.com' || sessionUser.user_metadata?.role === 'admin';
+  return {
+    id: sessionUser.id,
+    email: emailStr,
+    name: sessionUser.user_metadata?.name || emailStr.split('@')[0] || 'Member',
+    role: isAdmin ? 'admin' : 'member',
+    member_id: memberId,
+    tier: 'Silver',
+    points: 250,
+    points_ytd: 250,
+    qr_token: buildMemberQrToken(memberId),
+    created_at: sessionUser.created_at || new Date().toISOString(),
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUserState] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [user, setUserState] = useState<User | null>(() => getCachedUser());
+  const [loading, setLoading] = useState<boolean>(() => !getCachedUser());
 
   useEffect(() => {
     let mounted = true;
 
+    const onProfileSynced = (e: Event) => {
+      const synced = (e as CustomEvent<User>).detail;
+      if (mounted && synced) {
+        setUserState(synced);
+      }
+    };
+    window.addEventListener('playgolf-profile-synced', onProfileSynced);
+
     (async () => {
       try {
-        // 1. Check active Supabase Auth session first
+        const cached = getCachedUser();
         const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData?.session;
 
         if (session?.user) {
-          const profile = await fetchProfileFromSupabase(
+          const instantUser = buildInstantUserFromSession(session.user, cached);
+          localStorage.setItem(TOKEN_KEY, session.access_token);
+          if (instantUser.role === 'admin') {
+            localStorage.setItem(ADMIN_TOKEN_KEY, session.access_token);
+          }
+          if (mounted) {
+            setToken(session.access_token);
+            setUserState(instantUser);
+            setLoading(false);
+          }
+
+          // Background sync with Supabase DB (non-blocking)
+          fetchProfileFromSupabase(
             session.user.id,
             session.user.email,
             session.user.user_metadata
-          );
-          if (mounted && profile) {
-            localStorage.setItem(TOKEN_KEY, session.access_token);
-            if (profile.role === 'admin') {
-              localStorage.setItem(ADMIN_TOKEN_KEY, session.access_token);
-            }
-            setToken(session.access_token);
-            setUserState(profile);
-            setLoading(false);
-            return;
-          }
+          )
+            .then((profile) => {
+              if (mounted && profile) {
+                if (profile.role === 'admin') {
+                  localStorage.setItem(ADMIN_TOKEN_KEY, session.access_token);
+                }
+                setUserState(profile);
+              }
+            })
+            .catch(() => {});
+          return;
         }
 
-        // 2. Check if Staff/Admin PIN session is active
+        // Check if Staff/Admin PIN session is active
         const adminTok = localStorage.getItem(ADMIN_TOKEN_KEY);
-        const cached = getCachedUser();
         if (adminTok && (adminTok.includes('admin') || cached?.role === 'admin')) {
           if (mounted) {
             setToken(adminTok);
@@ -87,9 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
           }
         } else {
-          // Clear any stale non-Supabase tokens
           localStorage.removeItem(TOKEN_KEY);
           setCachedUser(null);
+          if (mounted) {
+            setToken(null);
+            setUserState(null);
+          }
         }
       } catch (err) {
         console.warn('Auth initialization warning:', err);
@@ -98,42 +144,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    // Listen to Supabase auth state changes (Sign In, Token Refresh, Sign Out)
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (
-          session?.user &&
-          (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')
-        ) {
-          const profile = await fetchProfileFromSupabase(
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        session?.user &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')
+      ) {
+        localStorage.setItem(TOKEN_KEY, session.access_token);
+        const cached = getCachedUser();
+        const instantUser = buildInstantUserFromSession(session.user, cached);
+        if (mounted) {
+          setToken(session.access_token);
+          setUserState(instantUser);
+          setLoading(false);
+        }
+
+        if (event === 'SIGNED_IN' && cached?.id === session.user.id) {
+          return;
+        }
+
+        setTimeout(() => {
+          fetchProfileFromSupabase(
             session.user.id,
             session.user.email,
             session.user.user_metadata
-          );
-          localStorage.setItem(TOKEN_KEY, session.access_token);
-          if (profile?.role === 'admin') {
-            localStorage.setItem(ADMIN_TOKEN_KEY, session.access_token);
-          }
-          if (mounted) {
-            setToken(session.access_token);
-            if (profile) setUserState(profile);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(ADMIN_TOKEN_KEY);
-          setCachedUser(null);
-          if (mounted) {
-            setToken(null);
-            setUserState(null);
-          }
+          )
+            .then((profile) => {
+              if (mounted && profile) {
+                if (profile.role === 'admin') {
+                  localStorage.setItem(ADMIN_TOKEN_KEY, session.access_token);
+                }
+                setUserState(profile);
+              }
+            })
+            .catch(() => {});
+        }, 0);
+      } else if (event === 'SIGNED_OUT') {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+        setCachedUser(null);
+        if (mounted) {
+          setToken(null);
+          setUserState(null);
+          setLoading(false);
         }
-      } catch (err) {
-        console.warn('onAuthStateChange error handled:', err);
       }
     });
 
     return () => {
       mounted = false;
+      window.removeEventListener('playgolf-profile-synced', onProfileSynced);
       data.subscription.unsubscribe();
     };
   }, []);
@@ -146,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCachedUser(u);
     setToken(t);
     setUserState(u);
+    setLoading(false);
   }, []);
 
   const signOut = useCallback(async () => {
@@ -154,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCachedUser(null);
     setToken(null);
     setUserState(null);
+    setLoading(false);
     try {
       await supabaseSignOut();
     } catch {

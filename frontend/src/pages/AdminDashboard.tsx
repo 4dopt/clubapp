@@ -12,20 +12,27 @@ import {
   Bell,
   Receipt,
   Send,
-  Zap,
+  Shield,
+  CheckCircle2,
+  Sparkles,
+  LogOut,
+  Smartphone,
 } from 'lucide-react';
 import { adminApi, AdminStats, getStoredRedemptions } from '../api';
-import { getStoredBookings, syncBookingsFromSupabase, BookingItem } from '../bookingsStore';
+import { getStoredBookings, syncBookingsFromSupabase, BookingItem, updateBookingStatus } from '../bookingsStore';
 import { useAuth } from '../auth';
 import { sendPushNotification } from '../utils/pushNotifications';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user, token, signOut } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [bookings, setBookings] = useState<BookingItem[]>(() => getStoredBookings());
   const [pendingVouchersCount, setPendingVouchersCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Separate Reception Desk vs Manager Tools mode
+  const [deskMode, setDeskMode] = useState<'reception' | 'manager'>('reception');
 
   // Simple Quick Check-In state
   const [memberIdInput, setMemberIdInput] = useState('');
@@ -140,6 +147,27 @@ export function AdminDashboard() {
     }
   };
 
+  const handleFastArrivalCheckIn = async (booking: BookingItem) => {
+    updateBookingStatus(booking.id, 'completed');
+    if (token && booking.user_id) {
+      try {
+        await adminApi.adjustPoints(
+          token,
+          booking.user_id,
+          100,
+          `Reception check-in: ${booking.activity_name} (${booking.booking_code})`
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+    setCheckinMessage({
+      type: 'success',
+      text: `Checked in ${booking.user_name} for ${booking.activity_name} (${booking.bay_assignment || 'Main Facility'})!`,
+    });
+    setBookings(getStoredBookings());
+  };
+
   const todayIso = new Date().toISOString().slice(0, 10);
   const todayReadable = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
@@ -161,743 +189,1109 @@ export function AdminDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '48px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.95rem' }}>
-        Loading Staff Home...
+      <div style={{ padding: '48px 20px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem', fontWeight: 600 }}>
+        Loading Reception Desk...
       </div>
     );
   }
 
   return (
     <div className="admin-page-container">
-      {/* 1. FRIENDLY GREETING & PRIMARY ACTION */}
+      {/* TOP BAR: FRIENDLY GREETING & MODE SWITCHER (RECEPTION DESK vs MANAGER TOOLS) */}
       <div
         style={{
-          background: 'linear-gradient(145deg, #111827 0%, #0f172a 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '22px',
-          padding: '24px 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '20px',
+          padding: '18px 20px',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div className="admin-hero-grid">
-          {/* Left Column: Greeting & Big Scan CTA */}
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '18px' }}>
-            <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>
-                {todayReadable}
-              </div>
-              <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
-                Hello, {user?.name?.split(' ')[0] || 'Staff'} 👋
-              </h1>
-              <p style={{ fontSize: '0.92rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                Welcome to the PlayGolf reception desk. Scan a guest's QR pass or choose a management module below.
-              </p>
-            </div>
-
-            {/* Big Primary Scan Button */}
-            <button
-              onClick={() => navigate('/admin/scan')}
-              style={{
-                width: '100%',
-                padding: '16px 20px',
-                borderRadius: '16px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: '#ffffff',
-                fontSize: '1rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-                boxShadow: '0 8px 20px rgba(16, 185, 129, 0.28)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <QrCode size={22} />
-              <span>Scan QR Code (Member, Booking or Voucher)</span>
-            </button>
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+            {todayReadable}
           </div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            Hello, {user?.name?.split(' ')[0] || 'Staff'} 👋
+          </h1>
+          <p style={{ fontSize: '0.88rem', color: '#475569', marginTop: '2px' }}>
+            {deskMode === 'reception'
+              ? 'Daily Reception Desk — Quick check-ins, arrivals, and member vouchers.'
+              : 'Manager Tools — End-of-day till takings, daily offers, reports, and push alerts.'}
+          </p>
+        </div>
 
-          {/* Right Column: Simple Quick Check-In by Member ID */}
-          <div
+        {/* Simple Mode Pill Switcher */}
+        <div
+          style={{
+            display: 'inline-flex',
+            background: '#f1f5f9',
+            padding: '5px',
+            borderRadius: '14px',
+            border: '1px solid #e2e8f0',
+            gap: '4px',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setDeskMode('reception')}
             style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '16px',
-              padding: '18px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
+              padding: '10px 16px',
+              borderRadius: '10px',
+              border: 'none',
+              background: deskMode === 'reception' ? '#047857' : 'transparent',
+              color: deskMode === 'reception' ? '#ffffff' : '#475569',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              boxShadow: deskMode === 'reception' ? '0 4px 10px rgba(4, 120, 87, 0.22)' : 'none',
+              transition: 'all 0.15s ease',
             }}
           >
-            <div
-              style={{
-                fontSize: '0.86rem',
-                fontWeight: 700,
-                color: '#e2e8f0',
-                marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <UserCheck size={16} style={{ color: '#34d399' }} />
-              <span>Quick Check-In by Member ID (+100 pts):</span>
-            </div>
+            <QrCode size={16} />
+            <span>Reception Desk</span>
+          </button>
 
-            <form onSubmit={handleQuickCheckIn} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                placeholder="e.g. PG-398459"
-                value={memberIdInput}
-                onChange={(e) => setMemberIdInput(e.target.value)}
-                style={{
-                  flex: '1 1 180px',
-                  minHeight: '46px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  background: '#090d16',
-                  color: '#ffffff',
-                  fontSize: '0.95rem',
-                  fontWeight: 600,
-                }}
-              />
+          <button
+            type="button"
+            onClick={() => setDeskMode('manager')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '10px',
+              border: 'none',
+              background: deskMode === 'manager' ? '#0f172a' : 'transparent',
+              color: deskMode === 'manager' ? '#ffffff' : '#475569',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              boxShadow: deskMode === 'manager' ? '0 4px 10px rgba(15, 23, 42, 0.2)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Shield size={16} />
+            <span>Manager Tools</span>
+          </button>
+        </div>
+      </div>
 
-              <button
-                type="submit"
-                disabled={submitting || !memberIdInput.trim()}
-                style={{
-                  minHeight: '46px',
-                  padding: '10px 18px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(52, 211, 153, 0.35)',
-                  background: memberIdInput.trim() ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: memberIdInput.trim() ? '#34d399' : '#64748b',
-                  fontSize: '0.88rem',
-                  fontWeight: 800,
-                  cursor: memberIdInput.trim() ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {submitting ? 'Checking in...' : 'Check In'}
-              </button>
-            </form>
+      {/* ==========================================================================
+          MODE 1: RECEPTION DESK (NON-TECH FRIENDLY, ZERO CLUTTER, 3 DAILY TASKS)
+         ========================================================================== */}
+      {deskMode === 'reception' && (
+        <>
+          {/* 1. PRIMARY ACTION: BIG SCAN PASS BUTTON + TYPE MEMBER ID */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%)',
+              border: '1.5px solid #a7f3d0',
+              borderRadius: '22px',
+              padding: '24px 20px',
+              boxShadow: 'var(--shadow-md)',
+            }}
+          >
+            <div className="admin-hero-grid">
+              {/* Left Column: Big Easy Scan Button */}
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+                <div>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      background: '#d1fae5',
+                      color: '#065f46',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '4px 10px',
+                      borderRadius: '999px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    Step 1 • Fastest Way to Check In
+                  </span>
+                  <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
+                    Scan a Guest’s QR Code
+                  </h2>
+                  <p style={{ fontSize: '0.92rem', color: '#334155', lineHeight: 1.5 }}>
+                    Works for <strong>Member Cards</strong>, <strong>Booking Passes</strong>, and <strong>Reward Vouchers</strong>.
+                  </p>
+                </div>
 
-            {checkinMessage && (
+                <button
+                  onClick={() => navigate('/admin/scan')}
+                  style={{
+                    width: '100%',
+                    minHeight: '58px',
+                    padding: '16px 22px',
+                    borderRadius: '16px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #047857 0%, #10b981 100%)',
+                    color: '#ffffff',
+                    fontSize: '1.08rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 20px rgba(4, 120, 87, 0.25)',
+                  }}
+                >
+                  <QrCode size={24} />
+                  <span>Open Camera Scanner</span>
+                </button>
+              </div>
+
+              {/* Right Column: Simple Type Member ID Box */}
               <div
                 style={{
-                  marginTop: '12px',
-                  padding: '10px 12px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '18px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <UserCheck size={18} style={{ color: '#047857' }} />
+                  <span>No camera? Type Member ID</span>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '12px' }}>
+                  Ask the guest for the ID on their card (e.g. PG-2445B5) to add +100 visit points.
+                </p>
+
+                <form onSubmit={handleQuickCheckIn} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="Type ID (e.g. PG-2445B5)"
+                    value={memberIdInput}
+                    onChange={(e) => setMemberIdInput(e.target.value)}
+                    style={{
+                      flex: '1 1 170px',
+                      minHeight: '48px',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: '1.5px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#0f172a',
+                      fontSize: '0.96rem',
+                      fontWeight: 700,
+                    }}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !memberIdInput.trim()}
+                    style={{
+                      minHeight: '48px',
+                      padding: '10px 20px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      background: memberIdInput.trim() ? '#047857' : '#e2e8f0',
+                      color: memberIdInput.trim() ? '#ffffff' : '#94a3b8',
+                      fontSize: '0.92rem',
+                      fontWeight: 800,
+                      cursor: memberIdInput.trim() ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    {submitting ? 'Checking in...' : 'Check In (+100 pts)'}
+                  </button>
+                </form>
+
+                {checkinMessage && (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      fontSize: '0.86rem',
+                      fontWeight: 700,
+                      background: checkinMessage.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                      color: checkinMessage.type === 'success' ? '#065f46' : '#b91c1c',
+                      border: `1px solid ${checkinMessage.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                    }}
+                  >
+                    {checkinMessage.text}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. THREE CLEAR DAILY RECEPTION CARDS */}
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+              Daily Reception Tasks
+            </h2>
+            <p style={{ fontSize: '0.88rem', color: '#475569', marginBottom: '14px' }}>
+              Tap any card below to open that screen.
+            </p>
+
+            <div className="admin-menu-grid">
+              {/* Task 1: Today's Arrivals & Bookings */}
+              <button
+                onClick={() => navigate('/admin/bookings')}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  background: '#ffffff',
+                  border: todaysBookings.length > 0 ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                  borderRadius: '20px',
+                  padding: '22px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <div
+                    style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '16px',
+                      background: '#e0f2fe',
+                      color: '#0284c7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Calendar size={26} />
+                  </div>
+                  <span
+                    style={{
+                      background: todaysBookings.length > 0 ? '#0284c7' : '#f1f5f9',
+                      color: todaysBookings.length > 0 ? '#ffffff' : '#475569',
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {todaysBookings.length} {todaysBookings.length === 1 ? 'Arrival' : 'Arrivals'} Today
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '1.12rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+                    1. Bookings & Tee Sheet
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.45 }}>
+                    See who is booked today, check players in, or add a walk-in guest.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontSize: '0.85rem', fontWeight: 800 }}>
+                  <span>Open Today’s Schedule</span>
+                  <ChevronRight size={18} />
+                </div>
+              </button>
+
+              {/* Task 2: Hand Out Member Vouchers */}
+              <button
+                onClick={() => navigate('/admin/rewards')}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  background: '#ffffff',
+                  border: pendingVouchersCount > 0 ? '2px solid #d97706' : '1px solid #e2e8f0',
+                  borderRadius: '20px',
+                  padding: '22px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <div
+                    style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '16px',
+                      background: '#fef3c7',
+                      color: '#d97706',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Gift size={26} />
+                  </div>
+                  <span
+                    style={{
+                      background: pendingVouchersCount > 0 ? '#d97706' : '#f1f5f9',
+                      color: pendingVouchersCount > 0 ? '#ffffff' : '#475569',
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {pendingVouchersCount} Waiting
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '1.12rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+                    2. Vouchers & Rewards
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.45 }}>
+                    Check off a member’s reward voucher (like free range balls or coffee).
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#d97706', fontSize: '0.85rem', fontWeight: 800 }}>
+                  <span>Verify Vouchers</span>
+                  <ChevronRight size={18} />
+                </div>
+              </button>
+
+              {/* Task 3: Look Up a Member */}
+              <button
+                onClick={() => navigate('/admin/members')}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '20px',
+                  padding: '22px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <div
+                    style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '16px',
+                      background: '#f3e8ff',
+                      color: '#7e22ce',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Users size={26} />
+                  </div>
+                  <span
+                    style={{
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {stats?.total_members ?? 0} Members
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '1.12rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+                    3. Find a Member by Name
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.45 }}>
+                    Forgot their card? Search any member by name to check them in or add points.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#7e22ce', fontSize: '0.85rem', fontWeight: 800 }}>
+                  <span>Search Member List</span>
+                  <ChevronRight size={18} />
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* 3. NEXT ARRIVALS TODAY (1-TAP CHECK-IN RIGHT FROM HOME SCREEN) */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '20px',
+              padding: '22px 20px',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.12rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Players Arriving Today ({todaysBookings.length})
+                </h2>
+                <p style={{ fontSize: '0.84rem', color: '#64748b', marginTop: '2px' }}>
+                  Tap <strong>"Check In"</strong> when a guest arrives at the desk.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/bookings')}
+                style={{
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  color: '#0f172a',
+                  padding: '8px 14px',
                   borderRadius: '10px',
                   fontSize: '0.82rem',
                   fontWeight: 700,
-                  background:
-                    checkinMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                  color: checkinMessage.type === 'success' ? '#34d399' : '#f87171',
-                  border: `1px solid ${
-                    checkinMessage.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'
-                  }`,
-                }}
-              >
-                {checkinMessage.text}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 2. TODAY'S SNAPSHOT (4 SPACIOUS, EASY-TO-READ CARDS) */}
-      <div>
-        <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
-          Today at a Glance
-        </h2>
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '16px' }}>
-          Tap any box below to view full details.
-        </p>
-
-        {/* Highlight Banner: End-of-Day Takings */}
-        <div
-          onClick={() => navigate('/admin/analytics?tab=payments')}
-          style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, #111827 100%)',
-            border: '1.5px solid rgba(16, 185, 129, 0.45)',
-            borderRadius: '18px',
-            padding: '18px 20px',
-            cursor: 'pointer',
-            marginBottom: '16px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 800,
-                color: '#34d399',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '4px',
-              }}
-            >
-              <Receipt size={16} /> END-OF-DAY APP TAKINGS
-            </div>
-            <div style={{ fontSize: '2.3rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
-              £{todaysRevenue.toFixed(2)}
-            </div>
-            <div style={{ fontSize: '0.82rem', color: '#cbd5e1', marginTop: '4px' }}>
-              From {todaysActiveBookings.length} {todaysActiveBookings.length === 1 ? 'booking' : 'bookings'} today • Tap for till report
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399', fontSize: '0.84rem', fontWeight: 800 }}>
-            <span>Till Report</span>
-            <ChevronRight size={18} />
-          </div>
-        </div>
-
-        <div className="admin-kpi-grid">
-          <div
-            onClick={() => navigate('/admin/analytics')}
-            style={{
-              background: '#111827',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              borderRadius: '18px',
-              padding: '20px 18px',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#34d399', marginBottom: '8px' }}>
-              Visits Today
-            </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
-              {stats?.visits_today ?? 0}
-            </div>
-            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '6px' }}>
-              Members checked in
-            </div>
-          </div>
-
-          <div
-            onClick={() => navigate('/admin/bookings')}
-            style={{
-              background: '#111827',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              borderRadius: '18px',
-              padding: '20px 18px',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', marginBottom: '8px' }}>
-              Bookings Today
-            </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
-              {todaysBookings.length}
-            </div>
-            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '6px' }}>
-              Waiting to arrive
-            </div>
-          </div>
-
-          <div
-            onClick={() => navigate('/admin/rewards')}
-            style={{
-              background: '#111827',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              borderRadius: '18px',
-              padding: '20px 18px',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24', marginBottom: '8px' }}>
-              Waiting Vouchers
-            </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
-              {pendingVouchersCount}
-            </div>
-            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '6px' }}>
-              Ready to hand out
-            </div>
-          </div>
-
-          <div
-            onClick={() => navigate('/admin/members')}
-            style={{
-              background: '#111827',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              borderRadius: '18px',
-              padding: '20px 18px',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#c084fc', marginBottom: '8px' }}>
-              Total Members
-            </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
-              {stats?.total_members ?? 0}
-            </div>
-            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '6px' }}>
-              Registered accounts
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. NEEDS YOUR ATTENTION TODAY (SIMPLE REMINDERS) */}
-      {(todaysBookings.length > 0 || pendingVouchersCount > 0) && (
-        <div>
-          <h2
-            style={{
-              fontSize: '1.15rem',
-              fontWeight: 800,
-              color: '#ffffff',
-              marginBottom: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <Bell size={18} style={{ color: '#fbbf24' }} /> To-Do List for Reception
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '14px' }}>
-            Items that need a quick check from staff today.
-          </p>
-
-          <div className="admin-two-col">
-            {todaysBookings.length > 0 && (
-              <div
-                onClick={() => navigate('/admin/bookings')}
-                style={{
-                  background: 'rgba(56, 189, 248, 0.09)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: '18px',
-                  padding: '18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '14px',
                   cursor: 'pointer',
                 }}
               >
-                <div>
-                  <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', marginBottom: '4px' }}>
-                    {todaysBookings.length} {todaysBookings.length === 1 ? 'Booking' : 'Bookings'} Arriving Today
-                  </div>
-                  <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
-                    Tap here to see who is playing and check them in when they arrive.
-                  </div>
-                </div>
-                <ChevronRight size={20} style={{ color: '#38bdf8', flexShrink: 0 }} />
-              </div>
-            )}
+                See Full Schedule →
+              </button>
+            </div>
 
-            {pendingVouchersCount > 0 && (
+            {todaysBookings.length === 0 ? (
               <div
-                onClick={() => navigate('/admin/rewards')}
                 style={{
-                  background: 'rgba(245, 158, 11, 0.09)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  borderRadius: '18px',
-                  padding: '18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '14px',
-                  cursor: 'pointer',
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '14px',
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                  color: '#64748b',
+                  fontSize: '0.9rem',
                 }}
               >
-                <div>
-                  <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', marginBottom: '4px' }}>
-                    {pendingVouchersCount} Reward {pendingVouchersCount === 1 ? 'Voucher' : 'Vouchers'} Waiting
-                  </div>
-                  <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
-                    Members have claimed rewards in the app. Tap to verify their code.
-                  </div>
+                <CheckCircle2 size={28} style={{ color: '#10b981', margin: '0 auto 8px auto', display: 'block' }} />
+                <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: '2px' }}>
+                  All caught up for today!
                 </div>
-                <ChevronRight size={20} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                <div>No waiting bookings right now. You can add a walk-in booking from the Bookings screen.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {todaysBookings.slice(0, 5).map((b) => (
+                  <div
+                    key={b.id}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '14px',
+                      padding: '14px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            fontWeight: 900,
+                            fontSize: '0.82rem',
+                            padding: '3px 9px',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          {b.time}
+                        </span>
+                        <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                          {b.user_name}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: '#64748b', fontFamily: 'monospace', fontWeight: 700 }}>
+                          ({b.booking_code})
+                        </span>
+                        {b.payment_status === 'pay_at_desk' && (
+                          <span
+                            style={{
+                              background: '#fef3c7',
+                              color: '#b45309',
+                              border: '1px solid #fde68a',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                            }}
+                          >
+                            Collect {b.price} at Desk
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#475569', marginTop: '4px', fontWeight: 600 }}>
+                        {b.activity_name} • <strong>{b.bay_assignment || 'Assign Bay'}</strong> • {b.party_size || 2} Players
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleFastArrivalCheckIn(b)}
+                      style={{
+                        background: '#047857',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '10px 16px',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <CheckCircle2 size={16} /> Check In
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
+
+          {/* 4. RECENT CHECK-INS (SIMPLE READABLE LIST) */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '20px',
+              padding: '22px 20px',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Recent Desk Activity ({stats?.visits_today ?? 0} visits today)
+              </h2>
+              <Clock size={16} style={{ color: '#64748b' }} />
+            </div>
+            <p style={{ fontSize: '0.84rem', color: '#64748b', marginBottom: '14px' }}>
+              The latest member check-ins and voucher claims at reception.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {(stats?.recent || []).length === 0 ? (
+                <div style={{ fontSize: '0.86rem', color: '#64748b', padding: '12px 0' }}>
+                  No recent activity recorded yet today.
+                </div>
+              ) : (
+                (stats?.recent || []).slice(0, 4).map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '14px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                        {c.member_name || 'Club Member'}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+                        {c.title} • {c.member_id || ''}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        background: c.type === 'earn' ? '#ecfdf5' : '#fef3c7',
+                        color: c.type === 'earn' ? '#047857' : '#b45309',
+                        border: `1px solid ${c.type === 'earn' ? '#a7f3d0' : '#fde68a'}`,
+                        padding: '5px 12px',
+                        borderRadius: '999px',
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {c.type === 'earn' ? `+${c.points} pts` : `-${c.points} pts`}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </>
       )}
 
-      {/* 4. MAIN STAFF MENU (BIG, CLEAR NAVIGATION CARDS) */}
-      <div>
-        <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
-          Manage the Club
-        </h2>
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '16px' }}>
-          Choose what you would like to view or update.
-        </p>
-
-        <div className="admin-menu-grid">
-          {[
-            {
-              title: 'Bookings & Tee Sheet',
-              desc: 'See today’s schedule, check players in, or change bay numbers.',
-              path: '/admin/bookings',
-              icon: <Calendar size={22} />,
-              color: '#38bdf8',
-              bg: 'rgba(56, 189, 248, 0.14)',
-            },
-            {
-              title: 'Daily Payments & Till Report',
-              desc: 'End-of-day takings, revenue breakdown, and how much the app has made today.',
-              path: '/admin/analytics?tab=payments',
-              icon: <Receipt size={22} />,
-              color: '#10b981',
-              bg: 'rgba(16, 185, 129, 0.14)',
-            },
-            {
-              title: 'Club Reports & Insights',
-              desc: 'Simple charts for busy hours, popular games, and top members.',
-              path: '/admin/analytics',
-              icon: <BarChart3 size={22} />,
-              color: '#34d399',
-              bg: 'rgba(16, 185, 129, 0.14)',
-            },
-            {
-              title: 'Rewards & Vouchers',
-              desc: 'Check member voucher codes or add new perks to the rewards shop.',
-              path: '/admin/rewards',
-              icon: <Gift size={22} />,
-              color: '#fbbf24',
-              bg: 'rgba(245, 158, 11, 0.14)',
-            },
-            {
-              title: 'Offer of the Day (Mon–Sun)',
-              desc: 'Customize daily offers like Monday Mornings Off-Peak & Wednesday Golf & Wings.',
-              path: '/admin/rewards?tab=daily',
-              icon: <Clock size={22} />,
-              color: '#f97316',
-              bg: 'rgba(249, 115, 22, 0.14)',
-            },
-            {
-              title: 'Member Directory',
-              desc: 'Look up any member by name and add or adjust loyalty points.',
-              path: '/admin/members',
-              icon: <Users size={22} />,
-              color: '#c084fc',
-              bg: 'rgba(192, 132, 252, 0.14)',
-            },
-          ].map((item) => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              style={{
-                width: '100%',
-                textAlign: 'left',
-                background: '#111827',
-                border: '1px solid rgba(255, 255, 255, 0.09)',
-                borderRadius: '18px',
-                padding: '20px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '14px',
-                  background: item.bg,
-                  color: item.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {item.icon}
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', marginBottom: '4px' }}>
-                  {item.title}
-                </div>
-                <div style={{ fontSize: '0.83rem', color: '#94a3b8', lineHeight: 1.45 }}>
-                  {item.desc}
-                </div>
-              </div>
-
-              <ChevronRight size={20} style={{ color: '#64748b', flexShrink: 0 }} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. PUSH NOTIFICATION BROADCAST COMPOSER */}
-      <div
-        style={{
-          background: 'linear-gradient(145deg, #111827 0%, #0f172a 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          borderRadius: '20px',
-          padding: '22px 20px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Bell size={19} style={{ color: '#34d399' }} />
-            <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
-              Send Push Notification to Members
-            </h2>
-          </div>
-          <span
+      {/* ==========================================================================
+          MODE 2: MANAGER TOOLS (TILL REPORT, DAILY OFFERS, ANALYTICS, PUSH ALERTS)
+         ========================================================================== */}
+      {deskMode === 'manager' && (
+        <>
+          {/* 1. END-OF-DAY TAKINGS & TILL SUMMARY BANNER */}
+          <div
+            onClick={() => navigate('/admin/analytics?tab=payments')}
             style={{
-              fontSize: '0.7rem',
-              fontWeight: 800,
-              color: '#34d399',
-              background: 'rgba(16, 185, 129, 0.14)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              padding: '4px 10px',
-              borderRadius: '999px',
+              background: 'linear-gradient(135deg, #047857 0%, #065f46 100%)',
+              borderRadius: '22px',
+              padding: '24px 22px',
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              color: '#ffffff',
+              boxShadow: '0 10px 25px rgba(4, 120, 87, 0.25)',
             }}
           >
-            REAL-TIME OS & IN-APP PUSH
-          </span>
-        </div>
-        <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginBottom: '14px' }}>
-          Broadcast instant lock-screen push alerts for quiet-hour 2× points, open bays, or special clubhouse offers.
-        </p>
-
-        {/* 1-Tap Quick Templates */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
-          {[
-            {
-              label: '⚡ 2× Quiet-Time Points',
-              title: '⚡ Quiet-Time 2× Points Active Now!',
-              body: 'Drop into PlayGolf Northwick Park over the next 3 hours to earn DOUBLE loyalty points on all Driving Range bays!',
-            },
-            {
-              label: '🍔 Golf & Wings Flash Deal',
-              title: '🍔 Clubhouse Flash Offer: Free Drink with Range Bucket',
-              body: 'Book any TrackMan bay this evening and claim a complimentary drink or basket of wings at the Clubhouse Bar!',
-            },
-            {
-              label: '🏌️ Open TrackMan Bays Now',
-              title: '🏌️ Prime TrackMan 4 Bays Open Right Now',
-              body: 'Looking for a quick practice session? Floodlit TrackMan bays are open with zero wait time — tap to reserve.',
-            },
-          ].map((tpl) => (
-            <button
-              key={tpl.label}
-              type="button"
-              onClick={() => {
-                setPushTitle(tpl.title);
-                setPushBody(tpl.body);
-              }}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#cbd5e1',
-                padding: '6px 12px',
-                borderRadius: '999px',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {tpl.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSendPushBroadcast} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {[
-              { id: 'ALL', label: 'All Club Members' },
-              { id: 'TIER_VIP', label: 'Gold & Platinum VIPs Only' },
-              { id: 'SINGLE', label: 'Single Member ID' },
-            ].map((aud) => (
-              <button
-                key={aud.id}
-                type="button"
-                onClick={() => setPushAudience(aud.id as any)}
+            <div>
+              <div
                 style={{
-                  padding: '7px 13px',
-                  borderRadius: '10px',
                   fontSize: '0.78rem',
                   fontWeight: 800,
-                  cursor: 'pointer',
-                  border: pushAudience === aud.id ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                  background: pushAudience === aud.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
-                  color: pushAudience === aud.id ? '#34d399' : '#94a3b8',
+                  color: '#a7f3d0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
                 }}
               >
-                {aud.label}
-              </button>
-            ))}
+                <Receipt size={16} /> TODAY'S END-OF-DAY APP TAKINGS
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.05 }}>
+                £{todaysRevenue.toFixed(2)}
+              </div>
+              <div style={{ fontSize: '0.88rem', color: '#ecfdf5', marginTop: '6px' }}>
+                From {todaysActiveBookings.length} {todaysActiveBookings.length === 1 ? 'booking' : 'bookings'} today • Tap to print or download Z-Report
+              </div>
+            </div>
+            <div
+              style={{
+                background: '#ffffff',
+                color: '#047857',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.88rem',
+                fontWeight: 800,
+              }}
+            >
+              <span>Open Till Report</span>
+              <ChevronRight size={18} />
+            </div>
+          </div>
 
-            {pushAudience === 'SINGLE' && (
+          {/* 2. MANAGER QUICK MODULES */}
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+              Club Management & Marketing
+            </h2>
+            <p style={{ fontSize: '0.86rem', color: '#475569', marginBottom: '14px' }}>
+              Update daily promotions, add new rewards, or view club performance reports.
+            </p>
+
+            <div className="admin-menu-grid">
+              {[
+                {
+                  title: 'Daily Payments & Till Report',
+                  desc: 'End-of-day takings, online vs desk payments, and CSV export.',
+                  path: '/admin/analytics?tab=payments',
+                  icon: <Receipt size={24} />,
+                  color: '#047857',
+                  bg: '#ecfdf5',
+                },
+                {
+                  title: 'Offer of the Day (Mon–Sun)',
+                  desc: 'Edit daily deals like Monday Off-Peak Range or Wednesday Golf & Wings.',
+                  path: '/admin/rewards?tab=daily',
+                  icon: <Sparkles size={24} />,
+                  color: '#d97706',
+                  bg: '#fef3c7',
+                },
+                {
+                  title: 'Club Reports & Busy Hours',
+                  desc: 'Simple charts for busy times, popular activities, and top members.',
+                  path: '/admin/analytics',
+                  icon: <BarChart3 size={24} />,
+                  color: '#0284c7',
+                  bg: '#e0f2fe',
+                },
+                {
+                  title: 'Rewards Shop Catalog',
+                  desc: 'Add new perks, change point prices, or pause out-of-stock items.',
+                  path: '/admin/rewards',
+                  icon: <Gift size={24} />,
+                  color: '#b45309',
+                  bg: '#fef3c7',
+                },
+                {
+                  title: 'Member Directory & CSV',
+                  desc: 'View all registered members, adjust points, or export the mailing list.',
+                  path: '/admin/members',
+                  icon: <Users size={24} />,
+                  color: '#7e22ce',
+                  bg: '#f3e8ff',
+                },
+                {
+                  title: 'Bookings & Tee Sheet',
+                  desc: 'Full reservation calendar across all bays, courses, and coaching.',
+                  path: '/admin/bookings',
+                  icon: <Calendar size={24} />,
+                  color: '#0369a1',
+                  bg: '#e0f2fe',
+                },
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '18px',
+                    padding: '20px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '14px',
+                      background: item.bg,
+                      color: item.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.icon}
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '1.02rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+                      {item.title}
+                    </div>
+                    <div style={{ fontSize: '0.84rem', color: '#475569', lineHeight: 1.45 }}>
+                      {item.desc}
+                    </div>
+                  </div>
+
+                  <ChevronRight size={20} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. PUSH NOTIFICATION BROADCAST COMPOSER (CLEAN LIGHT CARD) */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '20px',
+              padding: '22px 20px',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bell size={20} style={{ color: '#047857' }} />
+                <h2 style={{ fontSize: '1.12rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Send Push Alert to Members’ Phones
+                </h2>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: '#047857',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                }}
+              >
+                INSTANT PHONE NOTIFICATION
+              </span>
+            </div>
+            <p style={{ fontSize: '0.86rem', color: '#475569', marginBottom: '14px' }}>
+              Tap a quick template below or write your own message to invite members in during quiet hours.
+            </p>
+
+            {/* 1-Tap Quick Templates */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+              {[
+                {
+                  label: '⚡ 2× Quiet-Time Points',
+                  title: '⚡ Quiet-Time 2× Points Active Now!',
+                  body: 'Drop into PlayGolf Northwick Park over the next 3 hours to earn DOUBLE loyalty points on all Driving Range bays!',
+                },
+                {
+                  label: '🍔 Golf & Wings Deal',
+                  title: '🍔 Clubhouse Special: Free Drink with Range Bucket',
+                  body: 'Book any TrackMan bay this evening and claim a complimentary drink or basket of wings at the Clubhouse Bar!',
+                },
+                {
+                  label: '🏌️ Open TrackMan Bays Now',
+                  title: '🏌️ Prime TrackMan 4 Bays Open Right Now',
+                  body: 'Looking for a quick practice session? Floodlit TrackMan bays are open with zero wait time — tap to reserve.',
+                },
+              ].map((tpl) => (
+                <button
+                  key={tpl.label}
+                  type="button"
+                  onClick={() => {
+                    setPushTitle(tpl.title);
+                    setPushBody(tpl.body);
+                  }}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    color: '#0f172a',
+                    padding: '7px 13px',
+                    borderRadius: '999px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSendPushBroadcast} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569', marginRight: '4px' }}>Send to:</span>
+                {[
+                  { id: 'ALL', label: 'All Club Members' },
+                  { id: 'TIER_VIP', label: 'Gold & Platinum VIPs Only' },
+                  { id: 'SINGLE', label: 'Single Member ID' },
+                ].map((aud) => (
+                  <button
+                    key={aud.id}
+                    type="button"
+                    onClick={() => setPushAudience(aud.id as any)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      border: pushAudience === aud.id ? '1.5px solid #047857' : '1px solid #cbd5e1',
+                      background: pushAudience === aud.id ? '#ecfdf5' : '#ffffff',
+                      color: pushAudience === aud.id ? '#047857' : '#475569',
+                    }}
+                  >
+                    {aud.label}
+                  </button>
+                ))}
+
+                {pushAudience === 'SINGLE' && (
+                  <input
+                    type="text"
+                    placeholder="Member ID (e.g. PG-2445B5)"
+                    value={pushTargetMember}
+                    onChange={(e) => setPushTargetMember(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      border: '1.5px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#0f172a',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
+              </div>
+
               <input
                 type="text"
-                placeholder="Member ID (e.g. PG-2445B5)"
-                value={pushTargetMember}
-                onChange={(e) => setPushTargetMember(e.target.value)}
+                placeholder="Headline Title"
+                value={pushTitle}
+                onChange={(e) => setPushTitle(e.target.value)}
+                maxLength={90}
                 style={{
-                  padding: '8px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  background: '#090d16',
-                  color: '#ffffff',
-                  fontSize: '0.84rem',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: '0.92rem',
                   fontWeight: 700,
                 }}
               />
-            )}
-          </div>
 
-          <input
-            type="text"
-            placeholder="Notification Title"
-            value={pushTitle}
-            onChange={(e) => setPushTitle(e.target.value)}
-            maxLength={90}
-            style={{
-              padding: '11px 14px',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.14)',
-              background: '#090d16',
-              color: '#ffffff',
-              fontSize: '0.9rem',
-              fontWeight: 700,
-            }}
-          />
-
-          <textarea
-            placeholder="Notification Message..."
-            value={pushBody}
-            onChange={(e) => setPushBody(e.target.value)}
-            rows={2}
-            maxLength={240}
-            style={{
-              padding: '11px 14px',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.14)',
-              background: '#090d16',
-              color: '#ffffff',
-              fontSize: '0.86rem',
-              fontFamily: 'inherit',
-              resize: 'vertical',
-            }}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              Protected by Anti-Spam Rate Guard (max 6 broadcasts/hour)
-            </span>
-            <button
-              type="submit"
-              disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
-              style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                border: 'none',
-                color: '#ffffff',
-                padding: '11px 20px',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                fontWeight: 800,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-              }}
-            >
-              <Send size={15} />
-              <span>{sendingPush ? 'Sending Push...' : 'Send Push Broadcast Now'}</span>
-            </button>
-          </div>
-
-          {pushFeedback && (
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: '10px',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                background:
-                  pushFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: pushFeedback.type === 'success' ? '#34d399' : '#f87171',
-                border: `1px solid ${
-                  pushFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'
-                }`,
-              }}
-            >
-              {pushFeedback.text}
-            </div>
-          )}
-        </form>
-      </div>
-
-      {/* 6. RECENT ACTIVITY (SIMPLE, CLEAN LIST) */}
-      <div
-        style={{
-          background: '#111827',
-          border: '1px solid rgba(255, 255, 255, 0.09)',
-          borderRadius: '20px',
-          padding: '22px 20px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#ffffff' }}>
-            Recent Club Activity
-          </h2>
-          <Clock size={16} style={{ color: '#64748b' }} />
-        </div>
-        <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginBottom: '16px' }}>
-          The latest member visits and reward claims.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {(stats?.recent || []).length === 0 ? (
-            <div style={{ fontSize: '0.85rem', color: '#64748b', padding: '12px 0' }}>
-              No recent activity recorded yet.
-            </div>
-          ) : (
-            (stats?.recent || []).slice(0, 4).map((c) => (
-              <div
-                key={c.id}
+              <textarea
+                placeholder="Message to members..."
+                value={pushBody}
+                onChange={(e) => setPushBody(e.target.value)}
+                rows={2}
+                maxLength={240}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                  borderRadius: '14px',
-                  padding: '14px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: '0.88rem',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
                 }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.94rem', fontWeight: 800, color: '#ffffff' }}>
-                    {c.member_name || 'Club Member'}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                    {c.title} • {c.member_id || ''}
-                  </div>
-                </div>
+              />
 
-                <div
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+                <button
+                  type="submit"
+                  disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
                   style={{
-                    background: c.type === 'earn' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.14)',
-                    color: c.type === 'earn' ? '#34d399' : '#fbbf24',
-                    padding: '5px 10px',
-                    borderRadius: '999px',
-                    fontSize: '0.78rem',
+                    background: 'linear-gradient(135deg, #047857 0%, #10b981 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    padding: '12px 22px',
+                    borderRadius: '12px',
+                    fontSize: '0.88rem',
                     fontWeight: 800,
-                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)',
                   }}
                 >
-                  {c.type === 'earn' ? `+${c.points} pts` : `-${c.points} pts`}
-                </div>
+                  <Send size={16} />
+                  <span>{sendingPush ? 'Sending Alert...' : 'Send Alert to Members'}</span>
+                </button>
               </div>
-            ))
-          )}
+
+              {pushFeedback && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    background: pushFeedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                    color: pushFeedback.type === 'success' ? '#065f46' : '#b91c1c',
+                    border: `1px solid ${pushFeedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                  }}
+                >
+                  {pushFeedback.text}
+                </div>
+              )}
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ALWAYS-VISIBLE FOOTER: SWITCH TO MEMBER APP OR SIGN OUT */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1.5px solid #cbd5e1',
+          borderRadius: '20px',
+          padding: '18px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a' }}>
+            Finished at the Reception Desk?
+          </div>
+          <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+            Switch over to the Member App view or sign out of this staff account.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            style={{
+              background: '#f1f5f9',
+              border: '1.5px solid #cbd5e1',
+              color: '#0f172a',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              fontSize: '0.86rem',
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              cursor: 'pointer',
+            }}
+          >
+            <Smartphone size={16} />
+            <span>Open Member App</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut();
+              navigate('/login');
+            }}
+            style={{
+              background: '#dc2626',
+              border: 'none',
+              color: '#ffffff',
+              padding: '10px 18px',
+              borderRadius: '12px',
+              fontSize: '0.86rem',
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)',
+            }}
+          >
+            <LogOut size={16} />
+            <span>Sign Out of Staff Desk</span>
+          </button>
         </div>
       </div>
     </div>

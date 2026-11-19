@@ -9,12 +9,25 @@ export function History() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const onTxUpdated = (e: Event) => {
+      const list = (e as CustomEvent<Transaction[]>).detail;
+      if (Array.isArray(list)) {
+        setTransactions(list);
+        setLoading(false);
+      }
+    };
+    window.addEventListener('playgolf-transactions-updated', onTxUpdated);
+
     if (token) {
       api.history(token)
         .then(setTransactions)
         .catch(() => setTransactions([]))
         .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
+
+    return () => window.removeEventListener('playgolf-transactions-updated', onTxUpdated);
   }, [token]);
 
   return (

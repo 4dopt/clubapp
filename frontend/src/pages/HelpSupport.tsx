@@ -62,7 +62,7 @@ export function HelpSupport() {
       icon: <Sparkles size={16} color="#059669" />,
       question: 'What are the membership tiers and how do I upgrade?',
       answer:
-        'All players start at Club Member (Green). When you reach 500 lifetime points you unlock Silver Tier (5% discount on range bays). At 1,000 points you reach Gold Tier (10% discount + exclusive flash deals). At 5,000 points you achieve Platinum Tier (15% off + VIP bay priority). Your points automatically upgrade your digital pass.',
+        'All players start at Club Member (Green). When you reach 1,000 points you unlock Silver Tier (10% discount on bookings). At 10,000 points you reach Gold Tier (15% discount + exclusive flash deals). At 20,000 points you achieve Platinum Tier (25% off + VIP bay priority). Your points automatically upgrade your digital pass.',
     },
     {
       id: 'faq_3',

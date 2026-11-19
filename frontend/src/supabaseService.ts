@@ -67,6 +67,7 @@ export function setCachedUser(user: User | null): void {
       localStorage.removeItem(USER_CACHE_KEY);
     } else {
       localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+      window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: user }));
     }
   } catch {
     /* ignore storage errors */
@@ -148,11 +149,17 @@ export async function supabaseSignUp(
 
   const memberId = await generateUniqueMemberId();
 
-  // 1. Create auth user in Supabase Auth
+  // 1. Create auth user in Supabase Auth (with dynamic emailRedirectTo for production/Netlify & local)
+  const emailRedirectUrl =
+    typeof window !== 'undefined' && window.location?.origin
+      ? `${window.location.origin}/login`
+      : undefined;
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: cleanEmail,
     password,
     options: {
+      emailRedirectTo: emailRedirectUrl,
       data: {
         name: cleanName,
         phone: phone?.trim() || '',
@@ -223,7 +230,12 @@ export async function supabaseSignUp(
     /* ignore if already logged */
   }
 
-  setCachedUser(newProfile);
+  // Only cache user as logged-in if a session was immediately issued (i.e. no email confirmation pending)
+  if (authData.session) {
+    setCachedUser(newProfile);
+  } else {
+    setCachedUser(null);
+  }
 
   return {
     authUser: userObj,
@@ -250,6 +262,11 @@ export async function supabaseSignIn(email: string, password: string) {
   });
 
   if (error) {
+    if (error.message?.toLowerCase().includes('email not confirmed')) {
+      throw new Error(
+        'Please verify your email address first. Check your inbox (and spam folder) for the confirmation link, or click "Resend Verification Email" below.'
+      );
+    }
     if (error.message?.toLowerCase().includes('invalid login credentials')) {
       throw new Error('Invalid email or password. Please check your credentials or sign up for a new account.');
     }
@@ -260,16 +277,41 @@ export async function supabaseSignIn(email: string, password: string) {
   // Clear brute-force counter on successful authentication
   clearRateLimit(`auth_signin_${cleanEmail}`);
 
-  // Fetch or construct & sync user profile from Supabase DB
-  const profile = await fetchProfileFromSupabase(
+  // Build immediate profile from session/cache so sign-in finishes immediately after auth
+  const cached = getCachedUser();
+  const buildImmediateProfile = (): User => {
+    if (cached && cached.id === data.user!.id) {
+      return cached;
+    }
+    const memberId =
+      data.user!.user_metadata?.member_id || deriveMemberIdFromUuid(data.user!.id);
+    const emailStr = (data.user!.email || cleanEmail).toLowerCase();
+    const isAdmin = isAuthorizedAdminUser(emailStr, null);
+    return {
+      id: data.user!.id,
+      email: emailStr,
+      name: data.user!.user_metadata?.name || emailStr.split('@')[0] || 'Member',
+      role: isAdmin ? 'admin' : 'member',
+      member_id: memberId,
+      tier: 'Silver',
+      points: 250,
+      points_ytd: 250,
+      qr_token: buildMemberQrToken(memberId),
+      created_at: data.user!.created_at || new Date().toISOString(),
+    };
+  };
+
+  // Race DB profile fetch against a 600ms budget; if DB takes longer, return immediate profile and sync in background
+  const profilePromise = fetchProfileFromSupabase(
     data.user.id,
     data.user.email || cleanEmail,
     data.user.user_metadata
   );
+  const fastFallbackPromise = new Promise<User>((resolve) =>
+    setTimeout(() => resolve(buildImmediateProfile()), 600)
+  );
 
-  if (!profile) {
-    throw new Error('Unable to load member profile. Please try again.');
-  }
+  const profile = (await Promise.race([profilePromise, fastFallbackPromise])) || buildImmediateProfile();
 
   if (profile.suspended) {
     await supabase.auth.signOut();
@@ -290,6 +332,27 @@ export async function supabaseResetPassword(email: string) {
   }
   const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
     redirectTo: `${window.location.origin}/login`,
+  });
+  if (error) throw error;
+}
+
+export async function supabaseResendVerificationEmail(email: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) {
+    throw new Error('Please enter your email address first.');
+  }
+  const resendLimit = checkRateLimit(`auth_resend_${cleanEmail}`, 3, 10 * 60 * 1000, 3 * 60 * 1000);
+  if (!resendLimit.allowed) {
+    throw new Error(
+      `Please wait ${resendLimit.retryAfterSeconds} seconds before requesting another verification email.`
+    );
+  }
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: cleanEmail,
+    options: {
+      emailRedirectTo: `${window.location.origin}/login`,
+    },
   });
   if (error) throw error;
 }
@@ -339,7 +402,7 @@ export async function fetchProfileFromSupabase(
           : resolvedPoints;
 
       const computedTier =
-        resolvedPoints >= 5000 ? 'Platinum' : resolvedPoints >= 1000 ? 'Gold' : 'Silver';
+        resolvedPoints >= 20000 ? 'Platinum' : resolvedPoints >= 10000 ? 'Gold' : 'Silver';
       const resolvedTier = legacyUser?.tier || profileData.tier || computedTier;
 
       const userProfile: User = {
@@ -414,7 +477,7 @@ export async function fetchProfileFromSupabase(
         name: legacyUser.name || userMetadata?.name || emailStr.split('@')[0] || 'Member',
         role: isAdmin ? 'admin' : 'member',
         member_id: memberId,
-        tier: legacyUser.tier || (points >= 5000 ? 'Platinum' : points >= 1000 ? 'Gold' : 'Silver'),
+        tier: legacyUser.tier || (points >= 20000 ? 'Platinum' : points >= 10000 ? 'Gold' : 'Silver'),
         points,
         points_ytd: pointsYtd,
         qr_token: buildMemberQrToken(memberId),
@@ -775,7 +838,7 @@ export async function fetchAllMembersFromSupabase(searchQuery?: string): Promise
           name: u.name || 'Member',
           role: u.role === 'admin' ? 'admin' : 'member',
           member_id: memberId,
-          tier: u.tier || (pts >= 5000 ? 'Platinum' : pts >= 1000 ? 'Gold' : 'Silver'),
+          tier: u.tier || (pts >= 20000 ? 'Platinum' : pts >= 10000 ? 'Gold' : 'Silver'),
           points: pts,
           points_ytd: typeof u.lifetime_points === 'number' ? Math.max(u.lifetime_points, pts) : pts,
           qr_token: buildMemberQrToken(memberId),
@@ -801,7 +864,7 @@ export async function fetchAllMembersFromSupabase(searchQuery?: string): Promise
             : typeof p.points_ytd === 'number'
             ? Math.max(p.points_ytd, pts)
             : pts;
-        const computedTier = pts >= 5000 ? 'Platinum' : pts >= 1000 ? 'Gold' : 'Silver';
+        const computedTier = pts >= 20000 ? 'Platinum' : pts >= 10000 ? 'Gold' : 'Silver';
 
         map.set(p.id, {
           id: p.id,
@@ -1215,7 +1278,7 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
         const safeDelta = Math.min(Math.max(Math.round(pointsDelta), 1), 1000);
         const newPoints = (match.points || 0) + safeDelta;
         const newYtd = (match.points_ytd || 0) + safeDelta;
-        const newTier = newPoints >= 5000 ? 'Platinum' : newPoints >= 1000 ? 'Gold' : 'Silver';
+        const newTier = newPoints >= 20000 ? 'Platinum' : newPoints >= 10000 ? 'Gold' : 'Silver';
 
         const updatedUser: User = {
           ...match,
@@ -1352,7 +1415,7 @@ export async function adjustMemberPointsInSupabase(
     if (profile) {
       const newPoints = Math.max(0, (profile.points || 0) + clampedDelta);
       const newYtd = Math.max(0, (profile.points_ytd || 0) + (clampedDelta > 0 ? clampedDelta : 0));
-      const newTier = newPoints >= 5000 ? 'Platinum' : newPoints >= 1000 ? 'Gold' : 'Silver';
+      const newTier = newPoints >= 20000 ? 'Platinum' : newPoints >= 10000 ? 'Gold' : 'Silver';
 
       const updatedUser: User = {
         ...profile,

@@ -145,8 +145,8 @@ export function AdminBookings() {
     const addons = parseBookingAddons(updated.notes);
     setMessage(
       addons.hasAnyAddons
-        ? `🚨 Checked in ${booking.user_name} (${booking.booking_code})! Guest has PRE-ORDERED ITEMS — please place Kitchen/Bar order & issue add-ons below.`
-        : `✅ Checked in ${booking.user_name} for ${booking.activity_name} [${booking.bay_assignment || 'Main Bay'}]! +100 PTS credited.`
+        ? `🚨 Checked in ${booking.user_name} (${booking.booking_code})! Guest has PRE-ORDERED ITEMS — please send order to Kitchen/Bar below.`
+        : `✅ Checked in ${booking.user_name} for ${booking.activity_name} [${booking.bay_assignment || 'Main Bay'}]! +100 Points added.`
     );
     setBookings(getStoredBookings());
   };
@@ -156,7 +156,7 @@ export function AdminBookings() {
     if (activeServiceBooking && activeServiceBooking.id === booking.id && updated) {
       setActiveServiceBooking(updated);
     }
-    setMessage(`🍽️ Kitchen/Bar order placed & add-ons issued for ${booking.user_name} (${booking.booking_code}).`);
+    setMessage(`🍽️ Kitchen/Bar order sent & equipment handed out for ${booking.user_name} (${booking.booking_code}).`);
     setBookings(getStoredBookings());
   };
 
@@ -183,7 +183,7 @@ export function AdminBookings() {
     }
     if (match.status === 'completed') {
       setActiveServiceBooking(match);
-      setMessage(`ℹ️ Booking ${match.booking_code} (${match.user_name}) is already checked in. Showing guest service details below.`);
+      setMessage(`ℹ️ Booking ${match.booking_code} (${match.user_name}) is already checked in. Showing guest details below.`);
       setQuickVerifyCode('');
       return;
     }
@@ -272,19 +272,19 @@ export function AdminBookings() {
 
   const getRelativeDateBadge = (dateStr: string) => {
     if (dateStr === todayStr) {
-      return { label: 'TODAY', color: '#10b981', bg: 'rgba(16, 185, 129, 0.18)', border: 'rgba(16, 185, 129, 0.4)' };
+      return { label: 'TODAY', color: '#047857', bg: '#d1fae5', border: '#6ee7b7' };
     }
     if (dateStr === tomorrowStr) {
-      return { label: 'TOMORROW', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.18)', border: 'rgba(56, 189, 248, 0.4)' };
+      return { label: 'TOMORROW', color: '#0369a1', bg: '#e0f2fe', border: '#7dd3fc' };
     }
     const diffDays = Math.ceil((new Date(dateStr).getTime() - new Date(todayStr).getTime()) / 86400000);
     if (diffDays > 1) {
-      return { label: `IN ${diffDays} DAYS`, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.16)', border: 'rgba(167, 139, 250, 0.35)' };
+      return { label: `IN ${diffDays} DAYS`, color: '#6d28d9', bg: '#ede9fe', border: '#c4b5fd' };
     }
     if (diffDays < 0) {
-      return { label: 'PAST DATE', color: '#64748b', bg: 'rgba(100, 116, 139, 0.16)', border: 'rgba(100, 116, 139, 0.3)' };
+      return { label: 'PAST DATE', color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' };
     }
-    return { label: dateStr, color: '#cbd5e1', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.15)' };
+    return { label: dateStr, color: '#334155', bg: '#f1f5f9', border: '#cbd5e1' };
   };
 
   const filteredBookings = bookings.filter((b) => {
@@ -313,8 +313,8 @@ export function AdminBookings() {
   const completedCount = bookings.filter((b) => b.status === 'completed').length;
   const payAtDeskCount = bookings.filter((b) => b.status === 'confirmed' && b.payment_status === 'pay_at_desk').length;
 
-  const getActivityIcon = (actId: string, size = 20) => {
-    const color = ACTIVITY_METADATA[actId]?.color || '#10b981';
+  const getActivityIcon = (actId: string, size = 18) => {
+    const color = ACTIVITY_METADATA[actId]?.color || '#047857';
     switch (actId) {
       case 'driving-range':
         return <Target size={size} style={{ color }} />;
@@ -336,27 +336,29 @@ export function AdminBookings() {
   const activeServiceAddons = activeServiceBooking ? parseBookingAddons(activeServiceBooking.notes) : null;
 
   return (
-    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
+    <div className="admin-page-container" style={{ color: '#0f172a', flex: 1 }}>
       {/* Back Button */}
-      <button
-        onClick={() => navigate('/admin')}
-        style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#cbd5e1',
-          padding: '8px 14px',
-          borderRadius: '999px',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          cursor: 'pointer',
-          marginBottom: '16px',
-        }}
-      >
-        <ArrowLeft size={15} /> Back to Staff Home
-      </button>
+      <div>
+        <button
+          onClick={() => navigate('/admin')}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#334155',
+            padding: '9px 16px',
+            borderRadius: '999px',
+            fontSize: '0.84rem',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Reception Desk
+        </button>
+      </div>
 
       {/* Top Header Banner */}
       <div
@@ -364,7 +366,6 @@ export function AdminBookings() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: '20px',
           gap: '12px',
           flexWrap: 'wrap',
         }}
@@ -372,9 +373,9 @@ export function AdminBookings() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h1
             style={{
-              fontSize: '1.5rem',
+              fontSize: '1.6rem',
               fontWeight: 800,
-              color: '#ffffff',
+              color: '#0f172a',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -382,10 +383,10 @@ export function AdminBookings() {
               marginBottom: '6px',
             }}
           >
-            <Calendar size={22} style={{ color: '#10b981', flexShrink: 0 }} /> Bookings & Schedule
+            <Calendar size={24} style={{ color: '#047857', flexShrink: 0 }} /> Bookings & Tee Sheet
           </h1>
-          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-            See who is playing today, check players in, and view pre-ordered food/drinks & equipment add-ons.
+          <p style={{ fontSize: '0.92rem', color: '#475569', lineHeight: 1.45 }}>
+            See who is playing today, check guests in when they arrive, or add a walk-in booking.
           </p>
         </div>
 
@@ -394,30 +395,29 @@ export function AdminBookings() {
           className="btn-primary"
           style={{
             width: 'auto',
-            minHeight: '44px',
-            padding: '10px 16px',
-            fontSize: '0.84rem',
+            minHeight: '48px',
+            padding: '10px 18px',
+            fontSize: '0.9rem',
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+            background: 'linear-gradient(135deg, #047857, #10b981)',
+            boxShadow: '0 4px 14px rgba(4, 120, 87, 0.25)',
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          <Plus size={16} /> Add Walk-In Booking
+          <Plus size={18} /> Add Walk-In Booking
         </button>
       </div>
 
       {message && (
         <div
           style={{
-            background: 'rgba(16, 185, 129, 0.15)',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
-            color: '#34d399',
-            padding: '12px 16px',
+            background: '#ecfdf5',
+            border: '1.5px solid #6ee7b7',
+            color: '#065f46',
+            padding: '14px 16px',
             borderRadius: '14px',
-            fontSize: '0.85rem',
-            marginBottom: '18px',
+            fontSize: '0.9rem',
             fontWeight: 700,
             display: 'flex',
             justifyContent: 'space-between',
@@ -429,71 +429,75 @@ export function AdminBookings() {
           <button
             type="button"
             onClick={() => setMessage('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 800 }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Spacious 4 Summary Cards (2x2 on mobile, 4 in 1 row on desktop) */}
-      <div className="admin-kpi-grid" style={{ marginBottom: '20px' }}>
+      {/* Spacious 4 Summary Cards (Tap to Filter) */}
+      <div className="admin-kpi-grid">
         <div
           onClick={() => setDateScope(dateScope === 'today' ? 'all' : 'today')}
           style={{
-            background: dateScope === 'today' ? 'rgba(56, 189, 248, 0.16)' : '#111827',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
+            background: dateScope === 'today' ? '#e0f2fe' : '#ffffff',
+            border: dateScope === 'today' ? '2px solid #0284c7' : '1px solid #e2e8f0',
             borderRadius: '16px',
             padding: '16px',
             cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: 700 }}>Today's Bookings</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>{todayTotal}</div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Tap to filter today</div>
+          <div style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: 800 }}>Today's Bookings</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>{todayTotal}</div>
+          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>Tap to show today only</div>
         </div>
 
         <div
           onClick={() => setStatusFilter(statusFilter === 'confirmed' ? 'all' : 'confirmed')}
           style={{
-            background: statusFilter === 'confirmed' ? 'rgba(16, 185, 129, 0.18)' : '#111827',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            background: statusFilter === 'confirmed' ? '#ecfdf5' : '#ffffff',
+            border: statusFilter === 'confirmed' ? '2px solid #047857' : '1px solid #e2e8f0',
             borderRadius: '16px',
             padding: '16px',
             cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ fontSize: '0.76rem', color: '#34d399', fontWeight: 700 }}>Waiting to Arrive</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#10b981', marginTop: '4px' }}>{awaitingArrivalCount}</div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Not checked in yet</div>
+          <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 800 }}>Waiting to Arrive</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#047857', marginTop: '4px' }}>{awaitingArrivalCount}</div>
+          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>Tap to filter waiting</div>
         </div>
 
         <div
           onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
           style={{
-            background: statusFilter === 'completed' ? 'rgba(167, 139, 250, 0.18)' : '#111827',
-            border: '1px solid rgba(167, 139, 250, 0.3)',
+            background: statusFilter === 'completed' ? '#f3e8ff' : '#ffffff',
+            border: statusFilter === 'completed' ? '2px solid #7e22ce' : '1px solid #e2e8f0',
             borderRadius: '16px',
             padding: '16px',
             cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ fontSize: '0.76rem', color: '#a78bfa', fontWeight: 700 }}>Already Checked In</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#a78bfa', marginTop: '4px' }}>{completedCount}</div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Completed sessions</div>
+          <div style={{ fontSize: '0.78rem', color: '#7e22ce', fontWeight: 800 }}>Already Checked In</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#7e22ce', marginTop: '4px' }}>{completedCount}</div>
+          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>Completed sessions</div>
         </div>
 
         <div
           style={{
-            background: '#111827',
-            border: '1px solid rgba(251, 191, 36, 0.3)',
+            background: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '16px',
             padding: '16px',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: 700 }}>Pay at Reception</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fbbf24', marginTop: '4px' }}>{payAtDeskCount}</div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Payment due on arrival</div>
+          <div style={{ fontSize: '0.78rem', color: '#b45309', fontWeight: 800 }}>Pay at Reception</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#d97706', marginTop: '4px' }}>{payAtDeskCount}</div>
+          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>Payment due on arrival</div>
         </div>
       </div>
 
@@ -501,49 +505,49 @@ export function AdminBookings() {
       <form
         onSubmit={handleQuickCodeCheckin}
         style={{
-          background: 'rgba(15, 23, 42, 0.9)',
-          border: '1px solid rgba(16, 185, 129, 0.28)',
-          borderRadius: '14px',
-          padding: '10px 12px',
-          marginBottom: '14px',
+          background: '#ffffff',
+          border: '1.5px solid #cbd5e1',
+          borderRadius: '16px',
+          padding: '10px 14px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '10px',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <QrCode size={18} color="#10b981" style={{ flexShrink: 0 }} />
+        <QrCode size={20} color="#047857" style={{ flexShrink: 0 }} />
         <input
           type="text"
           value={quickVerifyCode}
           onChange={(e) => setQuickVerifyCode(e.target.value)}
-          placeholder="Fast Check-in: Enter Booking Ref (e.g. PG-BK109283)..."
+          placeholder="Quick Check-In by Booking Code (e.g. PG-BK109283)..."
           style={{
             flex: 1,
             minWidth: 0,
             background: 'transparent',
             border: 'none',
-            color: '#ffffff',
-            fontSize: '0.82rem',
-            fontWeight: 600,
+            color: '#0f172a',
+            fontSize: '0.9rem',
+            fontWeight: 700,
             outline: 'none',
           }}
         />
         <button
           type="submit"
           style={{
-            background: '#10b981',
-            color: '#090d16',
+            background: '#047857',
+            color: '#ffffff',
             border: 'none',
-            borderRadius: '8px',
-            padding: '6px 12px',
-            fontSize: '0.74rem',
+            borderRadius: '10px',
+            padding: '9px 16px',
+            fontSize: '0.82rem',
             fontWeight: 800,
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          Verify & Check-In
+          Check In Now
         </button>
       </form>
 
@@ -551,20 +555,19 @@ export function AdminBookings() {
       {activeServiceBooking && (
         <div
           style={{
-            background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.14), rgba(15, 23, 42, 0.96))',
-            border: '2px solid rgba(16, 185, 129, 0.5)',
-            borderRadius: '18px',
-            padding: '18px',
-            marginBottom: '18px',
-            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.35)',
+            background: '#ffffff',
+            border: '2px solid #047857',
+            borderRadius: '20px',
+            padding: '20px',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 900, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                ✓ Reception Guest Service Sheet • {activeServiceBooking.booking_code}
+              <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                ✓ Guest Checked In • {activeServiceBooking.booking_code}
               </div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#ffffff', margin: '4px 0 0 0' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '4px 0 0 0' }}>
                 {activeServiceBooking.activity_name}
               </h3>
             </div>
@@ -572,12 +575,12 @@ export function AdminBookings() {
               type="button"
               onClick={() => setActiveServiceBooking(null)}
               style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#cbd5e1',
-                borderRadius: '8px',
-                padding: '4px 10px',
-                fontSize: '0.75rem',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                color: '#334155',
+                borderRadius: '10px',
+                padding: '6px 12px',
+                fontSize: '0.8rem',
                 fontWeight: 800,
                 cursor: 'pointer',
               }}
@@ -590,52 +593,48 @@ export function AdminBookings() {
           {activeServiceAddons && activeServiceAddons.hasAnyAddons && (
             <div
               style={{
-                background: activeServiceBooking.kitchen_order_placed
-                  ? 'rgba(16, 185, 129, 0.16)'
-                  : 'linear-gradient(145deg, rgba(245, 158, 11, 0.24), rgba(220, 38, 38, 0.18))',
-                border: activeServiceBooking.kitchen_order_placed
-                  ? '2px solid #10b981'
-                  : '2px solid #f59e0b',
+                background: activeServiceBooking.kitchen_order_placed ? '#ecfdf5' : '#fffbeb',
+                border: activeServiceBooking.kitchen_order_placed ? '2px solid #10b981' : '2px solid #f59e0b',
                 borderRadius: '14px',
-                padding: '14px',
+                padding: '16px',
                 marginBottom: '14px',
               }}
             >
               <div
                 style={{
-                  fontSize: '0.74rem',
+                  fontSize: '0.78rem',
                   fontWeight: 900,
-                  color: activeServiceBooking.kitchen_order_placed ? '#34d399' : '#fbbf24',
+                  color: activeServiceBooking.kitchen_order_placed ? '#065f46' : '#b45309',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  marginBottom: '8px',
+                  marginBottom: '10px',
                 }}
               >
-                <BellRing size={15} />
+                <BellRing size={16} />
                 {activeServiceBooking.kitchen_order_placed
-                  ? '✓ Kitchen / Bar Order Placed & Add-Ons Issued'
-                  : '🚨 Staff Action Required — Guest Has Arrived: Place Pre-Order Now!'}
+                  ? '✓ Kitchen / Bar Order Sent & Add-Ons Issued'
+                  : '🚨 Staff To-Do — Guest Has Pre-Ordered Food/Equipment:'}
               </div>
 
               {activeServiceAddons.hasFoodPreOrders && (
                 <div style={{ marginBottom: '10px' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#fde68a', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Utensils size={13} /> Pre-Ordered Food & Drinks (Send to Kitchen / Bar):
+                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#92400e', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Utensils size={14} /> Send to Kitchen / Bar:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {activeServiceAddons.foodPreOrders.map((item, idx) => (
                       <span
                         key={idx}
                         style={{
-                          background: 'rgba(9, 13, 22, 0.85)',
-                          border: '1px solid rgba(245, 158, 11, 0.5)',
-                          color: '#ffffff',
-                          padding: '6px 10px',
+                          background: '#ffffff',
+                          border: '1px solid #f59e0b',
+                          color: '#0f172a',
+                          padding: '6px 12px',
                           borderRadius: '8px',
-                          fontSize: '0.82rem',
+                          fontSize: '0.86rem',
                           fontWeight: 800,
                         }}
                       >
@@ -647,21 +646,21 @@ export function AdminBookings() {
               )}
 
               {activeServiceAddons.hasEquipmentAddons && (
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <PackageCheck size={13} /> Equipment Add-Ons to Hand Over:
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0369a1', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <PackageCheck size={14} /> Equipment to Hand Over:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {activeServiceAddons.equipmentAddons.map((addon, idx) => (
                       <span
                         key={idx}
                         style={{
-                          background: 'rgba(9, 13, 22, 0.85)',
-                          border: '1px solid rgba(56, 189, 248, 0.45)',
-                          color: '#e0f2fe',
-                          padding: '6px 10px',
+                          background: '#ffffff',
+                          border: '1px solid #38bdf8',
+                          color: '#0369a1',
+                          padding: '6px 12px',
                           borderRadius: '8px',
-                          fontSize: '0.82rem',
+                          fontSize: '0.86rem',
                           fontWeight: 800,
                         }}
                       >
@@ -678,12 +677,12 @@ export function AdminBookings() {
                   onClick={() => handleMarkKitchenOrdered(activeServiceBooking)}
                   style={{
                     width: '100%',
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     borderRadius: '10px',
                     border: 'none',
-                    background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                    background: 'linear-gradient(135deg, #d97706, #ea580c)',
                     color: '#ffffff',
-                    fontSize: '0.82rem',
+                    fontSize: '0.88rem',
                     fontWeight: 900,
                     cursor: 'pointer',
                     display: 'flex',
@@ -692,7 +691,7 @@ export function AdminBookings() {
                     gap: '6px',
                   }}
                 >
-                  <CheckCheck size={16} /> Confirm Kitchen/Bar Order Placed & Add-Ons Issued
+                  <CheckCheck size={16} /> Confirm Kitchen/Bar Order Sent & Add-Ons Handed Out
                 </button>
               )}
             </div>
@@ -700,53 +699,53 @@ export function AdminBookings() {
 
           <div
             style={{
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
               borderRadius: '12px',
               padding: '12px 14px',
               marginBottom: '12px',
             }}
           >
-            <div style={{ fontSize: '0.68rem', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#0369a1', textTransform: 'uppercase', marginBottom: '4px' }}>
               How to Serve This Guest
             </div>
-            <div style={{ fontSize: '0.84rem', color: '#f8fafc', fontWeight: 600, lineHeight: 1.45 }}>
+            <div style={{ fontSize: '0.88rem', color: '#0f172a', fontWeight: 600, lineHeight: 1.45 }}>
               {ACTIVITY_METADATA[activeServiceBooking.activity_id]?.serviceInstructions ||
                 'Verify guest name, assign bay/lane, and provide required equipment at reception.'}
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Guest & Member ID</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{activeServiceBooking.user_name}</div>
-              <div style={{ fontSize: '0.74rem', color: '#34d399', fontFamily: 'monospace', fontWeight: 700 }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Guest & Member ID</div>
+              <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>{activeServiceBooking.user_name}</div>
+              <div style={{ fontSize: '0.78rem', color: '#047857', fontFamily: 'monospace', fontWeight: 700 }}>
                 {activeServiceBooking.user_member_id} ({activeServiceBooking.member_tier || 'Silver'})
               </div>
             </div>
 
-            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Assigned Bay / Spot</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Assigned Bay / Spot</div>
+              <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0369a1', marginTop: '2px' }}>
                 {activeServiceBooking.bay_assignment || 'Assign at Desk'}
               </div>
-              <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
                 {activeServiceBooking.date} at {activeServiceBooking.time} ({activeServiceBooking.duration || '60 mins'})
               </div>
             </div>
 
-            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Party Size</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Party Size</div>
+              <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
                 {activeServiceBooking.party_size || 2} Players
               </div>
             </div>
 
-            <div style={{ background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Payment & Total</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Payment & Total</div>
+              <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#047857', marginTop: '2px' }}>
                 {activeServiceBooking.price || '£25.00'} •{' '}
-                <span style={{ color: activeServiceBooking.payment_status === 'pay_at_desk' ? '#fbbf24' : '#34d399' }}>
+                <span style={{ color: activeServiceBooking.payment_status === 'pay_at_desk' ? '#d97706' : '#047857' }}>
                   {activeServiceBooking.payment_status === 'pay_at_desk' ? 'COLLECT AT DESK' : 'PAID'}
                 </span>
               </div>
@@ -756,13 +755,13 @@ export function AdminBookings() {
                   onClick={() => handleMarkPaid(activeServiceBooking)}
                   style={{
                     marginTop: '6px',
-                    background: '#f59e0b',
-                    color: '#090d16',
+                    background: '#d97706',
+                    color: '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
-                    padding: '4px 8px',
-                    fontSize: '0.7rem',
-                    fontWeight: 900,
+                    padding: '5px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
                     cursor: 'pointer',
                   }}
                 >
@@ -771,215 +770,237 @@ export function AdminBookings() {
               )}
             </div>
           </div>
-
-          {activeServiceBooking.notes && (
-            <div style={{ marginTop: '10px', background: 'rgba(9, 13, 22, 0.75)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem', color: '#e2e8f0' }}>
-              <strong style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '0.68rem', marginRight: '6px' }}>
-                Extras & Notes:
-              </strong>
-              {activeServiceBooking.notes}
-            </div>
-          )}
         </div>
       )}
 
-      {/* Date Horizon + View Mode Switcher */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            background: 'rgba(15, 23, 42, 0.85)',
-            padding: '3px',
-            borderRadius: '11px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            gap: '2px',
-          }}
-        >
-          {(
-            [
-              { id: 'all', label: 'All Dates' },
-              { id: 'today', label: 'Today' },
-              { id: 'tomorrow', label: 'Tomorrow' },
-              { id: 'upcoming', label: 'Upcoming' },
-            ] as const
-          ).map((d) => (
+      {/* Filter & View Controls */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '18px',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        {/* Date Horizon + View Mode Switcher */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              background: '#f1f5f9',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              gap: '4px',
+            }}
+          >
+            {(
+              [
+                { id: 'all', label: 'All Dates' },
+                { id: 'today', label: 'Today' },
+                { id: 'tomorrow', label: 'Tomorrow' },
+                { id: 'upcoming', label: 'Upcoming' },
+              ] as const
+            ).map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setDateScope(d.id)}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: dateScope === d.id ? '#047857' : 'transparent',
+                  color: dateScope === d.id ? '#ffffff' : '#475569',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Toggle: Detailed Cards vs Tee-Sheet Timeline */}
+          <div
+            style={{
+              display: 'flex',
+              background: '#f1f5f9',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              gap: '4px',
+              flexShrink: 0,
+            }}
+          >
             <button
-              key={d.id}
               type="button"
-              onClick={() => setDateScope(d.id)}
+              onClick={() => setViewMode('cards')}
+              title="Booking Cards"
               style={{
-                flex: 1,
-                padding: '6px 6px',
+                padding: '7px 12px',
                 borderRadius: '8px',
                 border: 'none',
-                background: dateScope === d.id ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-                color: dateScope === d.id ? '#38bdf8' : '#94a3b8',
-                fontSize: '0.72rem',
-                fontWeight: 800,
+                background: viewMode === 'cards' ? '#ffffff' : 'transparent',
+                color: viewMode === 'cards' ? '#047857' : '#64748b',
+                boxShadow: viewMode === 'cards' ? 'var(--shadow-sm)' : 'none',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-
-        {/* View Mode Toggle: Detailed Cards vs Tee-Sheet Timeline */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'rgba(15, 23, 42, 0.85)',
-            padding: '3px',
-            borderRadius: '11px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            gap: '2px',
-            flexShrink: 0,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setViewMode('cards')}
-            title="Detailed Booking Cards"
-            style={{
-              padding: '6px 9px',
-              borderRadius: '8px',
-              border: 'none',
-              background: viewMode === 'cards' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-              color: viewMode === 'cards' ? '#10b981' : '#64748b',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <LayoutGrid size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('timeline')}
-            title="Chronological Tee-Sheet Schedule"
-            style={{
-              padding: '6px 9px',
-              borderRadius: '8px',
-              border: 'none',
-              background: viewMode === 'timeline' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-              color: viewMode === 'timeline' ? '#10b981' : '#64748b',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <List size={15} />
-          </button>
-        </div>
-      </div>
-
-      {/* Activity Type Filter Chips */}
-      <div className="hide-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '12px' }}>
-        <button
-          type="button"
-          onClick={() => setActivityFilter('All')}
-          style={{
-            padding: '6px 12px',
-            borderRadius: '999px',
-            fontSize: '0.72rem',
-            fontWeight: 800,
-            border: activityFilter === 'All' ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-            background: activityFilter === 'All' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.7)',
-            color: activityFilter === 'All' ? '#10b981' : '#94a3b8',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          All Activities ({bookings.length})
-        </button>
-
-        {Object.entries(ACTIVITY_METADATA).map(([actId, meta]) => {
-          const isSelected = activityFilter === actId;
-          const count = bookings.filter((b) => b.activity_id === actId).length;
-          return (
-            <button
-              key={actId}
-              type="button"
-              onClick={() => setActivityFilter(actId)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '999px',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                border: isSelected ? `1px solid ${meta.color}` : '1px solid rgba(255,255,255,0.1)',
-                background: isSelected ? meta.bgTint : 'rgba(15, 23, 42, 0.7)',
-                color: isSelected ? meta.color : '#cbd5e1',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
+                fontSize: '0.76rem',
+                fontWeight: 800,
               }}
             >
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: meta.color }} />
-              {meta.shortTag} ({count})
+              <LayoutGrid size={15} /> Cards
             </button>
-          );
-        })}
-      </div>
-
-      {/* Search & Status Filter Bar */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ position: 'relative', width: '100%' }}>
-          <Search size={17} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search member name, ID, booking ref, bay or notes..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              paddingLeft: '40px',
-              background: 'rgba(15, 23, 42, 0.9)',
-              border: '1px solid rgba(255, 255, 255, 0.14)',
-              color: '#ffffff',
-              marginBottom: 0,
-              minHeight: '44px',
-            }}
-          />
-        </div>
-
-        {/* Status Filter Tabs */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'rgba(15, 23, 42, 0.85)',
-            padding: '4px',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            gap: '2px',
-          }}
-        >
-          {(['all', 'confirmed', 'completed', 'cancelled', 'no-show'] as const).map((st) => (
             <button
-              key={st}
               type="button"
-              onClick={() => setStatusFilter(st)}
+              onClick={() => setViewMode('timeline')}
+              title="Time Schedule"
               style={{
-                flex: 1,
-                minHeight: '34px',
-                padding: '5px 4px',
+                padding: '7px 12px',
                 borderRadius: '8px',
                 border: 'none',
-                background: statusFilter === st ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                color: statusFilter === st ? '#10b981' : '#94a3b8',
-                fontSize: '0.7rem',
-                fontWeight: 800,
+                background: viewMode === 'timeline' ? '#ffffff' : 'transparent',
+                color: viewMode === 'timeline' ? '#047857' : '#64748b',
+                boxShadow: viewMode === 'timeline' ? 'var(--shadow-sm)' : 'none',
                 cursor: 'pointer',
-                textTransform: 'capitalize',
-                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '0.76rem',
+                fontWeight: 800,
               }}
             >
-              {st === 'confirmed' ? 'Awaiting' : st}
+              <List size={15} /> Schedule
             </button>
-          ))}
+          </div>
+        </div>
+
+        {/* Activity Type Filter Chips */}
+        <div className="hide-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+          <button
+            type="button"
+            onClick={() => setActivityFilter('All')}
+            style={{
+              padding: '7px 14px',
+              borderRadius: '999px',
+              fontSize: '0.76rem',
+              fontWeight: 800,
+              border: activityFilter === 'All' ? '1.5px solid #047857' : '1px solid #cbd5e1',
+              background: activityFilter === 'All' ? '#ecfdf5' : '#f8fafc',
+              color: activityFilter === 'All' ? '#047857' : '#475569',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            All Activities ({bookings.length})
+          </button>
+
+          {Object.entries(ACTIVITY_METADATA).map(([actId, meta]) => {
+            const isSelected = activityFilter === actId;
+            const count = bookings.filter((b) => b.activity_id === actId).length;
+            return (
+              <button
+                key={actId}
+                type="button"
+                onClick={() => setActivityFilter(actId)}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: '999px',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  border: isSelected ? '1.5px solid #047857' : '1px solid #cbd5e1',
+                  background: isSelected ? '#ecfdf5' : '#f8fafc',
+                  color: isSelected ? '#047857' : '#475569',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: meta.color }} />
+                {meta.shortTag} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search & Status Filter Bar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search guest name, Member ID, booking code, or bay..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                paddingLeft: '42px',
+                background: '#f8fafc',
+                border: '1.5px solid #cbd5e1',
+                color: '#0f172a',
+                marginBottom: 0,
+                minHeight: '46px',
+                fontWeight: 600,
+              }}
+            />
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              background: '#f1f5f9',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              gap: '4px',
+            }}
+          >
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'confirmed', label: 'Waiting to Arrive' },
+                { id: 'completed', label: 'Checked In' },
+                { id: 'cancelled', label: 'Cancelled' },
+                { id: 'no-show', label: 'No-Show' },
+              ] as const
+            ).map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => setStatusFilter(st.id)}
+                style={{
+                  flex: 1,
+                  minHeight: '36px',
+                  padding: '6px 8px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: statusFilter === st.id ? '#ffffff' : 'transparent',
+                  color: statusFilter === st.id ? '#047857' : '#475569',
+                  boxShadow: statusFilter === st.id ? 'var(--shadow-sm)' : 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -987,19 +1008,19 @@ export function AdminBookings() {
       {viewMode === 'timeline' ? (
         <div
           style={{
-            background: 'rgba(15, 23, 42, 0.88)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
             borderRadius: '18px',
-            padding: '16px',
-            marginBottom: '16px',
+            padding: '18px',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={17} color="#10b981" /> Daily Tee-Sheet & Bay Schedule
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={18} color="#047857" /> Daily Tee-Sheet & Bay Schedule
             </h3>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>
-              {filteredBookings.length} Reservations Shown
+            <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
+              {filteredBookings.length} Bookings Shown
             </span>
           </div>
 
@@ -1013,20 +1034,20 @@ export function AdminBookings() {
                     display: 'flex',
                     gap: '12px',
                     alignItems: 'flex-start',
-                    padding: '10px',
+                    padding: '12px',
                     borderRadius: '12px',
-                    background: slotBookings.length > 0 ? 'rgba(9, 13, 22, 0.75)' : 'rgba(9, 13, 22, 0.3)',
-                    border: slotBookings.length > 0 ? '1px solid rgba(255,255,255,0.1)' : '1px dashed rgba(255,255,255,0.06)',
+                    background: slotBookings.length > 0 ? '#f8fafc' : '#ffffff',
+                    border: slotBookings.length > 0 ? '1px solid #cbd5e1' : '1px dashed #e2e8f0',
                   }}
                 >
                   <div
                     style={{
-                      width: '54px',
+                      width: '56px',
                       flexShrink: 0,
                       fontFamily: 'monospace',
-                      fontSize: '0.82rem',
+                      fontSize: '0.9rem',
                       fontWeight: 900,
-                      color: slotBookings.length > 0 ? '#10b981' : '#64748b',
+                      color: slotBookings.length > 0 ? '#047857' : '#94a3b8',
                       paddingTop: '2px',
                     }}
                   >
@@ -1034,8 +1055,8 @@ export function AdminBookings() {
                   </div>
 
                   {slotBookings.length === 0 ? (
-                    <div style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 600, paddingTop: '2px' }}>
-                      Open Slot — Available for walk-in
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, paddingTop: '2px' }}>
+                      Open Time Slot — Free for walk-ins
                     </div>
                   ) : (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
@@ -1045,9 +1066,10 @@ export function AdminBookings() {
                           <div
                             key={bk.id}
                             style={{
-                              borderLeft: `3px solid ${meta?.color || '#10b981'}`,
-                              background: 'rgba(15, 23, 42, 0.9)',
-                              padding: '8px 10px',
+                              borderLeft: `4px solid ${meta?.color || '#047857'}`,
+                              background: '#ffffff',
+                              border: '1px solid #e2e8f0',
+                              padding: '10px 12px',
                               borderRadius: '0 10px 10px 0',
                               display: 'flex',
                               justifyContent: 'space-between',
@@ -1057,16 +1079,16 @@ export function AdminBookings() {
                           >
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.62rem', fontWeight: 900, color: meta?.color || '#10b981' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#047857' }}>
                                   {meta?.shortTag || bk.activity_name}
                                 </span>
-                                <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>• {bk.bay_assignment}</span>
-                                <span style={{ fontSize: '0.62rem', color: '#cbd5e1', fontFamily: 'monospace' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 700 }}>• {bk.bay_assignment}</span>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontFamily: 'monospace' }}>
                                   ({bk.date})
                                 </span>
                               </div>
-                              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
-                                {bk.user_name} ({bk.party_size || 2} Pax) — <span style={{ color: '#34d399' }}>{bk.price}</span>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                                {bk.user_name} ({bk.party_size || 2} Players) — <span style={{ color: '#047857' }}>{bk.price}</span>
                               </div>
                             </div>
 
@@ -1075,13 +1097,13 @@ export function AdminBookings() {
                                 type="button"
                                 onClick={() => handleCheckin(bk)}
                                 style={{
-                                  background: '#10b981',
-                                  color: '#090d16',
+                                  background: '#047857',
+                                  color: '#ffffff',
                                   border: 'none',
                                   borderRadius: '8px',
-                                  padding: '6px 10px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 900,
+                                  padding: '8px 14px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 800,
                                   cursor: 'pointer',
                                   flexShrink: 0,
                                 }}
@@ -1089,8 +1111,8 @@ export function AdminBookings() {
                                 Check In
                               </button>
                             ) : (
-                              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase' }}>
-                                {bk.status}
+                              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase' }}>
+                                {bk.status === 'completed' ? '✓ Checked In' : bk.status}
                               </span>
                             )}
                           </div>
@@ -1104,20 +1126,21 @@ export function AdminBookings() {
           </div>
         </div>
       ) : (
-        /* ULTRA-CLEAR BOOKING CARDS LIST */
-        <div className="admin-cards-grid" style={{ marginBottom: '24px' }}>
+        /* ULTRA-CLEAR BOOKING CARDS LIST (CLEAN LIGHT MODE) */
+        <div className="admin-cards-grid">
           {filteredBookings.length === 0 ? (
             <div
               style={{
-                background: 'rgba(15, 23, 42, 0.85)',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
                 borderRadius: '16px',
-                padding: '32px 16px',
+                padding: '36px 16px',
                 textAlign: 'center',
                 color: '#64748b',
-                fontSize: '0.84rem',
+                fontSize: '0.92rem',
               }}
             >
-              No bookings found matching your current filter criteria.
+              No bookings match your current filter.
             </div>
           ) : (
             filteredBookings.map((b) => {
@@ -1128,8 +1151,8 @@ export function AdminBookings() {
                 defaultDuration: '60 mins',
                 defaultBay: 'Main Facility',
                 defaultPrice: '£25.00',
-                color: '#10b981',
-                bgTint: 'rgba(16, 185, 129, 0.14)',
+                color: '#047857',
+                bgTint: '#ecfdf5',
               };
               const dateBadge = getRelativeDateBadge(b.date);
               const cardAddons = parseBookingAddons(b.notes);
@@ -1138,52 +1161,29 @@ export function AdminBookings() {
                 <div
                   key={b.id}
                   style={{
-                    background: 'rgba(15, 23, 42, 0.9)',
-                    border:
-                      b.status === 'confirmed'
-                        ? `1px solid ${meta.color}55`
-                        : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
                     borderLeft: `5px solid ${meta.color}`,
-                    borderRadius: '16px',
-                    padding: '15px',
+                    borderRadius: '18px',
+                    padding: '18px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                    gap: '14px',
+                    boxShadow: 'var(--shadow-sm)',
                   }}
                 >
                   {/* Top Category Strip */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      {/* Prominent Activity Type Pill */}
-                      <span
-                        style={{
-                          background: meta.bgTint,
-                          color: meta.color,
-                          border: `1px solid ${meta.color}44`,
-                          padding: '3px 9px',
-                          borderRadius: '7px',
-                          fontSize: '0.66rem',
-                          fontWeight: 900,
-                          letterSpacing: '0.05em',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                        }}
-                      >
-                        {getActivityIcon(b.activity_id, 13)}
-                        {meta.shortTag}
-                      </span>
-
                       {/* Relative Date Badge */}
                       <span
                         style={{
                           background: dateBadge.bg,
                           color: dateBadge.color,
                           border: `1px solid ${dateBadge.border}`,
-                          padding: '3px 8px',
+                          padding: '3px 9px',
                           borderRadius: '7px',
-                          fontSize: '0.64rem',
+                          fontSize: '0.7rem',
                           fontWeight: 900,
                           letterSpacing: '0.04em',
                         }}
@@ -1195,11 +1195,11 @@ export function AdminBookings() {
                       <span
                         style={{
                           fontFamily: 'monospace',
-                          fontSize: '0.7rem',
+                          fontSize: '0.76rem',
                           fontWeight: 800,
-                          color: '#cbd5e1',
-                          background: 'rgba(255, 255, 255, 0.07)',
-                          padding: '2px 7px',
+                          color: '#334155',
+                          background: '#f1f5f9',
+                          padding: '3px 8px',
                           borderRadius: '6px',
                         }}
                       >
@@ -1210,22 +1210,20 @@ export function AdminBookings() {
                       {cardAddons.hasAnyAddons && (
                         <span
                           style={{
-                            background: b.kitchen_order_placed ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.22)',
-                            color: b.kitchen_order_placed ? '#34d399' : '#fbbf24',
-                            border: b.kitchen_order_placed
-                              ? '1px solid rgba(16, 185, 129, 0.45)'
-                              : '1px solid rgba(245, 158, 11, 0.5)',
-                            padding: '2px 8px',
+                            background: b.kitchen_order_placed ? '#d1fae5' : '#fef3c7',
+                            color: b.kitchen_order_placed ? '#065f46' : '#b45309',
+                            border: b.kitchen_order_placed ? '1px solid #6ee7b7' : '1px solid #fcd34d',
+                            padding: '3px 8px',
                             borderRadius: '6px',
-                            fontSize: '0.64rem',
+                            fontSize: '0.68rem',
                             fontWeight: 900,
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
                           }}
                         >
-                          <Utensils size={11} />
-                          {b.kitchen_order_placed ? 'PRE-ORDER SENT ✓' : 'HAS PRE-ORDER / ADD-ONS'}
+                          <Utensils size={12} />
+                          {b.kitchen_order_placed ? 'PRE-ORDER SENT ✓' : 'PRE-ORDER ITEMS'}
                         </span>
                       )}
                     </div>
@@ -1233,76 +1231,52 @@ export function AdminBookings() {
                     {/* Booking Status Pill */}
                     <span
                       style={{
-                        fontSize: '0.66rem',
+                        fontSize: '0.72rem',
                         fontWeight: 900,
-                        padding: '3px 9px',
+                        padding: '4px 10px',
                         borderRadius: '9999px',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
+                        letterSpacing: '0.03em',
                         whiteSpace: 'nowrap',
                         background:
                           b.status === 'confirmed'
-                            ? 'rgba(16, 185, 129, 0.16)'
+                            ? '#ecfdf5'
                             : b.status === 'completed'
-                            ? 'rgba(56, 189, 248, 0.16)'
+                            ? '#e0f2fe'
                             : b.status === 'no-show'
-                            ? 'rgba(245, 158, 11, 0.18)'
-                            : 'rgba(239, 68, 68, 0.16)',
+                            ? '#fef3c7'
+                            : '#fef2f2',
                         color:
                           b.status === 'confirmed'
-                            ? '#10b981'
+                            ? '#047857'
                             : b.status === 'completed'
-                            ? '#38bdf8'
+                            ? '#0369a1'
                             : b.status === 'no-show'
-                            ? '#fbbf24'
-                            : '#f87171',
+                            ? '#b45309'
+                            : '#b91c1c',
                         border:
                           b.status === 'confirmed'
-                            ? '1px solid rgba(16, 185, 129, 0.35)'
+                            ? '1px solid #a7f3d0'
                             : b.status === 'completed'
-                            ? '1px solid rgba(56, 189, 248, 0.35)'
+                            ? '1px solid #bae6fd'
                             : b.status === 'no-show'
-                            ? '1px solid rgba(245, 158, 11, 0.35)'
-                            : '1px solid rgba(239, 68, 68, 0.35)',
+                            ? '1px solid #fde68a'
+                            : '1px solid #fecaca',
                       }}
                     >
-                      {b.status === 'confirmed' ? '● Confirmed' : b.status === 'completed' ? '✓ Checked In' : b.status}
+                      {b.status === 'confirmed' ? '● Waiting' : b.status === 'completed' ? '✓ Checked In' : b.status}
                     </span>
                   </div>
 
-                  {/* Main Title & Member Profile Row */}
+                  {/* Main Title & Guest Profile Row */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <h4 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#ffffff', margin: '0 0 4px 0', lineHeight: 1.25 }}>
-                        {b.activity_name}
-                      </h4>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '0.8rem' }}>
-                        <span style={{ color: '#f8fafc', fontWeight: 800 }}>{b.user_name}</span>
-                        <span style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: '0.74rem' }}>
-                          ({b.user_member_id})
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '0.62rem',
-                            fontWeight: 800,
-                            padding: '1px 7px',
-                            borderRadius: '999px',
-                            background:
-                              b.member_tier === 'Platinum'
-                                ? 'rgba(16, 185, 129, 0.2)'
-                                : b.member_tier === 'Gold'
-                                ? 'rgba(251, 191, 36, 0.2)'
-                                : 'rgba(148, 163, 184, 0.2)',
-                            color:
-                              b.member_tier === 'Platinum'
-                                ? '#34d399'
-                                : b.member_tier === 'Gold'
-                                ? '#fbbf24'
-                                : '#cbd5e1',
-                          }}
-                        >
-                          {b.member_tier || 'Silver'} Tier
-                        </span>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginBottom: '2px' }}>
+                        {b.user_name}
+                      </div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#047857', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {getActivityIcon(b.activity_id, 15)}
+                        <span>{b.activity_name}</span>
                       </div>
                     </div>
 
@@ -1311,12 +1285,12 @@ export function AdminBookings() {
                       onClick={() => setPassModalBooking(b)}
                       title="Show QR Pass"
                       style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        color: '#cbd5e1',
+                        background: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        color: '#334155',
                         borderRadius: '10px',
-                        padding: '7px 10px',
-                        fontSize: '0.7rem',
+                        padding: '7px 11px',
+                        fontSize: '0.76rem',
                         fontWeight: 700,
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1325,102 +1299,67 @@ export function AdminBookings() {
                         flexShrink: 0,
                       }}
                     >
-                      <QrCode size={14} color={meta.color} /> Pass
+                      <QrCode size={15} color="#047857" /> QR Pass
                     </button>
                   </div>
 
-                  {/* Structured 4-Box Operational Grid */}
+                  {/* Clean 2x2 Key Info Grid */}
                   <div
                     style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '8px',
-                      background: 'rgba(9, 13, 22, 0.65)',
-                      padding: '10px 12px',
+                      gap: '10px',
+                      background: '#f8fafc',
+                      padding: '12px',
                       borderRadius: '12px',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      border: '1px solid #e2e8f0',
                     }}
                   >
-                    {/* 1. Date & Time Slot */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Clock size={15} color={meta.color} style={{ flexShrink: 0 }} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Date & Tee Time
-                        </div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap' }}>
-                          {b.date} @ <span style={{ color: meta.color }}>{b.time}</span>
-                        </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                        Date & Time
+                      </div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                        {b.time} <span style={{ color: '#64748b', fontWeight: 600 }}>({b.date})</span>
                       </div>
                     </div>
 
-                    {/* 2. Party Size & Duration */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Users size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Players & Duration
-                        </div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap' }}>
-                          {b.party_size || 2} {b.party_size === 1 ? 'Player' : 'Players'} &bull; {b.duration || '60 mins'}
-                        </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                        Bay / Location
+                      </div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0369a1', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {b.bay_assignment || meta.defaultBay}
                       </div>
                     </div>
 
-                    {/* 3. Assigned Facility / Bay / Tee */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <MapPin size={15} color="#a78bfa" style={{ flexShrink: 0 }} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Assigned Location
-                        </div>
-                        <div
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                        Players
+                      </div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                        {b.party_size || 2} {b.party_size === 1 ? 'Player' : 'Players'} ({b.duration || '60m'})
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                        Payment
+                      </div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        <span style={{ color: '#0f172a' }}>{b.price || meta.defaultPrice}</span>
+                        <span
                           style={{
-                            fontSize: '0.76rem',
-                            fontWeight: 800,
-                            color: '#e2e8f0',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            fontSize: '0.68rem',
+                            padding: '2px 6px',
+                            borderRadius: '5px',
+                            background: b.payment_status === 'pay_at_desk' ? '#fef3c7' : '#d1fae5',
+                            color: b.payment_status === 'pay_at_desk' ? '#b45309' : '#065f46',
+                            fontWeight: 900,
                           }}
                         >
-                          {b.bay_assignment || meta.defaultBay}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 4. Payment & Tariff Status */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CreditCard
-                        size={15}
-                        color={b.payment_status === 'pay_at_desk' ? '#fbbf24' : '#10b981'}
-                        style={{ flexShrink: 0 }}
-                      />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Tariff & Payment
-                        </div>
-                        <div style={{ fontSize: '0.76rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <span style={{ color: '#ffffff' }}>{b.price || meta.defaultPrice}</span>
-                          <span
-                            style={{
-                              fontSize: '0.62rem',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              background:
-                                b.payment_status === 'pay_at_desk'
-                                  ? 'rgba(251, 191, 36, 0.2)'
-                                  : 'rgba(16, 185, 129, 0.2)',
-                              color: b.payment_status === 'pay_at_desk' ? '#fbbf24' : '#34d399',
-                            }}
-                          >
-                            {b.payment_status === 'pay_at_desk'
-                              ? 'COLLECT @ DESK'
-                              : b.payment_status === 'comp'
-                              ? 'VIP COMP'
-                              : 'PRE-PAID'}
-                          </span>
-                        </div>
+                          {b.payment_status === 'pay_at_desk' ? 'PAY AT DESK' : 'PAID'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1429,13 +1368,9 @@ export function AdminBookings() {
                   {cardAddons.hasAnyAddons ? (
                     <div
                       style={{
-                        background: b.kitchen_order_placed
-                          ? 'rgba(16, 185, 129, 0.1)'
-                          : 'linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(234, 88, 12, 0.12))',
-                        border: b.kitchen_order_placed
-                          ? '1px solid rgba(16, 185, 129, 0.35)'
-                          : '1px solid rgba(245, 158, 11, 0.45)',
-                        padding: '10px 12px',
+                        background: b.kitchen_order_placed ? '#ecfdf5' : '#fffbeb',
+                        border: b.kitchen_order_placed ? '1px solid #6ee7b7' : '1.5px solid #f59e0b',
+                        padding: '12px',
                         borderRadius: '12px',
                         display: 'flex',
                         flexDirection: 'column',
@@ -1444,11 +1379,10 @@ export function AdminBookings() {
                     >
                       <div
                         style={{
-                          fontSize: '0.7rem',
+                          fontSize: '0.74rem',
                           fontWeight: 900,
-                          color: b.kitchen_order_placed ? '#34d399' : '#fbbf24',
+                          color: b.kitchen_order_placed ? '#065f46' : '#b45309',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
@@ -1456,39 +1390,37 @@ export function AdminBookings() {
                         }}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                          <Utensils size={13} />
-                          {b.kitchen_order_placed
-                            ? '✓ Pre-Ordered Items Sent to Kitchen/Bar'
-                            : '🚨 Place Order on Arrival — Pre-Ordered Add-Ons:'}
+                          <Utensils size={14} />
+                          {b.kitchen_order_placed ? '✓ Kitchen Order Sent' : '🚨 Pre-Ordered Items:'}
                         </span>
                         {!b.kitchen_order_placed && (
                           <button
                             type="button"
                             onClick={() => handleMarkKitchenOrdered(b)}
                             style={{
-                              background: '#f59e0b',
-                              color: '#090d16',
+                              background: '#d97706',
+                              color: '#ffffff',
                               border: 'none',
                               borderRadius: '6px',
-                              padding: '3px 8px',
-                              fontSize: '0.66rem',
-                              fontWeight: 900,
+                              padding: '4px 10px',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
                               cursor: 'pointer',
                             }}
                           >
-                            Mark Ordered ✓
+                            Mark Sent ✓
                           </button>
                         )}
                       </div>
 
                       {cardAddons.hasFoodPreOrders && (
-                        <div style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: 700 }}>
-                          🍽️ <strong style={{ color: '#fde68a' }}>Food/Drinks:</strong> {cardAddons.foodPreOrders.join(' • ')}
+                        <div style={{ fontSize: '0.82rem', color: '#0f172a', fontWeight: 700 }}>
+                          🍽️ <strong>Food/Drinks:</strong> {cardAddons.foodPreOrders.join(' • ')}
                         </div>
                       )}
                       {cardAddons.hasEquipmentAddons && (
-                        <div style={{ fontSize: '0.78rem', color: '#e0f2fe', fontWeight: 700 }}>
-                          ⛳ <strong style={{ color: '#38bdf8' }}>Equipment:</strong> {cardAddons.equipmentAddons.join(' • ')}
+                        <div style={{ fontSize: '0.82rem', color: '#0369a1', fontWeight: 700 }}>
+                          ⛳ <strong>Equipment:</strong> {cardAddons.equipmentAddons.join(' • ')}
                         </div>
                       )}
                     </div>
@@ -1496,43 +1428,21 @@ export function AdminBookings() {
                     b.notes && (
                       <div
                         style={{
-                          fontSize: '0.76rem',
-                          color: '#fde68a',
-                          background: 'rgba(251, 191, 36, 0.08)',
-                          border: '1px solid rgba(251, 191, 36, 0.22)',
-                          padding: '8px 11px',
+                          fontSize: '0.8rem',
+                          color: '#334155',
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          padding: '9px 12px',
                           borderRadius: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '7px',
                           fontWeight: 600,
                         }}
                       >
-                        <Sparkles size={14} color="#fbbf24" style={{ flexShrink: 0 }} />
-                        <span>
-                          <strong style={{ color: '#fbbf24' }}>Guest / Equipment Note:</strong> {b.notes}
-                        </span>
+                        <strong>Note:</strong> {b.notes}
                       </div>
                     )
                   )}
 
-                  {b.status === 'completed' && b.checked_in_at && (
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        color: '#38bdf8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      <CheckCircle2 size={14} /> Checked in at reception at{' '}
-                      {new Date(b.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (+100 PTS awarded)
-                    </div>
-                  )}
-
-                  {/* Reception Action Controls */}
+                  {/* Simple, Big Reception Action Controls */}
                   {b.status === 'confirmed' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -1540,36 +1450,36 @@ export function AdminBookings() {
                           onClick={() => handleCheckin(b)}
                           style={{
                             flex: 2,
-                            minHeight: '42px',
-                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            minHeight: '46px',
+                            background: 'linear-gradient(135deg, #047857, #10b981)',
                             color: '#ffffff',
                             border: 'none',
-                            borderRadius: '10px',
-                            padding: '8px 12px',
-                            fontSize: '0.8rem',
+                            borderRadius: '12px',
+                            padding: '10px 14px',
+                            fontSize: '0.88rem',
                             fontWeight: 800,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '6px',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                            boxShadow: '0 4px 12px rgba(4, 120, 87, 0.22)',
                           }}
                         >
-                          <CheckCheck size={16} /> Check-In (+100 PTS)
+                          <CheckCheck size={18} /> Check In (+100 pts)
                         </button>
 
                         <button
                           onClick={() => setEditingBooking({ ...b })}
                           style={{
                             flex: 1,
-                            minHeight: '42px',
-                            background: 'rgba(56, 189, 248, 0.14)',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
-                            color: '#38bdf8',
-                            borderRadius: '10px',
-                            padding: '8px 10px',
-                            fontSize: '0.76rem',
+                            minHeight: '46px',
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            color: '#0f172a',
+                            borderRadius: '12px',
+                            padding: '10px 12px',
+                            fontSize: '0.82rem',
                             fontWeight: 800,
                             display: 'flex',
                             alignItems: 'center',
@@ -1578,7 +1488,7 @@ export function AdminBookings() {
                             cursor: 'pointer',
                           }}
                         >
-                          <Edit3 size={14} /> Edit / Bay
+                          <Edit3 size={15} /> Change Bay
                         </button>
                       </div>
 
@@ -1588,13 +1498,13 @@ export function AdminBookings() {
                             type="button"
                             onClick={() => handleMarkPaid(b)}
                             style={{
-                              flex: 1,
-                              minHeight: '34px',
-                              background: 'rgba(251, 191, 36, 0.15)',
-                              border: '1px solid rgba(251, 191, 36, 0.35)',
-                              color: '#fbbf24',
-                              borderRadius: '8px',
-                              fontSize: '0.72rem',
+                              flex: 1.5,
+                              minHeight: '38px',
+                              background: '#fffbeb',
+                              border: '1px solid #f59e0b',
+                              color: '#b45309',
+                              borderRadius: '9px',
+                              fontSize: '0.76rem',
                               fontWeight: 800,
                               cursor: 'pointer',
                               display: 'flex',
@@ -1603,7 +1513,7 @@ export function AdminBookings() {
                               gap: '4px',
                             }}
                           >
-                            <CreditCard size={13} /> Mark Paid ({b.price})
+                            <CreditCard size={14} /> Mark Paid ({b.price})
                           </button>
                         )}
 
@@ -1612,12 +1522,12 @@ export function AdminBookings() {
                           onClick={() => handleNoShowBooking(b)}
                           style={{
                             flex: 1,
-                            minHeight: '34px',
-                            background: 'rgba(245, 158, 11, 0.1)',
-                            border: '1px solid rgba(245, 158, 11, 0.25)',
-                            color: '#fbbf24',
-                            borderRadius: '8px',
-                            fontSize: '0.72rem',
+                            minHeight: '38px',
+                            background: '#f8fafc',
+                            border: '1px solid #cbd5e1',
+                            color: '#64748b',
+                            borderRadius: '9px',
+                            fontSize: '0.75rem',
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
@@ -1634,12 +1544,12 @@ export function AdminBookings() {
                           onClick={() => handleCancelBooking(b)}
                           style={{
                             flex: 1,
-                            minHeight: '34px',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            color: '#f87171',
-                            borderRadius: '8px',
-                            fontSize: '0.72rem',
+                            minHeight: '38px',
+                            background: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            color: '#dc2626',
+                            borderRadius: '9px',
+                            fontSize: '0.75rem',
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
@@ -1658,12 +1568,12 @@ export function AdminBookings() {
                         type="button"
                         onClick={() => setEditingBooking({ ...b })}
                         style={{
-                          background: 'rgba(255,255,255,0.06)',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          color: '#cbd5e1',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          fontSize: '0.72rem',
+                          background: '#f1f5f9',
+                          border: '1px solid #cbd5e1',
+                          color: '#334155',
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          fontSize: '0.78rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'inline-flex',
@@ -1671,28 +1581,28 @@ export function AdminBookings() {
                           gap: '5px',
                         }}
                       >
-                        <Edit3 size={13} /> Edit Details
+                        <Edit3 size={14} /> Edit Booking
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
                           updateBookingStatus(b.id, 'confirmed');
-                          setMessage(`Re-opened booking ${b.booking_code} as Confirmed.`);
+                          setMessage(`Re-opened booking ${b.booking_code} as Waiting to Arrive.`);
                           reloadBookings();
                         }}
                         style={{
-                          background: 'rgba(16, 185, 129, 0.12)',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          color: '#10b981',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          fontSize: '0.72rem',
+                          background: '#ecfdf5',
+                          border: '1px solid #a7f3d0',
+                          color: '#047857',
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          fontSize: '0.78rem',
                           fontWeight: 800,
                           cursor: 'pointer',
                         }}
                       >
-                        Restore to Confirmed
+                        Undo Check-In
                       </button>
                     </div>
                   )}
@@ -1706,12 +1616,12 @@ export function AdminBookings() {
       {/* Driving Range Partner Note Banner */}
       <div
         style={{
-          background: 'rgba(16, 185, 129, 0.08)',
-          border: '1px solid rgba(16, 185, 129, 0.22)',
+          background: '#ecfdf5',
+          border: '1px solid #a7f3d0',
           borderRadius: '14px',
-          padding: '12px 14px',
-          fontSize: '0.75rem',
-          color: '#a7f3d0',
+          padding: '14px 16px',
+          fontSize: '0.82rem',
+          color: '#065f46',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1719,10 +1629,10 @@ export function AdminBookings() {
           lineHeight: 1.4,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-          <Target size={18} style={{ color: '#10b981', flexShrink: 0, marginTop: '2px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Target size={18} style={{ color: '#047857', flexShrink: 0 }} />
           <div>
-            <strong style={{ color: '#ffffff' }}>TrackMan Driving Range Bays:</strong> Managed via YourGolfBooking live bay sheet.
+            <strong>TrackMan Driving Range Bays:</strong> Connected to YourGolfBooking live bay sheet.
           </div>
         </div>
         <a
@@ -1730,7 +1640,7 @@ export function AdminBookings() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: '#10b981',
+            color: '#047857',
             fontWeight: 800,
             textDecoration: 'none',
             display: 'inline-flex',
@@ -1740,17 +1650,17 @@ export function AdminBookings() {
             flexShrink: 0,
           }}
         >
-          Portal <ExternalLink size={13} />
+          Open Bay Sheet <ExternalLink size={14} />
         </a>
       </div>
 
-      {/* Manual Walk-In / Reception Booking Modal */}
+      {/* Manual Walk-In / Reception Booking Modal (Clean Light Modal) */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div
             className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#ffffff' }}
+            style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a' }}
           >
             <button
               onClick={() => setShowAddModal(false)}
@@ -1759,9 +1669,9 @@ export function AdminBookings() {
                 position: 'absolute',
                 top: '14px',
                 right: '14px',
-                background: 'rgba(255,255,255,0.1)',
+                background: '#f1f5f9',
                 border: 'none',
-                color: '#ffffff',
+                color: '#334155',
                 borderRadius: '50%',
                 width: '34px',
                 height: '34px',
@@ -1774,18 +1684,17 @@ export function AdminBookings() {
               <X size={18} />
             </button>
 
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '32px' }}>
-              <Plus size={18} style={{ color: '#10b981', flexShrink: 0 }} /> New Reception Reservation
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '32px' }}>
+              <Plus size={20} style={{ color: '#047857', flexShrink: 0 }} /> Add Walk-In Booking
             </h3>
 
             <form onSubmit={handleCreateManualBooking}>
               <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Select Club Member</label>
+                <label className="form-label">Select Member</label>
                 <select
                   className="form-input"
                   value={selectedMemberId}
                   onChange={(e) => setSelectedMemberId(e.target.value)}
-                  style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                 >
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -1796,12 +1705,11 @@ export function AdminBookings() {
               </div>
 
               <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Activity Type</label>
+                <label className="form-label">Activity</label>
                 <select
                   className="form-input"
                   value={selectedActivity}
                   onChange={(e) => handleActivityChange(e.target.value)}
-                  style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                 >
                   <option value="nine-holes">9 Holes Championship Course (£28)</option>
                   <option value="putt-crazy">Putt Crazy Adventure Minigolf (£12)</option>
@@ -1813,23 +1721,21 @@ export function AdminBookings() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Date</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Date</label>
                   <input
                     type="date"
                     className="form-input"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     required
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Time Slot</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Time</label>
                   <select
                     className="form-input"
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   >
                     {TIME_SLOTS.map((t) => (
                       <option key={t} value={t}>{t}</option>
@@ -1840,12 +1746,11 @@ export function AdminBookings() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Party Size (Pax)</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Number of Players</label>
                   <select
                     className="form-input"
                     value={partySize}
                     onChange={(e) => setPartySize(Number(e.target.value))}
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   >
                     {[1, 2, 3, 4, 6, 8].map((n) => (
                       <option key={n} value={n}>{n} {n === 1 ? 'Player' : 'Players'}</option>
@@ -1853,27 +1758,25 @@ export function AdminBookings() {
                   </select>
                 </div>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Payment Status</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Payment Status</label>
                   <select
                     className="form-input"
                     value={paymentStatus}
                     onChange={(e) => setPaymentStatus(e.target.value as any)}
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   >
-                    <option value="paid">Pre-Paid / Settled</option>
-                    <option value="pay_at_desk">Pay at Reception</option>
-                    <option value="comp">VIP Complimentary</option>
+                    <option value="paid">Already Paid</option>
+                    <option value="pay_at_desk">Pay at Reception Desk</option>
+                    <option value="comp">VIP Complimentary (Free)</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Assigned Bay / Tee / Studio</label>
+                <label className="form-label">Assigned Bay / Tee / Lane</label>
                 <select
                   className="form-input"
                   value={bayAssignment}
                   onChange={(e) => setBayAssignment(e.target.value)}
-                  style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                 >
                   {(BAY_OPTIONS_BY_ACTIVITY[selectedActivity] || ['Main Facility']).map((bay) => (
                     <option key={bay} value={bay}>{bay}</option>
@@ -1882,19 +1785,18 @@ export function AdminBookings() {
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Guest / Equipment / Pre-Order Notes (Optional)</label>
+                <label className="form-label">Notes or Equipment Extras (Optional)</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Extras: Electric Buggy Hire • Pre-Order Food/Drinks: 1x Classic Loaded Nachos (£6.00)"
+                  placeholder="e.g. Electric Buggy Hire or Pre-Order Food"
                   value={bookingNotes}
                   onChange={(e) => setBookingNotes(e.target.value)}
-                  style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                 />
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', height: '48px', background: 'linear-gradient(135deg, #10b981, #059669)', fontWeight: 800 }}>
-                Confirm & Issue Booking Pass
+              <button type="submit" className="btn-primary" style={{ width: '100%', minHeight: '50px', fontWeight: 800 }}>
+                Save Walk-In Booking
               </button>
             </form>
           </div>
@@ -1907,7 +1809,7 @@ export function AdminBookings() {
           <div
             className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#ffffff' }}
+            style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a' }}
           >
             <button
               onClick={() => setEditingBooking(null)}
@@ -1916,9 +1818,9 @@ export function AdminBookings() {
                 position: 'absolute',
                 top: '14px',
                 right: '14px',
-                background: 'rgba(255,255,255,0.1)',
+                background: '#f1f5f9',
                 border: 'none',
-                color: '#ffffff',
+                color: '#334155',
                 borderRadius: '50%',
                 width: '34px',
                 height: '34px',
@@ -1931,33 +1833,31 @@ export function AdminBookings() {
               <X size={18} />
             </button>
 
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', marginBottom: '4px' }}>
-              Manage Booking: {editingBooking.booking_code}
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+              Edit Booking: {editingBooking.booking_code}
             </h3>
-            <p style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 700, marginBottom: '14px' }}>
-              {editingBooking.activity_name} &bull; {editingBooking.user_name}
+            <p style={{ fontSize: '0.84rem', color: '#047857', fontWeight: 700, marginBottom: '14px' }}>
+              {editingBooking.activity_name} • {editingBooking.user_name}
             </p>
 
             <form onSubmit={handleSaveEditBooking}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Date</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Date</label>
                   <input
                     type="date"
                     className="form-input"
                     value={editingBooking.date}
                     onChange={(e) => setEditingBooking({ ...editingBooking, date: e.target.value })}
                     required
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Time Slot</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Time</label>
                   <select
                     className="form-input"
                     value={editingBooking.time}
                     onChange={(e) => setEditingBooking({ ...editingBooking, time: e.target.value })}
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   >
                     {TIME_SLOTS.map((t) => (
                       <option key={t} value={t}>{t}</option>
@@ -1968,12 +1868,11 @@ export function AdminBookings() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Players</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Players</label>
                   <select
                     className="form-input"
                     value={editingBooking.party_size || 2}
                     onChange={(e) => setEditingBooking({ ...editingBooking, party_size: Number(e.target.value) })}
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   >
                     {[1, 2, 3, 4, 6, 8].map((n) => (
                       <option key={n} value={n}>{n} {n === 1 ? 'Player' : 'Players'}</option>
@@ -1981,44 +1880,41 @@ export function AdminBookings() {
                   </select>
                 </div>
                 <div>
-                  <label className="form-label" style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Payment Status</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Payment Status</label>
                   <select
                     className="form-input"
                     value={editingBooking.payment_status || 'paid'}
                     onChange={(e) => setEditingBooking({ ...editingBooking, payment_status: e.target.value as any })}
-                    style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                   >
-                    <option value="paid">Pre-Paid / Settled</option>
-                    <option value="pay_at_desk">Pay at Reception</option>
+                    <option value="paid">Already Paid</option>
+                    <option value="pay_at_desk">Pay at Reception Desk</option>
                     <option value="comp">VIP Complimentary</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Assigned Bay / Tee / Studio</label>
+                <label className="form-label">Assigned Bay / Tee / Location</label>
                 <input
                   type="text"
                   className="form-input"
                   value={editingBooking.bay_assignment || ''}
                   onChange={(e) => setEditingBooking({ ...editingBooking, bay_assignment: e.target.value })}
-                  style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label" style={{ color: '#94a3b8' }}>Staff Notes</label>
+                <label className="form-label">Notes</label>
                 <input
                   type="text"
                   className="form-input"
                   value={editingBooking.notes || ''}
                   onChange={(e) => setEditingBooking({ ...editingBooking, notes: e.target.value })}
-                  style={{ background: 'rgba(30, 41, 59, 0.85)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)' }}
                 />
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', height: '46px', background: 'linear-gradient(135deg, #0284c7, #0369a1)', fontWeight: 800 }}>
-                Save Reservation Updates
+              <button type="submit" className="btn-primary" style={{ width: '100%', minHeight: '48px', fontWeight: 800 }}>
+                Save Changes
               </button>
             </form>
           </div>

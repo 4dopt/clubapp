@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -66,10 +66,13 @@ function ProtectedRoute({ children, roleRequired }: { children: React.ReactNode;
 
 function AppRoutes() {
   const { user } = useAuth();
+  const location = useLocation();
   const [splashFinished, setSplashFinished] = useState(false);
 
+  const isOnAdminRoute = user?.role === 'admin' && location.pathname.startsWith('/admin');
+
   React.useEffect(() => {
-    if (user?.role === 'admin') {
+    if (isOnAdminRoute) {
       document.body.classList.add('admin-body');
     } else {
       document.body.classList.remove('admin-body');
@@ -77,12 +80,12 @@ function AppRoutes() {
     return () => {
       document.body.classList.remove('admin-body');
     };
-  }, [user?.role]);
+  }, [isOnAdminRoute]);
 
   const viewportClasses = [
     'app-viewport',
     user ? 'has-bottom-nav' : '',
-    user?.role === 'admin' ? 'is-admin' : '',
+    isOnAdminRoute ? 'is-admin' : '',
   ]
     .filter(Boolean)
     .join(' ');

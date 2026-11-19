@@ -103,9 +103,9 @@ def gen_code(length: int = 8) -> str:
 
 
 def compute_tier(lifetime: int) -> str:
-    if lifetime >= 5000:
+    if lifetime >= 20000:
         return "Platinum"
-    if lifetime >= 1000:
+    if lifetime >= 10000:
         return "Gold"
     return "Silver"
 

@@ -1,8 +1,7 @@
 import React from 'react';
-import { useNavigate, Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   Shield,
-  LogOut,
   Award,
   BarChart3,
   LayoutDashboard,
@@ -10,30 +9,26 @@ import {
   Calendar,
   Gift,
   Users,
+  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { resolveCardVisualTier } from './MembershipCard';
 import { NotificationBellButton } from './NotificationCenter';
 
 export function Header() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const location = useLocation();
 
   if (!user || location.pathname === '/login') return null;
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/login');
-  };
+  const isOnAdminRoute = user.role === 'admin' && location.pathname.startsWith('/admin');
 
-  if (user.role === 'admin') {
-    const isAnalyticsPage = location.pathname.startsWith('/admin/analytics');
+  if (isOnAdminRoute) {
     const adminNavLinks = [
       { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: '/admin/scan', label: 'Scan Pass', icon: QrCode },
-      { to: '/admin/bookings', label: 'Bookings Sheet', icon: Calendar },
-      { to: '/admin/rewards', label: 'Rewards & Offers', icon: Gift },
+      { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
+      { to: '/admin/rewards', label: 'Vouchers & Perks', icon: Gift },
       { to: '/admin/members', label: 'Members', icon: Users },
       { to: '/admin/analytics', label: 'Reports & Till', icon: BarChart3 },
     ];
@@ -77,67 +72,18 @@ export function Header() {
             })}
           </nav>
 
-          {/* Mobile Quick Action Link (< 900px) */}
-          <div className="admin-mobile-header-actions">
-            <Link
-              to="/admin"
-              style={{
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: 'var(--radius-full)',
-                padding: '5px 11px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                color: '#10b981',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-                textDecoration: 'none',
-              }}
-            >
-              <Shield size={14} /> Staff
-            </Link>
-
-            <Link
-              to="/admin/analytics"
-              style={{
-                background: isAnalyticsPage ? 'rgba(56, 189, 248, 0.24)' : 'rgba(56, 189, 248, 0.12)',
-                border: `1px solid ${isAnalyticsPage ? 'rgba(56, 189, 248, 0.5)' : 'rgba(56, 189, 248, 0.28)'}`,
-                borderRadius: 'var(--radius-full)',
-                padding: '5px 11px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                color: '#38bdf8',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-                textDecoration: 'none',
-              }}
-              title="Open Club Reports & Analytics"
-            >
-              <BarChart3 size={14} /> Reports
-            </Link>
-          </div>
-
-          {/* User Info & Sign Out */}
+          {/* Right Side: Switch to Member App & Notifications */}
           <div className="admin-header-user-section">
-            <NotificationBellButton isAdminTheme />
-
-            <div className="admin-user-pill">
-              <span className="admin-user-name">{user.name || 'Staff User'}</span>
-              <span className="admin-user-role">Club Manager</span>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="admin-logout-btn"
-              title="Sign out of admin session"
+            <Link
+              to="/dashboard"
+              className="admin-switch-member-btn"
+              title="Exit Admin & open the Member App view"
             >
-              <LogOut size={13} />
-              <span>Sign Out</span>
-            </button>
+              <Smartphone size={14} />
+              <span>Member App</span>
+            </Link>
+
+            <NotificationBellButton />
           </div>
         </div>
       </header>
@@ -175,6 +121,31 @@ export function Header() {
       </Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        {user.role === 'admin' && (
+          <Link
+            to="/admin"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: '#ecfdf5',
+              border: '1.5px solid #047857',
+              color: '#047857',
+              padding: '5px 11px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+            title="Return to Staff & Admin Desk"
+          >
+            <Shield size={13} />
+            <span>Staff Desk</span>
+          </Link>
+        )}
+
         <Link
           to="/rewards"
           style={{

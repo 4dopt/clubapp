@@ -49,9 +49,9 @@ export function resolveCardVisualTier(user: User): CardVisualTier {
   const rawTier = (user.tier || '').toLowerCase();
   const upgraded = getMemberUpgradedTier(user.id);
 
-  if (pts >= 5000 || rawTier === 'platinum' || upgraded === 'Platinum') return 'Platinum';
-  if (pts >= 1000 || rawTier === 'gold' || upgraded === 'Gold') return 'Gold';
-  if (pts > 500 || upgraded === 'Silver') return 'Silver';
+  if (pts >= 20000 || rawTier === 'platinum' || upgraded === 'Platinum') return 'Platinum';
+  if (pts >= 10000 || rawTier === 'gold' || upgraded === 'Gold') return 'Gold';
+  if (pts >= 1000 || upgraded === 'Silver') return 'Silver';
   return 'Green';
 }
 

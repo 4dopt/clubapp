@@ -290,6 +290,7 @@ export function getStoredRewards(): Reward[] {
 export function saveStoredRewards(rewards: Reward[]): void {
   try {
     localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(rewards));
+    window.dispatchEvent(new Event('playgolf-rewards-updated'));
   } catch {
     /* ignore */
   }
@@ -407,8 +408,8 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     const delta = typeof body.points_delta === 'number' ? body.points_delta : 0;
     MOCK_MEMBER_USER.points = Math.max(0, (MOCK_MEMBER_USER.points || 0) + delta);
     MOCK_MEMBER_USER.points_ytd = Math.max(0, (MOCK_MEMBER_USER.points_ytd || 0) + delta);
-    if (MOCK_MEMBER_USER.points >= 5000) MOCK_MEMBER_USER.tier = 'Platinum';
-    else if (MOCK_MEMBER_USER.points >= 1500) MOCK_MEMBER_USER.tier = 'Gold';
+    if (MOCK_MEMBER_USER.points >= 20000) MOCK_MEMBER_USER.tier = 'Platinum';
+    else if (MOCK_MEMBER_USER.points >= 10000) MOCK_MEMBER_USER.tier = 'Gold';
     else MOCK_MEMBER_USER.tier = 'Silver';
     return {
       message: 'Points adjusted successfully',
@@ -500,8 +501,8 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     const visitPoints = typeof body.points === 'number' && body.points > 0 ? body.points : 100;
     targetMember.points = (targetMember.points || 0) + visitPoints;
     targetMember.points_ytd = (targetMember.points_ytd || 0) + visitPoints;
-    if (targetMember.points >= 5000) targetMember.tier = 'Platinum';
-    else if (targetMember.points >= 1000) targetMember.tier = 'Gold';
+    if (targetMember.points >= 20000) targetMember.tier = 'Platinum';
+    else if (targetMember.points >= 10000) targetMember.tier = 'Gold';
     else targetMember.tier = 'Silver';
 
     MOCK_ADMIN_STATS.visits_today += 1;
@@ -617,13 +618,27 @@ export const api = {
 
   async rewards(token: string) {
     const localRewards = getStoredRewards().filter((r) => r.active);
-    const sbRewards = await fetchRewardsFromSupabase(true);
-    if (sbRewards && sbRewards.length > 0) {
-      // Merge extra metadata from localStorage if available
-      const localMap = new Map(localRewards.map((r) => [r.id, r]));
-      return sbRewards.map((r) => ({ ...localMap.get(r.id), ...r }));
+    const sbPromise = fetchRewardsFromSupabase(true).then((sbRewards) => {
+      if (sbRewards && sbRewards.length > 0) {
+        const allLocal = getStoredRewards();
+        const localMap = new Map(allLocal.map((r) => [r.id, r]));
+        const merged = sbRewards.map((r) => ({ ...localMap.get(r.id), ...r }));
+        saveStoredRewards(merged);
+        return merged.filter((r) => r.active);
+      }
+      return null;
+    });
+
+    if (localRewards.length > 0) {
+      const fastTimeout = new Promise<Reward[] | null>((resolve) =>
+        setTimeout(() => resolve(null), 1200)
+      );
+      const fastResult = await Promise.race([sbPromise, fastTimeout]);
+      return fastResult || localRewards;
     }
-    if (localRewards.length > 0) return localRewards;
+
+    const sbRewards = await sbPromise;
+    if (sbRewards && sbRewards.length > 0) return sbRewards;
     return request<Reward[]>('/api/rewards', {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -672,12 +687,19 @@ export const api = {
     });
   },
 
-  async history(token: string) {
-    const sbTxns = await fetchTransactionsFromSupabase();
-    if (sbTxns !== null) return sbTxns;
-    return request<Transaction[]>('/api/history', {
-      headers: { Authorization: `Bearer ${token}` },
+  async history(_token: string) {
+    const sbPromise = fetchTransactionsFromSupabase().then((sbTxns) => {
+      if (sbTxns !== null) {
+        window.dispatchEvent(new CustomEvent('playgolf-transactions-updated', { detail: sbTxns }));
+      }
+      return sbTxns;
     });
+    const fastTimeout = new Promise<Transaction[] | null>((resolve) =>
+      setTimeout(() => resolve(null), 2000)
+    );
+    const sbTxns = await Promise.race([sbPromise, fastTimeout]);
+    if (sbTxns !== null) return sbTxns;
+    return MOCK_TRANSACTIONS;
   },
 
   async transactions(token: string) {
@@ -799,18 +821,30 @@ export const adminApi = {
 
   async listRewards(adminToken: string) {
     const localRewards = getStoredRewards();
-    const sbRewards = await fetchRewardsFromSupabase(false);
-    if (sbRewards && sbRewards.length > 0) {
-      const localMap = new Map(localRewards.map((r) => [r.id, r]));
-      const merged = sbRewards.map((r) => ({ ...localMap.get(r.id), ...r }));
-      const sbIds = new Set(sbRewards.map((r) => r.id));
-      for (const lr of localRewards) {
-        if (!sbIds.has(lr.id) && !lr.id.startsWith('rew_')) merged.push(lr);
+    const sbPromise = fetchRewardsFromSupabase(false).then((sbRewards) => {
+      if (sbRewards && sbRewards.length > 0) {
+        const localMap = new Map(localRewards.map((r) => [r.id, r]));
+        const merged = sbRewards.map((r) => ({ ...localMap.get(r.id), ...r }));
+        const sbIds = new Set(sbRewards.map((r) => r.id));
+        for (const lr of localRewards) {
+          if (!sbIds.has(lr.id) && !lr.id.startsWith('rew_')) merged.push(lr);
+        }
+        saveStoredRewards(merged);
+        return merged;
       }
-      saveStoredRewards(merged);
-      return merged;
+      return null;
+    });
+
+    if (localRewards.length > 0) {
+      const fastTimeout = new Promise<Reward[] | null>((resolve) =>
+        setTimeout(() => resolve(null), 1200)
+      );
+      const fastResult = await Promise.race([sbPromise, fastTimeout]);
+      return fastResult || localRewards;
     }
-    if (localRewards.length > 0) return localRewards;
+
+    const sbRewards = await sbPromise;
+    if (sbRewards && sbRewards.length > 0) return sbRewards;
     return request<Reward[]>('/api/admin/rewards', {
       headers: { Authorization: `Bearer ${adminToken}` },
     });

@@ -317,7 +317,7 @@ export function AdminScan() {
             serviceGuide:
               meta?.serviceInstructions ||
               'Welcome member, verify any equipment extras below, and direct them to their bay/course.',
-            activityColor: meta?.color || '#10b981',
+            activityColor: meta?.color || '#047857',
             memberName: updatedBk.user_name || 'Club Member',
             memberId: updatedBk.user_member_id || qrText,
             newPoints,
@@ -357,7 +357,7 @@ export function AdminScan() {
         setScanResult({
           type: 'visit',
           title: verification.alreadyCheckedInToday
-            ? 'Member Already Checked In Today (Daily Limit Reached)'
+            ? 'Member Already Checked In Today (1 Visit Per Day)'
             : visitRate.isQuietTime
             ? 'Member Checked In (⚡ Quiet-Time 2× Points!)'
             : 'Member Visit Checked In!',
@@ -372,7 +372,7 @@ export function AdminScan() {
         });
       }
     } catch (err: any) {
-      setError(err.message || 'QR Verification failed. Code not recognized.');
+      setError(err.message || 'Could not recognize that code. Please check and try again.');
     } finally {
       setLoading(false);
     }
@@ -410,64 +410,61 @@ export function AdminScan() {
     setScannerKey((prev) => prev + 1);
   };
 
-  const latestBookings = getStoredBookings();
-  const bookingWithAddons = latestBookings.find((b) => parseBookingAddons(b.notes).hasAnyAddons);
-  const sampleAddonBookingCode = bookingWithAddons?.booking_code || 'PG-BK884920';
-  const sampleBookingCode = latestBookings[0]?.booking_code || 'PG-BK109283';
-
   const scannedBookingAddons =
     scanResult?.type === 'booking' && scanResult?.booking
       ? parseBookingAddons(scanResult.booking.notes)
       : null;
 
   return (
-    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
+    <div className="admin-page-container" style={{ color: '#0f172a', flex: 1 }}>
       {/* Back Button */}
-      <button
-        onClick={() => navigate('/admin')}
-        style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#cbd5e1',
-          padding: '8px 14px',
-          borderRadius: '999px',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          cursor: 'pointer',
-          marginBottom: '16px',
-        }}
-      >
-        <ArrowLeft size={15} /> Back to Staff Home
-      </button>
+      <div>
+        <button
+          onClick={() => navigate('/admin')}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#334155',
+            padding: '9px 16px',
+            borderRadius: '999px',
+            fontSize: '0.84rem',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Reception Desk
+        </button>
+      </div>
 
       {/* Header */}
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2, marginBottom: '6px' }}>
-            QR Code & Pass Scanner
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.2, marginBottom: '6px' }}>
+            Scan Guest Pass or QR Code
           </h1>
-          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-            Scan a member card, booking pass, or reward voucher to verify check-ins, referrals, and pre-ordered items.
+          <p style={{ fontSize: '0.92rem', color: '#475569', lineHeight: 1.45 }}>
+            Scan any Member Card, Booking Pass, or Reward Voucher using the camera or type the code below.
           </p>
         </div>
         <div
           style={{
-            background: visitRate.isQuietTime ? 'rgba(16, 185, 129, 0.16)' : 'rgba(255, 255, 255, 0.06)',
-            border: visitRate.isQuietTime ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.15)',
-            color: visitRate.isQuietTime ? '#34d399' : '#cbd5e1',
-            padding: '8px 12px',
+            background: visitRate.isQuietTime ? '#ecfdf5' : '#f1f5f9',
+            border: visitRate.isQuietTime ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+            color: visitRate.isQuietTime ? '#047857' : '#334155',
+            padding: '8px 14px',
             borderRadius: '12px',
-            fontSize: '0.76rem',
+            fontSize: '0.8rem',
             fontWeight: 800,
             whiteSpace: 'nowrap',
           }}
         >
           {visitRate.isQuietTime
-            ? '⚡ Quiet-Time 2× Window Active (+200 PTS / Scan)'
-            : 'Standard Rate (+100 PTS / Scan • Max 1/Day)'}
+            ? '⚡ Quiet-Time 2× Bonus Active (+200 pts / visit)'
+            : 'Standard Check-In (+100 pts / visit)'}
         </div>
       </div>
 
@@ -476,13 +473,12 @@ export function AdminScan() {
         <div
           style={{
             maxWidth: '620px',
-            margin: '0 auto 20px auto',
+            margin: '0 auto',
             width: '100%',
             display: 'flex',
-            background: '#111827',
+            background: '#e2e8f0',
             padding: '6px',
             borderRadius: '16px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
             gap: '6px',
           }}
         >
@@ -494,22 +490,23 @@ export function AdminScan() {
             }}
             style={{
               flex: 1,
-              minHeight: '44px',
-              padding: '10px 12px',
+              minHeight: '48px',
+              padding: '10px 14px',
               borderRadius: '12px',
               border: 'none',
-              background: activeTab === 'camera' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-              color: activeTab === 'camera' ? '#ffffff' : '#94a3b8',
+              background: activeTab === 'camera' ? '#047857' : 'transparent',
+              color: activeTab === 'camera' ? '#ffffff' : '#334155',
               fontWeight: 800,
-              fontSize: '0.85rem',
+              fontSize: '0.92rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
               cursor: 'pointer',
+              boxShadow: activeTab === 'camera' ? '0 4px 12px rgba(4, 120, 87, 0.25)' : 'none',
             }}
           >
-            <Camera size={17} /> Use Camera
+            <Camera size={19} /> Use Camera
           </button>
           <button
             type="button"
@@ -519,22 +516,23 @@ export function AdminScan() {
             }}
             style={{
               flex: 1,
-              minHeight: '44px',
-              padding: '10px 12px',
+              minHeight: '48px',
+              padding: '10px 14px',
               borderRadius: '12px',
               border: 'none',
-              background: activeTab === 'manual' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-              color: activeTab === 'manual' ? '#ffffff' : '#94a3b8',
+              background: activeTab === 'manual' ? '#047857' : 'transparent',
+              color: activeTab === 'manual' ? '#ffffff' : '#334155',
               fontWeight: 800,
-              fontSize: '0.85rem',
+              fontSize: '0.92rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
               cursor: 'pointer',
+              boxShadow: activeTab === 'manual' ? '0 4px 12px rgba(4, 120, 87, 0.25)' : 'none',
             }}
           >
-            <KeyRound size={17} /> Type Code Manually
+            <KeyRound size={19} /> Type Code Manually
           </button>
         </div>
       )}
@@ -543,41 +541,41 @@ export function AdminScan() {
       {scanResult ? (
         <div
           style={{
-            background: '#111827',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
+            background: '#ffffff',
+            border: '2px solid #10b981',
             borderRadius: '22px',
-            padding: '24px 20px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            padding: '26px 22px',
+            boxShadow: 'var(--shadow-lg)',
             maxWidth: '780px',
             margin: '0 auto',
             width: '100%',
           }}
         >
           {/* Top Status Header */}
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <div style={{ color: '#10b981', display: 'inline-flex', marginBottom: '10px' }}>
-              <CheckCircle size={52} />
+          <div style={{ textAlign: 'center', marginBottom: '22px' }}>
+            <div style={{ color: '#047857', display: 'inline-flex', marginBottom: '8px' }}>
+              <CheckCircle size={56} />
             </div>
 
             <div
               style={{
                 display: 'block',
-                fontSize: '0.75rem',
+                fontSize: '0.78rem',
                 fontWeight: 800,
-                color: '#34d399',
+                color: '#047857',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 marginBottom: '4px',
               }}
             >
               {scanResult.type === 'booking'
-                ? 'RECEPTION BOOKING PASS VERIFIED'
+                ? 'BOOKING PASS VERIFIED'
                 : scanResult.type === 'reward'
                 ? 'REWARD VOUCHER VERIFIED'
                 : 'MEMBER CARD VERIFIED'}
             </div>
 
-            <h2 style={{ fontSize: '1.4rem', color: '#ffffff', fontWeight: 800 }}>
+            <h2 style={{ fontSize: '1.5rem', color: '#0f172a', fontWeight: 800 }}>
               {scanResult.title}
             </h2>
           </div>
@@ -589,17 +587,10 @@ export function AdminScan() {
               {scannedBookingAddons && scannedBookingAddons.hasAnyAddons && (
                 <div
                   style={{
-                    background: scanResult.booking.kitchen_order_placed
-                      ? 'linear-gradient(145deg, rgba(16, 185, 129, 0.18), rgba(6, 78, 59, 0.4))'
-                      : 'linear-gradient(145deg, rgba(245, 158, 11, 0.24), rgba(220, 38, 38, 0.18))',
-                    border: scanResult.booking.kitchen_order_placed
-                      ? '2px solid #10b981'
-                      : '2px solid #f59e0b',
+                    background: scanResult.booking.kitchen_order_placed ? '#ecfdf5' : '#fffbeb',
+                    border: scanResult.booking.kitchen_order_placed ? '2px solid #10b981' : '2px solid #f59e0b',
                     borderRadius: '18px',
                     padding: '18px',
-                    boxShadow: scanResult.booking.kitchen_order_placed
-                      ? '0 10px 28px rgba(16, 185, 129, 0.25)'
-                      : '0 12px 32px rgba(245, 158, 11, 0.3)',
                     textAlign: 'left',
                   }}
                 >
@@ -619,53 +610,53 @@ export function AdminScan() {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '8px',
-                        background: scanResult.booking.kitchen_order_placed ? '#059669' : '#f59e0b',
-                        color: scanResult.booking.kitchen_order_placed ? '#ffffff' : '#090d16',
-                        padding: '5px 12px',
+                        background: scanResult.booking.kitchen_order_placed ? '#047857' : '#d97706',
+                        color: '#ffffff',
+                        padding: '6px 12px',
                         borderRadius: '999px',
-                        fontSize: '0.76rem',
+                        fontSize: '0.78rem',
                         fontWeight: 900,
-                        letterSpacing: '0.05em',
+                        letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                       }}
                     >
                       <BellRing size={15} />
                       {scanResult.booking.kitchen_order_placed
-                        ? '✓ Kitchen / Bar Order Placed & Add-Ons Issued'
-                        : '🚨 Staff Action Required — Guest Has Arrived!'}
+                        ? '✓ Kitchen / Bar Order Sent & Add-Ons Handed Out'
+                        : '🚨 Staff To-Do — Guest Has Pre-Ordered Items!'}
                     </div>
 
                     <span
                       style={{
-                        fontSize: '0.75rem',
+                        fontSize: '0.82rem',
                         fontWeight: 800,
-                        color: scanResult.booking.kitchen_order_placed ? '#6ee7b7' : '#fde68a',
+                        color: scanResult.booking.kitchen_order_placed ? '#065f46' : '#92400e',
                       }}
                     >
-                      Serve / Deliver to: <strong>{scanResult.booking.bay_assignment || 'Assigned Bay'}</strong>
+                      Deliver to: <strong>{scanResult.booking.bay_assignment || 'Assigned Bay'}</strong>
                     </span>
                   </div>
 
                   <div
                     style={{
-                      fontSize: '1.08rem',
-                      fontWeight: 900,
-                      color: '#ffffff',
+                      fontSize: '1.05rem',
+                      fontWeight: 800,
+                      color: '#0f172a',
                       lineHeight: 1.35,
                       marginBottom: '14px',
                     }}
                   >
                     {scanResult.booking.kitchen_order_placed
-                      ? 'Pre-ordered food, drinks & add-on items have been sent to Kitchen/Bar.'
-                      : 'Place order for these pre-ordered items with the Kitchen / Bar right now:'}
+                      ? 'Pre-ordered food, drinks & equipment have been sent to Kitchen/Bar.'
+                      : 'Please send these pre-ordered items to the Kitchen / Bar right now:'}
                   </div>
 
                   {/* Pre-Ordered Food & Drinks List */}
                   {scannedBookingAddons.hasFoodPreOrders && (
                     <div
                       style={{
-                        background: 'rgba(9, 13, 22, 0.78)',
-                        border: '1px solid rgba(251, 191, 36, 0.45)',
+                        background: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '14px',
                         padding: '14px',
                         marginBottom: scannedBookingAddons.hasEquipmentAddons ? '12px' : '14px',
@@ -673,18 +664,18 @@ export function AdminScan() {
                     >
                       <div
                         style={{
-                          fontSize: '0.74rem',
+                          fontSize: '0.78rem',
                           fontWeight: 900,
-                          color: '#fbbf24',
+                          color: '#b45309',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
+                          letterSpacing: '0.04em',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
                           marginBottom: '10px',
                         }}
                       >
-                        <Utensils size={15} /> Pre-Ordered Food & Drinks (Send to Kitchen / Bar Now):
+                        <Utensils size={15} /> Food & Drinks (Send to Kitchen / Bar):
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -696,8 +687,8 @@ export function AdminScan() {
                               justifyContent: 'space-between',
                               alignItems: 'center',
                               gap: '10px',
-                              background: 'rgba(245, 158, 11, 0.14)',
-                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              background: '#fffbeb',
+                              border: '1px solid #fde68a',
                               borderRadius: '10px',
                               padding: '10px 12px',
                             }}
@@ -708,10 +699,10 @@ export function AdminScan() {
                                   width: '24px',
                                   height: '24px',
                                   borderRadius: '6px',
-                                  background: '#f59e0b',
-                                  color: '#090d16',
+                                  background: '#d97706',
+                                  color: '#ffffff',
                                   fontWeight: 900,
-                                  fontSize: '0.75rem',
+                                  fontSize: '0.78rem',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -720,28 +711,23 @@ export function AdminScan() {
                               >
                                 {idx + 1}
                               </span>
-                              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
+                              <span style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a' }}>
                                 {item}
                               </span>
                             </div>
 
                             <span
                               style={{
-                                fontSize: '0.7rem',
+                                fontSize: '0.72rem',
                                 fontWeight: 900,
-                                padding: '4px 9px',
+                                padding: '4px 10px',
                                 borderRadius: '6px',
-                                background: scanResult.booking.kitchen_order_placed
-                                  ? 'rgba(16, 185, 129, 0.25)'
-                                  : 'rgba(239, 68, 68, 0.28)',
-                                color: scanResult.booking.kitchen_order_placed ? '#34d399' : '#fca5a5',
-                                border: scanResult.booking.kitchen_order_placed
-                                  ? '1px solid rgba(16, 185, 129, 0.4)'
-                                  : '1px solid rgba(239, 68, 68, 0.45)',
+                                background: scanResult.booking.kitchen_order_placed ? '#d1fae5' : '#fee2e2',
+                                color: scanResult.booking.kitchen_order_placed ? '#065f46' : '#b91c1c',
                                 whiteSpace: 'nowrap',
                               }}
                             >
-                              {scanResult.booking.kitchen_order_placed ? '✓ ORDER PLACED' : 'PLACE ORDER NOW'}
+                              {scanResult.booking.kitchen_order_placed ? '✓ ORDER SENT' : 'SEND ORDER NOW'}
                             </span>
                           </div>
                         ))}
@@ -753,8 +739,8 @@ export function AdminScan() {
                   {scannedBookingAddons.hasEquipmentAddons && (
                     <div
                       style={{
-                        background: 'rgba(9, 13, 22, 0.78)',
-                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        background: '#ffffff',
+                        border: '1px solid #bae6fd',
                         borderRadius: '14px',
                         padding: '14px',
                         marginBottom: '14px',
@@ -762,18 +748,18 @@ export function AdminScan() {
                     >
                       <div
                         style={{
-                          fontSize: '0.74rem',
+                          fontSize: '0.78rem',
                           fontWeight: 900,
-                          color: '#38bdf8',
+                          color: '#0369a1',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
+                          letterSpacing: '0.04em',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
                           marginBottom: '10px',
                         }}
                       >
-                        <PackageCheck size={15} /> Included Equipment & Course Add-Ons (Issue at Reception):
+                        <PackageCheck size={15} /> Equipment to Hand Over at Desk:
                       </div>
 
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -781,12 +767,12 @@ export function AdminScan() {
                           <span
                             key={idx}
                             style={{
-                              background: 'rgba(56, 189, 248, 0.16)',
-                              border: '1px solid rgba(56, 189, 248, 0.4)',
-                              color: '#e0f2fe',
+                              background: '#e0f2fe',
+                              border: '1px solid #7dd3fc',
+                              color: '#0369a1',
                               padding: '8px 12px',
                               borderRadius: '10px',
-                              fontSize: '0.88rem',
+                              fontSize: '0.9rem',
                               fontWeight: 800,
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -807,38 +793,38 @@ export function AdminScan() {
                       onClick={handleMarkKitchenOrderPlacedOnScan}
                       style={{
                         width: '100%',
-                        padding: '13px 16px',
+                        padding: '14px 16px',
                         borderRadius: '12px',
                         border: 'none',
-                        background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                        background: 'linear-gradient(135deg, #d97706, #ea580c)',
                         color: '#ffffff',
-                        fontSize: '0.9rem',
+                        fontSize: '0.95rem',
                         fontWeight: 900,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
-                        boxShadow: '0 6px 20px rgba(234, 88, 12, 0.4)',
+                        boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)',
                       }}
                     >
-                      <CheckCheck size={18} /> Confirm: Kitchen / Bar Order Placed & Add-Ons Issued
+                      <CheckCheck size={18} /> Confirm: Kitchen / Bar Order Sent & Equipment Handed Out
                     </button>
                   ) : (
                     <div
                       style={{
                         width: '100%',
-                        padding: '11px 14px',
+                        padding: '12px 14px',
                         borderRadius: '12px',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        border: '1px solid rgba(16, 185, 129, 0.45)',
-                        color: '#6ee7b7',
-                        fontSize: '0.85rem',
+                        background: '#d1fae5',
+                        border: '1px solid #6ee7b7',
+                        color: '#065f46',
+                        fontSize: '0.88rem',
                         fontWeight: 800,
                         textAlign: 'center',
                       }}
                     >
-                      ✓ Staff Confirmed: Pre-Order Sent to Kitchen/Bar & Equipment Handed Over
+                      ✓ Confirmed: Pre-Order Sent to Kitchen/Bar & Equipment Handed Over
                     </div>
                   )}
                 </div>
@@ -847,8 +833,8 @@ export function AdminScan() {
               {/* 1. Primary Activity & Booking Ref Banner */}
               <div
                 style={{
-                  background: 'rgba(16, 185, 129, 0.12)',
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
                   borderRadius: '18px',
                   padding: '18px',
                   textAlign: 'left',
@@ -858,32 +844,32 @@ export function AdminScan() {
                   <span
                     style={{
                       fontFamily: 'monospace',
-                      fontSize: '0.82rem',
+                      fontSize: '0.85rem',
                       fontWeight: 800,
-                      color: '#34d399',
-                      background: 'rgba(6, 78, 59, 0.6)',
+                      color: '#065f46',
+                      background: '#d1fae5',
                       padding: '4px 10px',
                       borderRadius: '8px',
                     }}
                   >
-                    Ref: {scanResult.booking.booking_code}
+                    Booking Ref: {scanResult.booking.booking_code}
                   </span>
 
                   <span
                     style={{
-                      fontSize: '0.76rem',
+                      fontSize: '0.78rem',
                       fontWeight: 800,
                       color: '#ffffff',
-                      background: '#059669',
-                      padding: '4px 10px',
+                      background: '#047857',
+                      padding: '4px 12px',
                       borderRadius: '999px',
                     }}
                   >
-                    {scanResult.alreadyCheckedIn ? 'Checked In' : '+100 PTS Awarded'}
+                    {scanResult.alreadyCheckedIn ? 'Checked In' : '+100 Points Added'}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', lineHeight: 1.25 }}>
+                <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.25 }}>
                   {scanResult.booking.activity_name}
                 </div>
               </div>
@@ -891,8 +877,8 @@ export function AdminScan() {
               {/* 2. Staff Service Checklist ("How to Serve This Guest") */}
               <div
                 style={{
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.38)',
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
                   borderRadius: '16px',
                   padding: '16px',
                   textAlign: 'left',
@@ -902,18 +888,18 @@ export function AdminScan() {
                   style={{
                     fontSize: '0.78rem',
                     fontWeight: 800,
-                    color: '#fbbf24',
+                    color: '#0369a1',
                     textTransform: 'uppercase',
                     letterSpacing: '0.04em',
-                    marginBottom: '6px',
+                    marginBottom: '4px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
                   }}
                 >
-                  <Sparkles size={15} /> Staff Action — How to Serve Guest:
+                  <Sparkles size={15} /> Staff Steps — How to Serve This Guest:
                 </div>
-                <div style={{ fontSize: '0.9rem', color: '#fef3c7', fontWeight: 600, lineHeight: 1.5 }}>
+                <div style={{ fontSize: '0.92rem', color: '#0f172a', fontWeight: 600, lineHeight: 1.5 }}>
                   {scanResult.serviceGuide}
                 </div>
               </div>
@@ -921,8 +907,8 @@ export function AdminScan() {
               {/* 3. Full Booking Operational Grid (2x2 + Guest Box) */}
               <div
                 style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '18px',
                   padding: '18px',
                   display: 'flex',
@@ -937,29 +923,30 @@ export function AdminScan() {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     paddingBottom: '12px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderBottom: '1px solid #e2e8f0',
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700 }}>Guest / Member</div>
-                    <div style={{ fontSize: '1.08rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>Guest Name</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
                       {scanResult.booking.user_name}
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#34d399', fontFamily: 'monospace', fontWeight: 700 }}>
-                      {scanResult.booking.user_member_id}
+                    <div style={{ fontSize: '0.84rem', color: '#047857', fontFamily: 'monospace', fontWeight: 700 }}>
+                      Member ID: {scanResult.booking.user_member_id}
                     </div>
                   </div>
                   <span
                     style={{
-                      fontSize: '0.76rem',
+                      fontSize: '0.8rem',
                       fontWeight: 800,
-                      padding: '5px 12px',
+                      padding: '6px 14px',
                       borderRadius: '999px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: '#e2e8f0',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a',
                     }}
                   >
-                    {scanResult.booking.member_tier || 'Silver'} Tier
+                    {scanResult.booking.member_tier || 'Silver'} Member
                   </span>
                 </div>
 
@@ -967,91 +954,92 @@ export function AdminScan() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                   <div
                     style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '12px',
                       padding: '12px',
                     }}
                   >
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Calendar size={13} style={{ color: '#38bdf8' }} /> Date & Time
+                    <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Calendar size={14} style={{ color: '#0284c7' }} /> Date & Time
                     </div>
-                    <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
                       {scanResult.booking.time}
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>
                       {scanResult.booking.date}
                     </div>
                   </div>
 
                   <div
                     style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '12px',
                       padding: '12px',
                     }}
                   >
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <MapPin size={13} style={{ color: '#34d399' }} /> Assigned Spot
+                    <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <MapPin size={14} style={{ color: '#047857' }} /> Bay / Location
                     </div>
-                    <div style={{ fontSize: '0.94rem', fontWeight: 800, color: '#34d399', marginTop: '4px' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#047857', marginTop: '4px' }}>
                       {scanResult.booking.bay_assignment || 'Main Course / Bay'}
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: '#cbd5e1', marginTop: '2px' }}>
-                      Duration: {scanResult.booking.duration || '60 mins'}
+                    <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>
+                      {scanResult.booking.duration || '60 mins'}
                     </div>
                   </div>
 
                   <div
                     style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '12px',
                       padding: '12px',
                     }}
                   >
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Users size={13} style={{ color: '#c084fc' }} /> Group Size
+                    <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Users size={14} style={{ color: '#7e22ce' }} /> Players
                     </div>
-                    <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
                       {scanResult.booking.party_size || 1}{' '}
                       {(scanResult.booking.party_size || 1) === 1 ? 'Player' : 'Players'}
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: '#cbd5e1', marginTop: '2px' }}>
-                      Confirmed Party
+                    <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>
+                      Confirmed group
                     </div>
                   </div>
 
                   <div
                     style={{
                       background:
-                        scanResult.booking.payment_status === 'pay_at_desk'
-                          ? 'rgba(245, 158, 11, 0.15)'
-                          : 'rgba(16, 185, 129, 0.12)',
+                        scanResult.booking.payment_status === 'pay_at_desk' ? '#fffbeb' : '#ecfdf5',
                       border:
                         scanResult.booking.payment_status === 'pay_at_desk'
-                          ? '1px solid rgba(245, 158, 11, 0.4)'
-                          : '1px solid rgba(16, 185, 129, 0.3)',
+                          ? '1.5px solid #f59e0b'
+                          : '1px solid #a7f3d0',
                       borderRadius: '12px',
                       padding: '12px',
                     }}
                   >
-                    <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <CreditCard size={13} /> Payment
+                    <div style={{ fontSize: '0.76rem', color: '#475569', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <CreditCard size={14} /> Payment Status
                     </div>
-                    <div style={{ fontSize: '0.98rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>
                       {scanResult.booking.price || '£20.00'}
                     </div>
                     <div
                       style={{
-                        fontSize: '0.76rem',
+                        fontSize: '0.8rem',
                         fontWeight: 800,
                         color:
-                          scanResult.booking.payment_status === 'pay_at_desk' ? '#fbbf24' : '#34d399',
+                          scanResult.booking.payment_status === 'pay_at_desk' ? '#b45309' : '#047857',
                         marginTop: '2px',
                       }}
                     >
                       {scanResult.booking.payment_status === 'pay_at_desk'
                         ? '⚠️ COLLECT AT DESK'
-                        : '✓ PAID'}
+                        : '✓ ALREADY PAID'}
                     </div>
                   </div>
                 </div>
@@ -1063,12 +1051,12 @@ export function AdminScan() {
                     onClick={handleMarkBookingPaidOnScan}
                     style={{
                       width: '100%',
-                      padding: '12px',
+                      padding: '14px',
                       borderRadius: '12px',
-                      border: '1px solid rgba(245, 158, 11, 0.5)',
-                      background: '#f59e0b',
-                      color: '#090d16',
-                      fontSize: '0.86rem',
+                      border: 'none',
+                      background: '#d97706',
+                      color: '#ffffff',
+                      fontSize: '0.92rem',
                       fontWeight: 800,
                       cursor: 'pointer',
                       display: 'flex',
@@ -1077,36 +1065,38 @@ export function AdminScan() {
                       gap: '8px',
                     }}
                   >
-                    <CheckCheck size={17} /> Mark {scanResult.booking.price} Payment Collected
+                    <CheckCheck size={18} /> Mark {scanResult.booking.price} Paid at Till
                   </button>
                 )}
 
                 {/* Customer Notes / Equipment Extras */}
-                <div
-                  style={{
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    borderRadius: '12px',
-                    padding: '14px',
-                  }}
-                >
+                {scanResult.booking.notes && (
                   <div
                     style={{
-                      fontSize: '0.76rem',
-                      fontWeight: 800,
-                      color: '#38bdf8',
-                      marginBottom: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '14px',
                     }}
                   >
-                    <ClipboardList size={15} /> Full Booking Summary & Notes:
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        color: '#475569',
+                        marginBottom: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <ClipboardList size={15} /> Booking Notes:
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: '#0f172a', lineHeight: 1.5, fontWeight: 600 }}>
+                      {scanResult.booking.notes}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.88rem', color: '#f8fafc', lineHeight: 1.5, fontWeight: 600 }}>
-                    {scanResult.booking.notes || 'Standard reservation — no special equipment requests.'}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -1116,42 +1106,42 @@ export function AdminScan() {
             <>
               <div
                 style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '16px',
-                  padding: '16px',
+                  padding: '18px',
                   marginBottom: '16px',
                   textAlign: 'left',
                 }}
               >
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700 }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
                   Member Details
                 </div>
-                <div style={{ fontSize: '1.15rem', color: '#ffffff', fontWeight: 800, marginTop: '4px' }}>
+                <div style={{ fontSize: '1.25rem', color: '#0f172a', fontWeight: 800, marginTop: '4px' }}>
                   {scanResult.memberName}
                 </div>
-                <div style={{ fontSize: '0.84rem', color: '#6ee7b7', fontWeight: 700, marginTop: '2px', fontFamily: 'monospace' }}>
-                  ID: {scanResult.memberId}
+                <div style={{ fontSize: '0.88rem', color: '#047857', fontWeight: 700, marginTop: '2px', fontFamily: 'monospace' }}>
+                  Member ID: {scanResult.memberId}
                 </div>
               </div>
 
               {scanResult.verifiedReferral && (
                 <div
                   style={{
-                    background: 'rgba(245, 158, 11, 0.18)',
-                    border: '1.5px solid #fbbf24',
-                    padding: '14px',
+                    background: '#fffbeb',
+                    border: '1.5px solid #f59e0b',
+                    padding: '16px',
                     borderRadius: '16px',
-                    color: '#fde047',
+                    color: '#92400e',
                     marginBottom: '16px',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '0.74rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    🤝 FAIR BUDDY REFERRAL VERIFIED (1ST PAID VISIT)
+                  <div style={{ fontSize: '0.76rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    🤝 FRIEND REFERRAL VERIFIED (1ST VISIT)
                   </div>
-                  <div style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>
-                    +200 Bonus PTS Credited to {scanResult.verifiedReferral.friendName} &amp; Referrer ({scanResult.verifiedReferral.referrerCode})
+                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+                    +200 Bonus Points added to {scanResult.verifiedReferral.friendName} &amp; Referrer!
                   </div>
                 </div>
               )}
@@ -1159,45 +1149,45 @@ export function AdminScan() {
               {scanResult.type === 'visit' ? (
                 <div
                   style={{
-                    background: scanResult.alreadyCheckedInToday
-                      ? 'rgba(245, 158, 11, 0.15)'
-                      : 'rgba(16, 185, 129, 0.15)',
+                    background: scanResult.alreadyCheckedInToday ? '#fffbeb' : '#ecfdf5',
                     border: scanResult.alreadyCheckedInToday
-                      ? '1px solid rgba(245, 158, 11, 0.4)'
-                      : '1px solid rgba(16, 185, 129, 0.3)',
-                    padding: '16px',
+                      ? '1.5px solid #f59e0b'
+                      : '1.5px solid #10b981',
+                    padding: '18px',
                     borderRadius: '16px',
-                    color: scanResult.alreadyCheckedInToday ? '#fbbf24' : '#10b981',
+                    color: scanResult.alreadyCheckedInToday ? '#92400e' : '#065f46',
                     marginBottom: '20px',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '0.8rem', color: scanResult.alreadyCheckedInToday ? '#fde68a' : '#6ee7b7', fontWeight: 700 }}>
-                    {scanResult.alreadyCheckedInToday ? 'Daily Visit Anti-Passback Active' : 'Visit Points Added'}
+                  <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>
+                    {scanResult.alreadyCheckedInToday ? 'Already Checked In Today' : 'Visit Points Added'}
                   </div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 900, marginTop: '4px' }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, marginTop: '4px' }}>
                     {scanResult.alreadyCheckedInToday
-                      ? '0 PTS (Already Credited Today)'
-                      : `+${scanResult.pointsAwarded || 100} PTS Credited`}
+                      ? '0 Points (Already Credited Today)'
+                      : `+${scanResult.pointsAwarded || 100} Points Added`}
                   </div>
-                  <div style={{ fontSize: '0.86rem', color: '#a7f3d0', marginTop: '4px' }}>
-                    Balance: <strong>{scanResult.newPoints} PTS</strong>
+                  <div style={{ fontSize: '0.92rem', marginTop: '6px' }}>
+                    New Points Balance: <strong>{scanResult.newPoints} PTS</strong>
                   </div>
                 </div>
               ) : (
                 <div
                   style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    padding: '16px',
+                    background: '#ecfdf5',
+                    border: '2px solid #10b981',
+                    padding: '20px',
                     borderRadius: '16px',
-                    color: '#34d399',
+                    color: '#065f46',
                     marginBottom: '20px',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '0.8rem', color: '#6ee7b7', fontWeight: 700 }}>Hand Guest This Reward:</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '4px', color: '#ffffff' }}>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Please Hand Guest This Item:
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 900, marginTop: '6px', color: '#0f172a' }}>
                     {scanResult.rewardTitle}
                   </div>
                 </div>
@@ -1212,14 +1202,14 @@ export function AdminScan() {
               onClick={resetScanner}
               className="btn-primary"
               style={{
-                height: '48px',
+                minHeight: '52px',
                 borderRadius: '14px',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: 'linear-gradient(135deg, #047857, #10b981)',
                 fontWeight: 800,
-                fontSize: '0.95rem',
+                fontSize: '1rem',
               }}
             >
-              <RefreshCw size={18} /> Scan Next Pass
+              <RefreshCw size={18} /> Scan Next Guest
             </button>
 
             {scanResult.type === 'booking' && (
@@ -1227,17 +1217,17 @@ export function AdminScan() {
                 type="button"
                 onClick={() => navigate('/admin/bookings')}
                 style={{
-                  height: '44px',
+                  minHeight: '46px',
                   borderRadius: '14px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#cbd5e1',
-                  fontWeight: 700,
-                  fontSize: '0.86rem',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  color: '#0f172a',
+                  fontWeight: 800,
+                  fontSize: '0.9rem',
                   cursor: 'pointer',
                 }}
               >
-                Open All Bookings →
+                Go to Today’s Bookings List →
               </button>
             )}
           </div>
@@ -1247,20 +1237,20 @@ export function AdminScan() {
           {error && (
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#f87171',
+                background: '#fef2f2',
+                border: '1.5px solid #fecaca',
+                color: '#b91c1c',
                 padding: '14px 16px',
                 borderRadius: '14px',
-                fontSize: '0.86rem',
+                fontSize: '0.9rem',
                 marginBottom: '18px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <AlertCircle size={20} style={{ flexShrink: 0 }} />
               <div>{error}</div>
             </div>
           )}
@@ -1268,12 +1258,12 @@ export function AdminScan() {
           {activeTab === 'camera' ? (
             <div
               style={{
-                background: '#111827',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: '20px',
-                padding: '16px',
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '22px',
+                padding: '20px',
                 overflow: 'hidden',
-                boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+                boxShadow: 'var(--shadow-md)',
               }}
             >
               <div
@@ -1282,61 +1272,65 @@ export function AdminScan() {
                   width: '100%',
                   borderRadius: '14px',
                   overflow: 'hidden',
-                  background: '#000000',
+                  background: '#f8fafc',
                 }}
               />
               <div
                 style={{
                   textAlign: 'center',
-                  fontSize: '0.8rem',
-                  color: '#94a3b8',
+                  fontSize: '0.88rem',
+                  color: '#475569',
                   marginTop: '14px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
-                <ShieldCheck size={15} style={{ color: '#10b981' }} /> Point camera at Member Card, Booking Pass, or Voucher QR
+                <ShieldCheck size={18} style={{ color: '#047857' }} /> Hold the guest’s phone QR code in front of the camera
               </div>
             </div>
           ) : (
             <div
               style={{
-                background: '#111827',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: '20px',
-                padding: '22px 18px',
-                boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '22px',
+                padding: '24px 20px',
+                boxShadow: 'var(--shadow-md)',
               }}
             >
               <form onSubmit={handleManualSubmit}>
                 <label
                   style={{
                     display: 'block',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#e2e8f0',
-                    marginBottom: '8px',
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    marginBottom: '6px',
                   }}
                 >
-                  Enter Booking Reference, Member ID, or Voucher Code:
+                  Type the Guest’s Code:
                 </label>
+                <p style={{ fontSize: '0.84rem', color: '#64748b', marginBottom: '14px' }}>
+                  You can enter a <strong>Member ID</strong> (e.g. PG-2445B5), a <strong>Booking Ref</strong> (e.g. PG-BK884920), or a <strong>Voucher Code</strong>.
+                </p>
                 <div style={{ position: 'relative', marginBottom: '18px' }}>
                   <input
                     type="text"
                     className="form-input"
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="e.g. PG-BK884920 or PG-2445B5"
+                    placeholder="e.g. PG-2445B5 or PG-BK884920"
                     autoFocus
                     style={{
-                      background: '#090d16',
-                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      background: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
                       borderRadius: '12px',
-                      color: '#ffffff',
-                      fontWeight: 600,
+                      color: '#0f172a',
+                      fontWeight: 700,
+                      fontSize: '1rem',
                     }}
                   />
                 </div>
@@ -1346,18 +1340,19 @@ export function AdminScan() {
                   disabled={loading || !manualCode.trim()}
                   className="btn-primary"
                   style={{
-                    height: '48px',
+                    minHeight: '52px',
                     borderRadius: '14px',
                     background:
                       loading || !manualCode.trim()
-                        ? 'rgba(51, 65, 85, 0.6)'
-                        : 'linear-gradient(135deg, #10b981, #059669)',
+                        ? '#cbd5e1'
+                        : 'linear-gradient(135deg, #047857, #10b981)',
+                    color: loading || !manualCode.trim() ? '#64748b' : '#ffffff',
                     fontWeight: 800,
-                    fontSize: '0.95rem',
+                    fontSize: '1rem',
                     cursor: loading || !manualCode.trim() ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {loading ? 'Looking up details...' : 'Look Up & Check In'} <ArrowRight size={18} />
+                  {loading ? 'Looking up details...' : 'Check In / Verify Code'} <ArrowRight size={18} />
                 </button>
               </form>
             </div>

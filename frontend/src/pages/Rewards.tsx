@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Gift, CheckCircle, AlertCircle, Copy, Check, Target, Zap, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth';
-import { api, Reward } from '../api';
+import { api, Reward, getStoredRewards } from '../api';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   getChosenRewardProgress,
@@ -12,9 +12,9 @@ import {
 
 export function Rewards() {
   const { user, token, refresh } = useAuth();
-  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>(() => getStoredRewards().filter((r) => r.active));
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => getStoredRewards().filter((r) => r.active).length === 0);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [redemptionResult, setRedemptionResult] = useState<any>(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -22,12 +22,29 @@ export function Rewards() {
   const [goalRefreshTick, setGoalRefreshTick] = useState(0);
 
   useEffect(() => {
+    const syncLocalRewards = () => {
+      const active = getStoredRewards().filter((r) => r.active);
+      if (active.length > 0) {
+        setRewards(active);
+        setLoading(false);
+      }
+    };
+    window.addEventListener('playgolf-rewards-updated', syncLocalRewards);
+
     if (token) {
       api.rewards(token)
-        .then(setRewards)
-        .catch(() => setError('Failed to load rewards'))
+        .then((list) => {
+          if (list && list.length > 0) setRewards(list);
+        })
+        .catch(() => {
+          if (rewards.length === 0) setError('Failed to load rewards');
+        })
         .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
+
+    return () => window.removeEventListener('playgolf-rewards-updated', syncLocalRewards);
   }, [token]);
 
   const handleRedeem = async (reward: Reward) => {

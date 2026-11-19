@@ -3,16 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Search,
-  Award,
   Zap,
   ShieldAlert,
-  CheckCircle2,
   QrCode,
-  Calendar,
-  ArrowUpDown,
   Download,
   X,
   ArrowLeft,
+  PlusCircle,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import { adminApi, User } from '../api';
@@ -32,7 +29,7 @@ export function AdminMembers() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [inspectUser, setInspectUser] = useState<User | null>(null);
   const [adjustPoints, setAdjustPoints] = useState(100);
-  const [reason, setReason] = useState('Manual staff loyalty credit');
+  const [reason, setReason] = useState('Added by reception staff');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -51,13 +48,13 @@ export function AdminMembers() {
     if (!token || !selectedUser) return;
     try {
       const res = await adminApi.adjustPoints(token, selectedUser.id, adjustPoints, reason);
-      setMessage(`✅ Adjusted points for ${selectedUser.name}! New Balance: ${res.new_points.toLocaleString()} PTS (${res.tier} Tier)`);
+      setMessage(`✅ Updated points for ${selectedUser.name}! New Balance: ${res.new_points.toLocaleString()} PTS (${res.tier} Member)`);
       setMembers((prev) =>
         prev.map((m) => (m.id === selectedUser.id ? { ...m, points: res.new_points, tier: res.tier as any } : m))
       );
       setSelectedUser(null);
     } catch (err: any) {
-      setMessage(`❌ ${err.message || 'Failed to adjust points'}`);
+      setMessage(`❌ ${err.message || 'Could not update points'}`);
     }
   };
 
@@ -65,12 +62,12 @@ export function AdminMembers() {
     if (!token) return;
     try {
       const res = await adminApi.logVisit(token, member.member_id || member.id);
-      setMessage(`✅ Logged visit for ${member.name} (+100 PTS). New Balance: ${res.new_points} PTS`);
+      setMessage(`✅ Checked in ${member.name} (+100 Points). New Balance: ${res.new_points} PTS`);
       setMembers((prev) =>
         prev.map((m) => (m.id === member.id ? { ...m, points: res.new_points } : m))
       );
     } catch (err: any) {
-      setMessage(`❌ ${err.message || 'Failed to log visit'}`);
+      setMessage(`❌ ${err.message || 'Could not check in member'}`);
     }
   };
 
@@ -81,14 +78,14 @@ export function AdminMembers() {
     );
     setMessage(
       nextSuspended
-        ? `⚠️ Account suspended for ${member.name} (${member.member_id}).`
-        : `✅ Account reactivated for ${member.name}.`
+        ? `⚠️ Account paused for ${member.name} (${member.member_id}).`
+        : `✅ Account re-activated for ${member.name}.`
     );
   };
 
   const handleExportMembersCsv = () => {
     const rows = [
-      ['Member ID', 'Name', 'Email', 'Tier', 'Points Balance', 'YTD Points', 'Status'],
+      ['Member ID', 'Name', 'Email', 'Tier', 'Points Balance', 'Total Points Earned', 'Status'],
       ...members.map((m) => [
         m.member_id,
         `"${m.name}"`,
@@ -96,7 +93,7 @@ export function AdminMembers() {
         m.tier,
         String(m.points ?? 0),
         String(m.points_ytd ?? m.points ?? 0),
-        m.suspended ? 'Suspended' : 'Active',
+        m.suspended ? 'Paused' : 'Active',
       ]),
     ];
     const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((r) => r.join(',')).join('\n');
@@ -107,7 +104,7 @@ export function AdminMembers() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setMessage('📊 Member roster exported to CSV.');
+    setMessage('📊 Member list downloaded as CSV.');
   };
 
   const filteredMembers = members
@@ -121,36 +118,38 @@ export function AdminMembers() {
   const totalPointsPool = members.reduce((acc, m) => acc + (m.points || 0), 0);
 
   return (
-    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
+    <div className="admin-page-container" style={{ color: '#0f172a', flex: 1 }}>
       {/* Back Button */}
-      <button
-        onClick={() => navigate('/admin')}
-        style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#cbd5e1',
-          padding: '8px 14px',
-          borderRadius: '999px',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          cursor: 'pointer',
-          marginBottom: '16px',
-        }}
-      >
-        <ArrowLeft size={15} /> Back to Staff Home
-      </button>
+      <div>
+        <button
+          onClick={() => navigate('/admin')}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#334155',
+            padding: '9px 16px',
+            borderRadius: '999px',
+            fontSize: '0.84rem',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Reception Desk
+        </button>
+      </div>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1.2, marginBottom: '6px' }}>
-            <Users size={22} style={{ color: '#38bdf8', flexShrink: 0 }} /> Member Directory
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1.2, marginBottom: '6px' }}>
+            <Users size={24} style={{ color: '#047857', flexShrink: 0 }} /> Find a Member
           </h1>
-          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-            Look up any member by name, log a visit, or add bonus points.
+          <p style={{ fontSize: '0.92rem', color: '#475569', lineHeight: 1.45 }}>
+            Search any member by name to check them in (+100 pts) or add bonus loyalty points.
           </p>
         </div>
 
@@ -158,12 +157,12 @@ export function AdminMembers() {
           type="button"
           onClick={handleExportMembersCsv}
           style={{
-            background: 'rgba(56, 189, 248, 0.14)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            color: '#38bdf8',
-            padding: '10px 14px',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#334155',
+            padding: '10px 16px',
             borderRadius: '12px',
-            fontSize: '0.8rem',
+            fontSize: '0.84rem',
             fontWeight: 800,
             display: 'inline-flex',
             alignItems: 'center',
@@ -171,22 +170,22 @@ export function AdminMembers() {
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flexShrink: 0,
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <Download size={15} /> Download List (CSV)
+          <Download size={16} /> Download List (CSV)
         </button>
       </div>
 
       {message && (
         <div
           style={{
-            background: 'rgba(30, 41, 59, 0.95)',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            color: '#38bdf8',
-            padding: '12px 16px',
+            background: '#ecfdf5',
+            border: '1.5px solid #6ee7b7',
+            color: '#065f46',
+            padding: '14px 16px',
             borderRadius: '14px',
-            fontSize: '0.85rem',
-            marginBottom: '18px',
+            fontSize: '0.9rem',
             fontWeight: 700,
             display: 'flex',
             justifyContent: 'space-between',
@@ -198,7 +197,7 @@ export function AdminMembers() {
           <button
             type="button"
             onClick={() => setMessage('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 800 }}
           >
             ✕
           </button>
@@ -206,61 +205,73 @@ export function AdminMembers() {
       )}
 
       {/* Spacious 2-Column Summary Strip */}
-      <div className="admin-two-col" style={{ marginBottom: '20px' }}>
-        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '16px' }}>
-          <div style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: 700 }}>Total Members</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>{members.length}</div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Registered accounts</div>
+      <div className="admin-two-col">
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 800 }}>Total Club Members</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>{members.length}</div>
+          <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Registered in the app</div>
         </div>
-        <div style={{ background: '#111827', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '16px', padding: '16px' }}>
-          <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: 700 }}>Total Member Points</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 800 }}>Total Member Points</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#047857', marginTop: '4px' }}>
             {totalPointsPool.toLocaleString()}
           </div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Combined balance</div>
+          <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Available to spend on rewards</div>
         </div>
       </div>
 
       {/* Search & Tier Filter Controls */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '18px',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
         <div style={{ position: 'relative' }}>
-          <Search size={17} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
           <input
             type="text"
             className="form-input"
-            placeholder="Search by name, email or Member ID (PG-...)..."
+            placeholder="Type member's name, email, or Member ID (e.g. Alex or PG-...)..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{
-              paddingLeft: '40px',
-              background: 'rgba(15, 23, 42, 0.9)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#ffffff',
+              paddingLeft: '42px',
+              background: '#f8fafc',
+              border: '1.5px solid #cbd5e1',
+              color: '#0f172a',
               marginBottom: 0,
-              minHeight: '44px',
+              minHeight: '48px',
+              fontWeight: 600,
             }}
           />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {(['All', 'Platinum', 'Gold', 'Silver'] as const).map((tier) => (
               <button
                 key={tier}
                 type="button"
                 onClick={() => setTierFilter(tier)}
                 style={{
-                  padding: '5px 10px',
-                  borderRadius: '8px',
-                  border: tierFilter === tier ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
-                  background: tierFilter === tier ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.7)',
-                  color: tierFilter === tier ? '#10b981' : '#94a3b8',
-                  fontSize: '0.7rem',
+                  padding: '7px 14px',
+                  borderRadius: '10px',
+                  border: tierFilter === tier ? '1.5px solid #047857' : '1px solid #cbd5e1',
+                  background: tierFilter === tier ? '#ecfdf5' : '#f8fafc',
+                  color: tierFilter === tier ? '#047857' : '#475569',
+                  fontSize: '0.78rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                 }}
               >
-                {tier}
+                {tier === 'All' ? 'All Members' : `${tier} Tier`}
               </button>
             ))}
           </div>
@@ -269,16 +280,16 @@ export function AdminMembers() {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
             style={{
-              background: 'rgba(15, 23, 42, 0.9)',
-              color: '#cbd5e1',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: '8px',
-              padding: '5px 8px',
-              fontSize: '0.7rem',
+              background: '#f8fafc',
+              color: '#0f172a',
+              border: '1px solid #cbd5e1',
+              borderRadius: '10px',
+              padding: '7px 12px',
+              fontSize: '0.78rem',
               fontWeight: 700,
             }}
           >
-            <option value="points_desc">Sort: Highest Points</option>
+            <option value="points_desc">Sort: Most Points</option>
             <option value="name_asc">Sort: Name (A–Z)</option>
             <option value="recent">Sort: Newest Joined</option>
           </select>
@@ -288,12 +299,12 @@ export function AdminMembers() {
       {/* Member Cards List */}
       <div className="admin-cards-grid">
         {loading ? (
-          <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-            Loading member directory...
+          <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.92rem' }}>
+            Loading member list...
           </div>
         ) : filteredMembers.length === 0 ? (
-          <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', background: 'rgba(15,23,42,0.85)', borderRadius: '16px' }}>
-            No members found matching search.
+          <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.92rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            No members found matching your search.
           </div>
         ) : (
           filteredMembers.map((m) => {
@@ -301,23 +312,24 @@ export function AdminMembers() {
               (b) => b.user_id === m.id || b.user_member_id === m.member_id
             ).length;
             const tierColor =
-              m.tier === 'Platinum' ? '#10b981' : m.tier === 'Gold' ? '#fbbf24' : '#94a3b8';
+              m.tier === 'Platinum' ? '#047857' : m.tier === 'Gold' ? '#d97706' : '#475569';
+            const tierBg =
+              m.tier === 'Platinum' ? '#ecfdf5' : m.tier === 'Gold' ? '#fef3c7' : '#f1f5f9';
 
             return (
               <div
                 key={m.id}
                 style={{
-                  padding: '14px',
-                  background: 'rgba(15, 23, 42, 0.9)',
-                  border: m.suspended
-                    ? '1px solid rgba(239, 68, 68, 0.4)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderLeft: `4px solid ${m.suspended ? '#ef4444' : tierColor}`,
-                  borderRadius: '15px',
+                  padding: '18px',
+                  background: '#ffffff',
+                  border: m.suspended ? '1.5px solid #fecaca' : '1px solid #e2e8f0',
+                  borderLeft: `5px solid ${m.suspended ? '#ef4444' : tierColor}`,
+                  borderRadius: '18px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px',
-                  opacity: m.suspended ? 0.7 : 1,
+                  gap: '14px',
+                  opacity: m.suspended ? 0.75 : 1,
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
@@ -328,9 +340,9 @@ export function AdminMembers() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <span
                         style={{
-                          fontSize: '0.95rem',
+                          fontSize: '1.08rem',
                           fontWeight: 800,
-                          color: '#ffffff',
+                          color: '#0f172a',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -340,63 +352,63 @@ export function AdminMembers() {
                       </span>
                       <span
                         style={{
-                          fontSize: '0.62rem',
+                          fontSize: '0.68rem',
                           fontWeight: 900,
-                          padding: '2px 7px',
+                          padding: '2px 8px',
                           borderRadius: '999px',
-                          background: `${tierColor}22`,
+                          background: tierBg,
                           color: tierColor,
-                          border: `1px solid ${tierColor}44`,
                           textTransform: 'uppercase',
                         }}
                       >
                         {m.tier}
                       </span>
                       {m.suspended && (
-                        <span style={{ fontSize: '0.6rem', fontWeight: 900, background: 'rgba(239,68,68,0.2)', color: '#f87171', padding: '2px 6px', borderRadius: '6px' }}>
-                          SUSPENDED
+                        <span style={{ fontSize: '0.66rem', fontWeight: 900, background: '#fee2e2', color: '#dc2626', padding: '2px 7px', borderRadius: '6px' }}>
+                          PAUSED
                         </span>
                       )}
                     </div>
 
-                    <div style={{ fontSize: '0.73rem', color: '#94a3b8', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span style={{ fontFamily: 'monospace', color: '#cbd5e1', fontWeight: 700 }}>{m.member_id}</span> &bull; {m.email}
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontFamily: 'monospace', color: '#0f172a', fontWeight: 800 }}>{m.member_id}</span> • {m.email}
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#10b981', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#047857', whiteSpace: 'nowrap' }}>
                       {(m.points ?? 0).toLocaleString()} PTS
                     </div>
-                    <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>
-                      {memberBookingsCount} bookings
+                    <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
+                      {memberBookingsCount} {memberBookingsCount === 1 ? 'booking' : 'bookings'}
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Action Bar */}
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {/* Big Easy Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => handleQuickLogVisit(m)}
                     style={{
-                      flex: 1,
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.35)',
-                      color: '#34d399',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.72rem',
+                      flex: 1.3,
+                      minHeight: '42px',
+                      background: '#047857',
+                      border: 'none',
+                      color: '#ffffff',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      fontSize: '0.8rem',
                       fontWeight: 800,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '4px',
+                      gap: '5px',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    <Zap size={13} /> +100 Check-In
+                    <Zap size={15} /> Check In (+100)
                   </button>
 
                   <button
@@ -404,38 +416,44 @@ export function AdminMembers() {
                     onClick={() => setSelectedUser(m)}
                     style={{
                       flex: 1,
-                      background: 'rgba(56, 189, 248, 0.15)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      color: '#38bdf8',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.72rem',
+                      minHeight: '42px',
+                      background: '#e0f2fe',
+                      border: '1px solid #bae6fd',
+                      color: '#0369a1',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      fontSize: '0.8rem',
                       fontWeight: 800,
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    Adjust Points
+                    <PlusCircle size={15} /> Add Points
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setInspectUser(m)}
                     style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      color: '#cbd5e1',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.72rem',
+                      minHeight: '42px',
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      color: '#334155',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      fontSize: '0.8rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '5px',
                     }}
                   >
-                    <QrCode size={13} /> Profile
+                    <QrCode size={15} /> Card
                   </button>
                 </div>
               </div>
@@ -444,13 +462,13 @@ export function AdminMembers() {
         )}
       </div>
 
-      {/* Member 360 Profile Inspector Modal */}
+      {/* Member Card & Profile Modal (Clean Light Mode) */}
       {inspectUser && (
         <div className="modal-overlay" onClick={() => setInspectUser(null)}>
           <div
             className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(56, 189, 248, 0.35)' }}
+            style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1' }}
           >
             <button
               type="button"
@@ -459,9 +477,9 @@ export function AdminMembers() {
                 position: 'absolute',
                 top: '14px',
                 right: '14px',
-                background: 'rgba(255,255,255,0.1)',
+                background: '#f1f5f9',
                 border: 'none',
-                color: '#ffffff',
+                color: '#334155',
                 borderRadius: '50%',
                 width: '34px',
                 height: '34px',
@@ -474,34 +492,34 @@ export function AdminMembers() {
               <X size={18} />
             </button>
 
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', marginBottom: '2px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '2px' }}>
               {inspectUser.name}
             </h3>
-            <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '14px' }}>
-              {inspectUser.member_id} &bull; {inspectUser.email}
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
+              Member ID: <strong>{inspectUser.member_id}</strong> • {inspectUser.email}
             </p>
 
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(9,13,22,0.8)', padding: '12px', borderRadius: '14px', marginBottom: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ background: '#ffffff', padding: '6px', borderRadius: '10px', flexShrink: 0 }}>
-                <QRCodeSVG value={inspectUser.qr_token || inspectUser.member_id} size={74} />
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center', background: '#f8fafc', padding: '16px', borderRadius: '16px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
+              <div style={{ background: '#ffffff', padding: '8px', borderRadius: '12px', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                <QRCodeSVG value={inspectUser.qr_token || inspectUser.member_id} size={80} />
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Current Balance
+                <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>
+                  Current Points Balance
                 </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10b981' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#047857' }}>
                   {(inspectUser.points ?? 0).toLocaleString()} PTS
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, marginTop: '2px' }}>
-                  {inspectUser.tier} Tier &bull; YTD: {(inspectUser.points_ytd ?? inspectUser.points ?? 0).toLocaleString()} PTS
+                <div style={{ fontSize: '0.8rem', color: '#d97706', fontWeight: 800, marginTop: '2px' }}>
+                  {inspectUser.tier} Member
                 </div>
               </div>
             </div>
 
             {/* Member's Recent Bookings */}
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#cbd5e1', textTransform: 'uppercase', marginBottom: '6px' }}>
-                Member Bookings
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Member's Bookings
               </div>
               {(() => {
                 const userBks = bookings.filter(
@@ -509,34 +527,35 @@ export function AdminMembers() {
                 );
                 if (userBks.length === 0) {
                   return (
-                    <div style={{ fontSize: '0.76rem', color: '#64748b', padding: '10px', background: 'rgba(9,13,22,0.5)', borderRadius: '10px' }}>
-                      No reservations recorded for this member.
+                    <div style={{ fontSize: '0.84rem', color: '#64748b', padding: '12px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      No bookings recorded for this member yet.
                     </div>
                   );
                 }
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {userBks.slice(0, 3).map((b) => (
                       <div
                         key={b.id}
                         style={{
-                          background: 'rgba(9,13,22,0.65)',
-                          padding: '8px 10px',
-                          borderRadius: '9px',
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          fontSize: '0.75rem',
+                          fontSize: '0.84rem',
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 800, color: '#ffffff' }}>{b.activity_name}</div>
-                          <div style={{ color: '#94a3b8', fontSize: '0.68rem' }}>
-                            {b.date} @ {b.time} ({b.booking_code})
+                          <div style={{ fontWeight: 800, color: '#0f172a' }}>{b.activity_name}</div>
+                          <div style={{ color: '#64748b', fontSize: '0.76rem' }}>
+                            {b.date} at {b.time} ({b.booking_code})
                           </div>
                         </div>
-                        <span style={{ color: '#10b981', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.65rem' }}>
-                          {b.status}
+                        <span style={{ color: '#047857', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                          {b.status === 'completed' ? 'Checked In' : b.status}
                         </span>
                       </div>
                     ))}
@@ -545,7 +564,7 @@ export function AdminMembers() {
               })()}
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -554,21 +573,21 @@ export function AdminMembers() {
                 }}
                 style={{
                   flex: 1,
-                  minHeight: '42px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  color: '#f87171',
-                  fontSize: '0.76rem',
+                  minHeight: '46px',
+                  borderRadius: '12px',
+                  border: '1px solid #fecaca',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  fontSize: '0.84rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '5px',
+                  gap: '6px',
                 }}
               >
-                <ShieldAlert size={14} /> {inspectUser.suspended ? 'Reactivate' : 'Suspend'}
+                <ShieldAlert size={16} /> {inspectUser.suspended ? 'Reactivate Member' : 'Pause Account'}
               </button>
 
               <button
@@ -579,44 +598,47 @@ export function AdminMembers() {
                   setSelectedUser(u);
                 }}
                 className="btn-primary"
-                style={{ flex: 1.4, minHeight: '42px', fontSize: '0.78rem' }}
+                style={{ flex: 1.4, minHeight: '46px', fontSize: '0.88rem' }}
               >
-                Adjust Points
+                Add or Adjust Points
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Adjust Points Modal */}
+      {/* Adjust Points Modal (Clean Light Mode) */}
       {selectedUser && (
         <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
           <div
             className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
+            style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1' }}
           >
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', marginBottom: '4px' }}>
-              Adjust Points: {selectedUser.name}
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+              Add or Adjust Points: {selectedUser.name}
             </h3>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '14px' }}>
-              Current Balance: <strong style={{ color: '#10b981' }}>{selectedUser.points} PTS</strong> ({selectedUser.tier} Tier)
+            <p style={{ fontSize: '0.88rem', color: '#475569', marginBottom: '16px' }}>
+              Current Balance: <strong style={{ color: '#047857' }}>{selectedUser.points} PTS</strong> ({selectedUser.tier} Member)
             </p>
 
             {/* Quick Presets */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', marginBottom: '6px' }}>
+              Quick Tap Presets:
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
               {[50, 100, 250, -100].map((val) => (
                 <button
                   key={val}
                   type="button"
                   onClick={() => setAdjustPoints(val)}
                   style={{
-                    padding: '8px 4px',
-                    borderRadius: '8px',
-                    border: adjustPoints === val ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.15)',
-                    background: adjustPoints === val ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30, 41, 59, 0.7)',
-                    color: val > 0 ? '#34d399' : '#f87171',
-                    fontSize: '0.78rem',
+                    padding: '10px 6px',
+                    borderRadius: '10px',
+                    border: adjustPoints === val ? '2px solid #047857' : '1px solid #cbd5e1',
+                    background: adjustPoints === val ? '#ecfdf5' : '#f8fafc',
+                    color: val > 0 ? '#047857' : '#dc2626',
+                    fontSize: '0.84rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                   }}
@@ -628,39 +650,36 @@ export function AdminMembers() {
 
             <form onSubmit={handleAdjustPoints}>
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Points Delta (+ or -)</label>
+                <label className="form-label">Points to Add (or use minus - to deduct)</label>
                 <input
                   type="number"
                   className="form-input"
                   value={adjustPoints}
                   onChange={(e) => setAdjustPoints(parseInt(e.target.value) || 0)}
                   required
-                  style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Reason / Reference</label>
+                <label className="form-label">Short Note / Reason</label>
                 <input
                   type="text"
                   className="form-input"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   required
-                  style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '10px', marginTop: '18px' }}>
                 <button
                   type="button"
                   onClick={() => setSelectedUser(null)}
                   className="btn-secondary"
-                  style={{ background: 'transparent', color: '#94a3b8', borderColor: '#334155' }}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                <button type="submit" className="btn-primary">
                   Save Points
                 </button>
               </div>

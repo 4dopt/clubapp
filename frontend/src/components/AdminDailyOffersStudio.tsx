@@ -7,7 +7,6 @@ import {
   RotateCcw,
   Check,
   X,
-  Tag,
 } from 'lucide-react';
 import {
   DailyOffer,
@@ -99,14 +98,14 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
     });
 
     setOffers(updated);
-    onStatusMessage?.(`✅ Updated ${editingDay.dayName}'s Offer of the Day: "${title}"`);
+    onStatusMessage?.(`✅ Saved ${editingDay.dayName}'s Daily Deal: "${title}"`);
     setEditingDay(null);
   };
 
   const handleResetDefaults = () => {
     const reset = resetDailyOffersToDefaults();
     setOffers(reset);
-    onStatusMessage?.('🔄 Reset Monday–Sunday Daily Offers to PlayGolf defaults.');
+    onStatusMessage?.('🔄 Reset Monday–Sunday Daily Deals to PlayGolf defaults.');
   };
 
   return (
@@ -114,10 +113,10 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
       {/* Studio Info Banner */}
       <div
         style={{
-          background: 'rgba(15, 23, 42, 0.9)',
-          border: '1px solid rgba(251, 191, 36, 0.35)',
-          borderRadius: '16px',
-          padding: '16px',
+          background: '#fffbeb',
+          border: '1.5px solid #fde68a',
+          borderRadius: '18px',
+          padding: '18px',
           marginBottom: '16px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -132,21 +131,21 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '0.7rem',
-              fontWeight: 800,
-              color: '#fbbf24',
+              fontSize: '0.74rem',
+              fontWeight: 900,
+              color: '#b45309',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               marginBottom: '4px',
             }}
           >
-            <Sparkles size={13} /> Today’s Live Spotlight ({todayOffer.dayName})
+            <Sparkles size={14} /> Today’s Live Deal ({todayOffer.dayName})
           </div>
-          <h3 style={{ fontSize: '1.02rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
-            {todayOffer.title} — <span style={{ color: '#34d399' }}>{todayOffer.dealBadge}</span>
+          <h3 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            {todayOffer.title} — <span style={{ color: '#047857' }}>{todayOffer.dealBadge}</span>
           </h3>
-          <p style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '3px', marginBottom: 0 }}>
-            The Member Dashboard automatically rotates to the matching day’s offer at midnight. Tap any day below to customize.
+          <p style={{ fontSize: '0.82rem', color: '#475569', marginTop: '4px', marginBottom: 0 }}>
+            The Member App automatically shows the matching day’s deal. Tap any day below to edit.
           </p>
         </div>
 
@@ -154,12 +153,12 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
           type="button"
           onClick={handleResetDefaults}
           style={{
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
-            color: '#cbd5e1',
-            padding: '8px 12px',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#334155',
+            padding: '9px 14px',
             borderRadius: '10px',
-            fontSize: '0.74rem',
+            fontSize: '0.78rem',
             fontWeight: 700,
             cursor: 'pointer',
             display: 'inline-flex',
@@ -168,7 +167,7 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
             whiteSpace: 'nowrap',
           }}
         >
-          <RotateCcw size={13} /> Reset Defaults
+          <RotateCcw size={14} /> Reset Defaults
         </button>
       </div>
 
@@ -181,17 +180,16 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
             <div
               key={offer.dayKey}
               style={{
-                background: 'rgba(15, 23, 42, 0.92)',
-                border: isToday
-                  ? '1.5px solid rgba(16, 185, 129, 0.55)'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '16px',
-                padding: '15px',
+                background: '#ffffff',
+                border: isToday ? '2px solid #047857' : '1px solid #e2e8f0',
+                borderRadius: '18px',
+                padding: '16px',
                 display: 'flex',
                 gap: '14px',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0, flex: 1 }}>
@@ -204,7 +202,7 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                     borderRadius: '12px',
                     objectFit: 'cover',
                     flexShrink: 0,
-                    border: '1px solid rgba(255,255,255,0.12)',
+                    border: '1px solid #e2e8f0',
                   }}
                 />
 
@@ -212,11 +210,11 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
                     <span
                       style={{
-                        background: isToday ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.08)',
-                        color: '#ffffff',
-                        padding: '2px 8px',
+                        background: isToday ? '#047857' : '#f1f5f9',
+                        color: isToday ? '#ffffff' : '#334155',
+                        padding: '3px 9px',
                         borderRadius: '999px',
-                        fontSize: '0.64rem',
+                        fontSize: '0.68rem',
                         fontWeight: 800,
                         textTransform: 'uppercase',
                       }}
@@ -226,54 +224,42 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
 
                     <span
                       style={{
-                        background: 'rgba(251, 191, 36, 0.16)',
-                        color: '#fbbf24',
-                        border: '1px solid rgba(251, 191, 36, 0.35)',
+                        background: '#fef3c7',
+                        color: '#b45309',
+                        border: '1px solid #fde68a',
                         padding: '2px 8px',
                         borderRadius: '6px',
-                        fontSize: '0.64rem',
+                        fontSize: '0.68rem',
                         fontWeight: 800,
                       }}
                     >
                       {offer.dealBadge}
                     </span>
-
-                    <span
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.66rem',
-                        color: '#38bdf8',
-                        background: 'rgba(56, 189, 248, 0.12)',
-                        padding: '2px 7px',
-                        borderRadius: '6px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {offer.promoCode}
-                    </span>
                   </div>
 
-                  <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: '#ffffff', margin: '0 0 2px 0' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 2px 0' }}>
                     {offer.title}
                   </h4>
 
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.35 }}>
+                  <div style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.35 }}>
                     {offer.description}
                   </div>
 
                   <div
                     style={{
-                      fontSize: '0.68rem',
-                      color: '#cbd5e1',
+                      fontSize: '0.74rem',
+                      color: '#64748b',
                       marginTop: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '10px',
+                      fontWeight: 700,
                     }}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={11} style={{ color: '#fbbf24' }} /> {offer.timeWindow}
+                      <Clock size={12} style={{ color: '#d97706' }} /> {offer.timeWindow}
                     </span>
+                    <span>• Code: {offer.promoCode}</span>
                   </div>
                 </div>
               </div>
@@ -282,12 +268,12 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                 type="button"
                 onClick={() => openEditor(offer)}
                 style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
-                  color: '#34d399',
-                  padding: '8px 14px',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  color: '#047857',
+                  padding: '9px 14px',
                   borderRadius: '10px',
-                  fontSize: '0.76rem',
+                  fontSize: '0.8rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -296,23 +282,23 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                   flexShrink: 0,
                 }}
               >
-                <Edit2 size={13} /> Customize {offer.shortDay}
+                <Edit2 size={14} /> Edit {offer.shortDay}
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Edit Day Offer Modal */}
+      {/* Edit Day Offer Modal (Clean Light Mode) */}
       {editingDay && (
         <div className="modal-overlay" onClick={() => setEditingDay(null)}>
           <div
             className="modal-content admin-modal-dialog"
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#0f172a',
-              color: '#ffffff',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
+              background: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #cbd5e1',
             }}
           >
             <button
@@ -322,9 +308,9 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                 position: 'absolute',
                 top: '14px',
                 right: '14px',
-                background: 'rgba(255,255,255,0.1)',
+                background: '#f1f5f9',
                 border: 'none',
-                color: '#ffffff',
+                color: '#334155',
                 borderRadius: '50%',
                 width: '34px',
                 height: '34px',
@@ -339,23 +325,21 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
 
             <h3
               style={{
-                fontSize: '1.1rem',
-                color: '#ffffff',
+                fontSize: '1.2rem',
+                color: '#0f172a',
                 marginBottom: '14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
               }}
             >
-              <Calendar size={18} color="#10b981" />
-              Edit {editingDay.dayName} Offer of the Day
+              <Calendar size={20} color="#047857" />
+              Edit {editingDay.dayName} Daily Deal
             </h3>
 
             <form onSubmit={handleSaveOffer}>
               <div className="form-group" style={{ marginBottom: '10px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1' }}>
-                  Offer Title
-                </label>
+                <label className="form-label">Deal Headline</label>
                 <input
                   type="text"
                   className="form-input"
@@ -363,18 +347,13 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Monday Mornings Off-Peak"
                   required
-                  style={{
-                    background: 'rgba(9, 13, 22, 0.9)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
-                  }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                    Deal Highlight Badge
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>
+                    Discount / Highlight Badge
                   </label>
                   <input
                     type="text"
@@ -383,17 +362,12 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                     onChange={(e) => setDealBadge(e.target.value)}
                     placeholder="e.g. 50% OFF RANGE BAYS"
                     required
-                    style={{
-                      background: 'rgba(9, 13, 22, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
-                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                    Time Window
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>
+                    Valid Hours
                   </label>
                   <input
                     type="text"
@@ -402,18 +376,13 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                     onChange={(e) => setTimeWindow(e.target.value)}
                     placeholder="e.g. 08:00 – 12:00"
                     required
-                    style={{
-                      background: 'rgba(9, 13, 22, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
-                    }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>
                     Promo Code
                   </label>
                   <input
@@ -423,18 +392,13 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                     onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     placeholder="e.g. MONOFFPEAK"
                     required
-                    style={{
-                      background: 'rgba(9, 13, 22, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
-                      fontFamily: 'monospace',
-                    }}
+                    style={{ fontFamily: 'monospace' }}
                   />
                 </div>
 
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                    Subtitle
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>
+                    Short Tagline
                   </label>
                   <input
                     type="text"
@@ -442,47 +406,30 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                     value={subtitle}
                     onChange={(e) => setSubtitle(e.target.value)}
                     placeholder="e.g. Early Bird Special"
-                    style={{
-                      background: 'rgba(9, 13, 22, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
-                    }}
                   />
                 </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1' }}>
-                  Offer Details / Description
-                </label>
+                <label className="form-label">Deal Details</label>
                 <input
                   type="text"
                   className="form-input"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
-                  style={{
-                    background: 'rgba(9, 13, 22, 0.9)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#ffffff',
-                  }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                    Booking Destination
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>
+                    When Member Taps "Book"
                   </label>
                   <select
                     className="form-input"
                     value={bookingPath}
                     onChange={(e) => setBookingPath(e.target.value)}
-                    style={{
-                      background: 'rgba(9, 13, 22, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
-                    }}
                   >
                     {BOOKING_ROUTE_OPTIONS.map((opt) => (
                       <option key={opt.path} value={opt.path}>
@@ -493,26 +440,21 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                 </div>
 
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                    Booking Button Text
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>
+                    Button Text
                   </label>
                   <input
                     type="text"
                     className="form-input"
                     value={bookingLabel}
                     onChange={(e) => setBookingLabel(e.target.value)}
-                    style={{
-                      background: 'rgba(9, 13, 22, 0.9)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#ffffff',
-                    }}
                   />
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1', marginBottom: '6px', display: 'block' }}>
-                  Background Image Preset
+              <div className="form-group" style={{ marginBottom: '14px' }}>
+                <label className="form-label" style={{ marginBottom: '6px', display: 'block' }}>
+                  Photo Preset
                 </label>
                 <div className="hide-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                   {IMAGE_PRESETS.map((img) => (
@@ -521,13 +463,13 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                       type="button"
                       onClick={() => setImageUrl(img.url)}
                       style={{
-                        border: imageUrl === img.url ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.15)',
+                        border: imageUrl === img.url ? '2px solid #047857' : '1px solid #cbd5e1',
                         borderRadius: '8px',
-                        padding: '4px 9px',
-                        background: imageUrl === img.url ? 'rgba(16,185,129,0.2)' : 'rgba(9,13,22,0.8)',
-                        color: imageUrl === img.url ? '#10b981' : '#cbd5e1',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
+                        padding: '6px 12px',
+                        background: imageUrl === img.url ? '#ecfdf5' : '#f8fafc',
+                        color: imageUrl === img.url ? '#047857' : '#334155',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
                       }}
@@ -542,12 +484,11 @@ export function AdminDailyOffersStudio({ onStatusMessage }: Props) {
                 type="submit"
                 className="btn-primary"
                 style={{
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  minHeight: '48px',
                   fontWeight: 800,
-                  height: '46px',
                 }}
               >
-                <Check size={16} /> Save {editingDay.dayName} Offer
+                <Check size={17} /> Save {editingDay.dayName} Deal
               </button>
             </form>
           </div>

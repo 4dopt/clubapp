@@ -34,9 +34,9 @@ export function Dashboard() {
   const currentPoints = user.points ?? user.points_balance ?? 0;
   const visualTier = resolveCardVisualTier(user);
   const nextTierName = visualTier === 'Green' ? 'Silver' : visualTier === 'Silver' ? 'Gold' : 'Platinum';
-  const nextTierTarget = visualTier === 'Green' ? 500 : visualTier === 'Silver' ? 1000 : 5000;
+  const nextTierTarget = visualTier === 'Green' ? 1000 : visualTier === 'Silver' ? 10000 : 20000;
   const progressPct = Math.min(100, Math.round((currentPoints / nextTierTarget) * 100));
-  const pointsRemaining = Math.max(0, nextTierTarget - currentPoints + (visualTier === 'Green' ? 1 : 0));
+  const pointsRemaining = Math.max(0, nextTierTarget - currentPoints);
   const chosenGoal = getChosenRewardProgress(currentPoints);
   const visitRate = getVisitPointsRate();
 

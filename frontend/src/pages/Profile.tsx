@@ -48,7 +48,7 @@ export function Profile() {
   const nextTierName =
     visualTier === 'Green' ? 'Silver' : visualTier === 'Silver' ? 'Gold' : visualTier === 'Gold' ? 'Platinum' : 'Max';
   const nextTierPoints =
-    visualTier === 'Green' ? 500 : visualTier === 'Silver' ? 1000 : visualTier === 'Gold' ? 5000 : currentPoints;
+    visualTier === 'Green' ? 1000 : visualTier === 'Silver' ? 10000 : visualTier === 'Gold' ? 20000 : currentPoints;
   const progressPercent =
     visualTier === 'Platinum' ? 100 : Math.min(100, Math.round((currentPoints / nextTierPoints) * 100));
 

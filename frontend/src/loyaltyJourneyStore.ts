@@ -72,7 +72,7 @@ const DEFAULT_CHALLENGES: GolfChallenge[] = [
     title: 'Range Habit Builder',
     subtitle: 'Complete 3 Driving Range practice sessions checked in at reception',
     category: 'consistency',
-    current: 1,
+    current: 0,
     target: 3,
     unit: 'sessions',
     rewardPoints: 150,
@@ -85,7 +85,7 @@ const DEFAULT_CHALLENGES: GolfChallenge[] = [
     title: 'Multi-Activity Explorer',
     subtitle: 'Play 2 different club activities (Range, 9 Holes, Putt Crazy, or Darts)',
     category: 'explorer',
-    current: 1,
+    current: 0,
     target: 2,
     unit: 'activities',
     rewardPoints: 150,
@@ -98,7 +98,7 @@ const DEFAULT_CHALLENGES: GolfChallenge[] = [
     title: 'Quiet-Time Regular',
     subtitle: 'Check in twice at reception during Off-Peak Hours (Mon–Thu 9am–4pm)',
     category: 'offpeak',
-    current: 1,
+    current: 0,
     target: 2,
     unit: 'off-peak visits',
     rewardPoints: 100,
@@ -117,23 +117,11 @@ const DEFAULT_CHALLENGES: GolfChallenge[] = [
     rewardPoints: 75,
     xpReward: 80,
     claimed: false,
-    howToProgress: 'Redeem any reward (such as the 50 PTS Early Win Starter) in Rewards.',
+    howToProgress: 'Redeem any reward from the Rewards catalog.',
   },
 ];
 
-const DEFAULT_REFERRALS: FriendReferral[] = [
-  {
-    id: 'ref_default_1',
-    referrerCode: 'PG-CLUB',
-    friendName: 'David Clarke',
-    friendEmail: 'david.clarke@example.com',
-    friendMemberId: 'PG-883920',
-    invitedDate: '2026-11-15',
-    status: 'pending_first_visit',
-    bonusPoints: 200,
-    referrerCredited: false,
-  },
-];
+const DEFAULT_REFERRALS: FriendReferral[] = [];
 
 export function isNaturalQuietTimeWindow(now = new Date()): boolean {
   const day = now.getDay(); // 0 Sun, 1 Mon .. 4 Thu, 5 Fri, 6 Sat
@@ -158,11 +146,11 @@ export function getStoredReferralRegistry(): FriendReferral[] {
   try {
     const raw = localStorage.getItem(REFERRALS_REGISTRY_KEY);
     if (!raw) {
-      localStorage.setItem(REFERRALS_REGISTRY_KEY, JSON.stringify(DEFAULT_REFERRALS));
       return DEFAULT_REFERRALS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_REFERRALS;
+    if (!Array.isArray(parsed)) return DEFAULT_REFERRALS;
+    return parsed.filter((r: any) => r?.id !== 'ref_default_1');
   } catch {
     return DEFAULT_REFERRALS;
   }
@@ -184,20 +172,20 @@ export function getJourneyState(): LoyaltyJourneyState {
       const initial: LoyaltyJourneyState = {
         targetRewardId: 'rew_1',
         socialPrivateMode: false,
-        totalVisits: 2,
-        rangeBallsHit: 200,
-        activitiesTried: ['Driving Range'],
+        totalVisits: 0,
+        rangeBallsHit: 0,
+        activitiesTried: [],
         rewardsRedeemedCount: 0,
         challenges: DEFAULT_CHALLENGES,
         referrals: registry,
-        teamGoalProgress: 6,
+        teamGoalProgress: 0,
         teamGoalTarget: 10,
         teamGoalClaimed: false,
         streakDay: 1,
         dailyCheckInClaimedDate: null,
         dailySwingPlayedDate: null,
         lastVerifiedVisitDate: null,
-        chestXp: 120,
+        chestXp: 0,
         chestTargetXp: 300,
         chestsOpened: 0,
       };
@@ -222,20 +210,20 @@ export function getJourneyState(): LoyaltyJourneyState {
     const state: LoyaltyJourneyState = {
       targetRewardId: parsed.targetRewardId || 'rew_1',
       socialPrivateMode: Boolean(parsed.socialPrivateMode),
-      totalVisits: typeof parsed.totalVisits === 'number' ? parsed.totalVisits : 2,
-      rangeBallsHit: typeof parsed.rangeBallsHit === 'number' ? parsed.rangeBallsHit : 200,
-      activitiesTried: Array.isArray(parsed.activitiesTried) ? parsed.activitiesTried : ['Driving Range'],
+      totalVisits: typeof parsed.totalVisits === 'number' ? parsed.totalVisits : 0,
+      rangeBallsHit: typeof parsed.rangeBallsHit === 'number' ? parsed.rangeBallsHit : 0,
+      activitiesTried: Array.isArray(parsed.activitiesTried) ? parsed.activitiesTried : [],
       rewardsRedeemedCount: typeof parsed.rewardsRedeemedCount === 'number' ? parsed.rewardsRedeemedCount : 0,
       challenges: mergedChallenges,
       referrals: registry,
-      teamGoalProgress: typeof parsed.teamGoalProgress === 'number' ? Math.min(10, parsed.teamGoalProgress) : 6,
+      teamGoalProgress: typeof parsed.teamGoalProgress === 'number' ? Math.min(10, parsed.teamGoalProgress) : 0,
       teamGoalTarget: 10,
       teamGoalClaimed: Boolean(parsed.teamGoalClaimed),
       streakDay: typeof parsed.streakDay === 'number' && parsed.streakDay >= 1 && parsed.streakDay <= 7 ? parsed.streakDay : 1,
       dailyCheckInClaimedDate: parsed.dailyCheckInClaimedDate || null,
       dailySwingPlayedDate: parsed.dailySwingPlayedDate || null,
       lastVerifiedVisitDate: parsed.lastVerifiedVisitDate || null,
-      chestXp: typeof parsed.chestXp === 'number' ? Math.max(0, parsed.chestXp) : 120,
+      chestXp: typeof parsed.chestXp === 'number' ? Math.max(0, parsed.chestXp) : 0,
       chestTargetXp: 300,
       chestsOpened: typeof parsed.chestsOpened === 'number' ? parsed.chestsOpened : 0,
     };
@@ -245,20 +233,20 @@ export function getJourneyState(): LoyaltyJourneyState {
     return {
       targetRewardId: 'rew_1',
       socialPrivateMode: false,
-      totalVisits: 2,
-      rangeBallsHit: 200,
-      activitiesTried: ['Driving Range'],
+      totalVisits: 0,
+      rangeBallsHit: 0,
+      activitiesTried: [],
       rewardsRedeemedCount: 0,
       challenges: DEFAULT_CHALLENGES,
       referrals: DEFAULT_REFERRALS,
-      teamGoalProgress: 6,
+      teamGoalProgress: 0,
       teamGoalTarget: 10,
       teamGoalClaimed: false,
       streakDay: 1,
       dailyCheckInClaimedDate: null,
       dailySwingPlayedDate: null,
       lastVerifiedVisitDate: null,
-      chestXp: 120,
+      chestXp: 0,
       chestTargetXp: 300,
       chestsOpened: 0,
     };

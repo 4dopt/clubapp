@@ -31,6 +31,7 @@ import {
   supabaseSignUp,
   supabaseResetPassword,
   supabaseUpdatePassword,
+  supabaseResendVerificationEmail,
 } from '../supabaseService';
 import { registerPendingReferral } from '../loyaltyJourneyStore';
 
@@ -64,13 +65,21 @@ export function Login() {
 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
+  const [resendingEmail, setResendingEmail] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { user, loading: authLoading, signIn } = useAuth();
   const navigate = useNavigate();
 
-  // Detect Supabase PASSWORD_RECOVERY event if user clicked email reset link
+  // Detect Supabase PASSWORD_RECOVERY or Email Confirmation callback in URL
   useEffect(() => {
+    const hash = window.location.hash || '';
+    if (hash.includes('type=signup') || hash.includes('type=email')) {
+      setShowOnboarding(false);
+      setSuccessMsg('Your email address has been verified! Welcome to PlayGolf Club.');
+    }
+
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setShowOnboarding(false);
@@ -106,12 +115,17 @@ export function Login() {
     setLoading(true);
     try {
       const res = await supabaseSignIn(signInEmail, signInPassword);
+      setPendingVerifyEmail('');
       const accessToken = res.session?.access_token || `sb_token_${res.user.id}`;
       await signIn(accessToken, res.user);
       if (res.user.role === 'admin') navigate('/admin', { replace: true });
       else navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password.');
+      const msg = err.message || 'Invalid email or password.';
+      setError(msg);
+      if (msg.toLowerCase().includes('verify your email') || msg.toLowerCase().includes('not confirmed')) {
+        setPendingVerifyEmail(signInEmail.trim());
+      }
     } finally {
       setLoading(false);
     }
@@ -152,6 +166,7 @@ export function Login() {
       }
 
       if (res.requiresEmailConfirmation) {
+        setPendingVerifyEmail(signUpEmail.trim());
         setSuccessMsg(
           `Account created for ${res.profile.name} (Member ID: ${res.profile.member_id})! Please check your email inbox to confirm your email address, then sign in.`
         );
@@ -195,6 +210,25 @@ export function Login() {
       setError(err.message || 'Could not send reset email. Please verify your email address.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 3b. Resend Signup Verification Email Handler
+  const handleResendVerification = async () => {
+    const targetEmail = (pendingVerifyEmail || signInEmail || signUpEmail).trim();
+    if (!targetEmail) {
+      setError('Please enter your email address first.');
+      return;
+    }
+    setResendingEmail(true);
+    setError('');
+    try {
+      await supabaseResendVerificationEmail(targetEmail);
+      setSuccessMsg(`Verification link resent to ${targetEmail}! Please check your inbox and spam folder.`);
+    } catch (err: any) {
+      setError(err.message || 'Could not resend verification email. Please wait a moment and try again.');
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -1176,6 +1210,44 @@ export function Login() {
           >
             <CheckCircle2 size={17} style={{ flexShrink: 0, marginTop: '1px' }} />
             <span>{successMsg}</span>
+          </div>
+        )}
+
+        {pendingVerifyEmail && (tab === 'signin' || tab === 'signup') && (
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '12px',
+              padding: '10px 12px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Didn't receive the verification email?
+            </span>
+            <button
+              type="button"
+              disabled={resendingEmail}
+              onClick={handleResendVerification}
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--brand-green)',
+                color: 'var(--brand-green)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '0.76rem',
+                fontWeight: 800,
+                cursor: resendingEmail ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
+            </button>
           </div>
         )}
 

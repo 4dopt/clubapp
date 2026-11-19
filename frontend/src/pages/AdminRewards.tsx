@@ -9,18 +9,13 @@ import {
   EyeOff,
   Upload,
   X,
-  Sparkles,
   Copy,
   Trash2,
   Star,
   CheckCircle2,
   QrCode,
-  Tag,
-  Award,
-  TrendingUp,
   Layers,
   ShieldCheck,
-  Clock,
   Wand2,
   ArrowLeft,
   Calendar,
@@ -144,9 +139,13 @@ export function AdminRewards() {
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Main View Tab: Catalog Studio vs Daily Offers (Mon-Sun) vs Redemptions & Voucher Desk
-  const [activeTab, setActiveTab] = useState<'catalog' | 'daily_offers' | 'redemptions'>(() =>
-    location.search.includes('daily') ? 'daily_offers' : 'catalog'
+  // Default to Vouchers Desk when staff open this page unless ?tab=daily or ?tab=catalog
+  const [activeTab, setActiveTab] = useState<'redemptions' | 'catalog' | 'daily_offers'>(() =>
+    location.search.includes('daily')
+      ? 'daily_offers'
+      : location.search.includes('catalog')
+      ? 'catalog'
+      : 'redemptions'
   );
 
   // Catalog Filters
@@ -305,11 +304,11 @@ export function AdminRewards() {
       });
 
       setRewards((prev) => [newReward, ...prev]);
-      setMessage(`✅ Created reward "${newReward.title}" in catalog!`);
+      setMessage(`✅ Added reward "${newReward.title}" to the shop!`);
       setShowAddModal(false);
       resetForm();
     } catch (err: any) {
-      setMessage(`❌ ${err.message || 'Failed to create reward'}`);
+      setMessage(`❌ ${err.message || 'Could not create reward'}`);
     }
   };
 
@@ -339,11 +338,11 @@ export function AdminRewards() {
         prev.map((r) => (r.id === editingReward.id ? { ...r, ...updates } : r))
       );
 
-      setMessage(`✅ Updated reward "${title}"!`);
+      setMessage(`✅ Saved changes to "${title}"!`);
       setEditingReward(null);
       resetForm();
     } catch (err: any) {
-      setMessage(`❌ ${err.message || 'Failed to update reward'}`);
+      setMessage(`❌ ${err.message || 'Could not update reward'}`);
     }
   };
 
@@ -355,14 +354,14 @@ export function AdminRewards() {
       redeemed_count: 0,
     });
     setRewards((prev) => [copy, ...prev]);
-    setMessage(`📋 Duplicated "${reward.title}" for quick editing.`);
+    setMessage(`📋 Copied "${reward.title}" for quick editing.`);
   };
 
   const handleDeleteReward = async (reward: Reward) => {
     if (!token) return;
     await adminApi.deleteReward(token, reward.id);
     setRewards((prev) => prev.filter((r) => r.id !== reward.id));
-    setMessage(`🗑️ Removed "${reward.title}" from catalog.`);
+    setMessage(`🗑️ Removed "${reward.title}" from the shop.`);
   };
 
   const handleQuickAdjustCost = async (reward: Reward, delta: number) => {
@@ -381,7 +380,7 @@ export function AdminRewards() {
     setRewards((prev) =>
       prev.map((r) => (r.id === reward.id ? { ...r, featured: nextFeatured } : r))
     );
-    setMessage(nextFeatured ? `⭐ Marked "${reward.title}" as Featured Perk!` : `Removed featured spotlight from "${reward.title}".`);
+    setMessage(nextFeatured ? `⭐ Highlighted "${reward.title}" as Featured!` : `Removed featured star from "${reward.title}".`);
   };
 
   const toggleRewardActive = async (reward: Reward) => {
@@ -392,9 +391,9 @@ export function AdminRewards() {
       setRewards((prev) =>
         prev.map((r) => (r.id === reward.id ? { ...r, active: newStatus } : r))
       );
-      setMessage(`${newStatus ? '✅ Activated' : '⏸️ Paused'} "${reward.title}"`);
+      setMessage(`${newStatus ? '✅ Turned On' : '⏸️ Paused'} "${reward.title}"`);
     } catch {
-      setMessage('Failed to toggle status');
+      setMessage('Could not change status');
     }
   };
 
@@ -404,7 +403,7 @@ export function AdminRewards() {
     try {
       const res = await adminApi.fulfillRewardQr(token, verifyCodeInput.trim());
       setMessage(
-        `✅ Verified & Fulfilled: "${res.redemption.reward_title}" for ${res.member.name} (${res.member.member_id})!`
+        `✅ Voucher Verified! Please hand "${res.redemption.reward_title}" to ${res.member.name} (${res.member.member_id}).`
       );
       setVerifyCodeInput('');
       const updatedReds = await adminApi.listRedemptions(token);
@@ -423,9 +422,9 @@ export function AdminRewards() {
           r.id === redemption.id ? { ...r, fulfilled: true, fulfilled_at: new Date().toISOString() } : r
         )
       );
-      setMessage(`✅ Fulfilled "${redemption.reward_title}" for ${redemption.user_name || 'Member'}.`);
+      setMessage(`✅ Marked "${redemption.reward_title}" handed over to ${redemption.user_name || 'Member'}.`);
     } catch {
-      setMessage('❌ Failed to mark redemption as fulfilled.');
+      setMessage('❌ Could not update voucher.');
     }
   };
 
@@ -461,33 +460,32 @@ export function AdminRewards() {
   });
 
   const activeCount = rewards.filter((r) => r.active).length;
-  const totalRedeemedCount = rewards.reduce((acc, r) => acc + (r.redeemed_count || 0), 0);
   const pendingVoucherCount = redemptions.filter((r) => !r.fulfilled).length;
-  const avgCost =
-    rewards.length > 0 ? Math.round(rewards.reduce((acc, r) => acc + r.points_cost, 0) / rewards.length) : 0;
 
   return (
-    <div className="admin-page-container" style={{ color: '#f8fafc', flex: 1 }}>
+    <div className="admin-page-container" style={{ color: '#0f172a', flex: 1 }}>
       {/* Back Button */}
-      <button
-        onClick={() => navigate('/admin')}
-        style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#cbd5e1',
-          padding: '8px 14px',
-          borderRadius: '999px',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          cursor: 'pointer',
-          marginBottom: '16px',
-        }}
-      >
-        <ArrowLeft size={15} /> Back to Staff Home
-      </button>
+      <div>
+        <button
+          onClick={() => navigate('/admin')}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            color: '#334155',
+            padding: '9px 16px',
+            borderRadius: '999px',
+            fontSize: '0.84rem',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Reception Desk
+        </button>
+      </div>
 
       {/* Header Banner */}
       <div
@@ -495,7 +493,6 @@ export function AdminRewards() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: '20px',
           gap: '12px',
           flexWrap: 'wrap',
         }}
@@ -503,9 +500,9 @@ export function AdminRewards() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h1
             style={{
-              fontSize: '1.5rem',
+              fontSize: '1.6rem',
               fontWeight: 800,
-              color: '#ffffff',
+              color: '#0f172a',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -513,10 +510,10 @@ export function AdminRewards() {
               marginBottom: '6px',
             }}
           >
-            <Gift size={22} style={{ color: '#10b981', flexShrink: 0 }} /> Rewards & Vouchers
+            <Gift size={24} style={{ color: '#047857', flexShrink: 0 }} /> Vouchers & Rewards
           </h1>
-          <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: 1.45 }}>
-            Add new member perks or check off reward vouchers at reception.
+          <p style={{ fontSize: '0.92rem', color: '#475569', lineHeight: 1.45 }}>
+            Check off member reward vouchers at the desk, or manage the club’s rewards shop and daily deals.
           </p>
         </div>
 
@@ -525,30 +522,29 @@ export function AdminRewards() {
           className="btn-primary"
           style={{
             width: 'auto',
-            minHeight: '44px',
-            padding: '10px 16px',
-            fontSize: '0.84rem',
+            minHeight: '48px',
+            padding: '10px 18px',
+            fontSize: '0.9rem',
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+            background: 'linear-gradient(135deg, #047857, #10b981)',
+            boxShadow: '0 4px 14px rgba(4, 120, 87, 0.25)',
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
         >
-          <Plus size={16} /> Add New Reward
+          <Plus size={18} /> Add New Reward
         </button>
       </div>
 
       {message && (
         <div
           style={{
-            background: 'rgba(16, 185, 129, 0.15)',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
-            color: '#34d399',
-            padding: '12px 16px',
+            background: '#ecfdf5',
+            border: '1.5px solid #6ee7b7',
+            color: '#065f46',
+            padding: '14px 16px',
             borderRadius: '14px',
-            fontSize: '0.85rem',
-            marginBottom: '18px',
+            fontSize: '0.9rem',
             fontWeight: 700,
             display: 'flex',
             justifyContent: 'space-between',
@@ -560,132 +556,55 @@ export function AdminRewards() {
           <button
             type="button"
             onClick={() => setMessage('')}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 800 }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Spacious 2-Column Summary Cards */}
-      <div className="admin-two-col" style={{ marginBottom: '20px' }}>
-        <div
-          onClick={() => setActiveTab('catalog')}
-          style={{
-            background: '#111827',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            borderRadius: '16px',
-            padding: '16px',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '0.76rem', color: '#34d399', fontWeight: 700 }}>Active Perks in Shop</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffffff', marginTop: '4px' }}>
-            {activeCount} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 600 }}>of {rewards.length}</span>
-          </div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Available to members</div>
-        </div>
-
-        <div
-          onClick={() => setActiveTab('redemptions')}
-          style={{
-            background: '#111827',
-            border: '1px solid rgba(251, 191, 36, 0.3)',
-            borderRadius: '16px',
-            padding: '16px',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: 700 }}>Waiting Vouchers</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fbbf24', marginTop: '4px' }}>{pendingVoucherCount}</div>
-          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>Tap to verify codes</div>
-        </div>
-      </div>
-
-      {/* Mode Switcher: Catalog Studio vs Daily Offers (Mon–Sun) vs Voucher Desk */}
+      {/* Mode Switcher: Vouchers Desk (Default) vs Rewards Catalog vs Daily Offers */}
       <div
         style={{
           display: 'flex',
-          background: 'rgba(15, 23, 42, 0.9)',
-          padding: '4px',
-          borderRadius: '13px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          marginBottom: '16px',
-          gap: '4px',
+          background: '#e2e8f0',
+          padding: '5px',
+          borderRadius: '16px',
+          gap: '6px',
+          flexWrap: 'wrap',
         }}
       >
         <button
           type="button"
-          onClick={() => setActiveTab('catalog')}
-          style={{
-            flex: 1,
-            minHeight: '38px',
-            borderRadius: '9px',
-            border: 'none',
-            background: activeTab === 'catalog' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-            color: activeTab === 'catalog' ? '#ffffff' : '#94a3b8',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-          }}
-        >
-          <Layers size={14} /> Catalog ({rewards.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('daily_offers')}
-          style={{
-            flex: 1,
-            minHeight: '38px',
-            borderRadius: '9px',
-            border: 'none',
-            background: activeTab === 'daily_offers' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-            color: activeTab === 'daily_offers' ? '#ffffff' : '#94a3b8',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-          }}
-        >
-          <Calendar size={14} /> Daily Offers (7)
-        </button>
-
-        <button
-          type="button"
           onClick={() => setActiveTab('redemptions')}
           style={{
             flex: 1,
-            minHeight: '38px',
-            borderRadius: '9px',
+            minHeight: '46px',
+            padding: '8px 14px',
+            borderRadius: '12px',
             border: 'none',
-            background: activeTab === 'redemptions' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-            color: activeTab === 'redemptions' ? '#ffffff' : '#94a3b8',
-            fontSize: '0.75rem',
+            background: activeTab === 'redemptions' ? '#047857' : 'transparent',
+            color: activeTab === 'redemptions' ? '#ffffff' : '#334155',
+            fontSize: '0.86rem',
             fontWeight: 800,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '5px',
+            gap: '7px',
+            boxShadow: activeTab === 'redemptions' ? '0 4px 10px rgba(4, 120, 87, 0.22)' : 'none',
           }}
         >
-          <QrCode size={14} /> Vouchers
+          <QrCode size={17} />
+          <span>1. Vouchers to Hand Out</span>
           {pendingVoucherCount > 0 && (
             <span
               style={{
                 background: '#fbbf24',
-                color: '#090d16',
-                fontSize: '0.65rem',
+                color: '#0f172a',
+                fontSize: '0.72rem',
                 fontWeight: 900,
-                padding: '1px 6px',
+                padding: '2px 8px',
                 borderRadius: '999px',
               }}
             >
@@ -693,75 +612,131 @@ export function AdminRewards() {
             </span>
           )}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('catalog')}
+          style={{
+            flex: 1,
+            minHeight: '46px',
+            padding: '8px 14px',
+            borderRadius: '12px',
+            border: 'none',
+            background: activeTab === 'catalog' ? '#047857' : 'transparent',
+            color: activeTab === 'catalog' ? '#ffffff' : '#334155',
+            fontSize: '0.86rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+            boxShadow: activeTab === 'catalog' ? '0 4px 10px rgba(4, 120, 87, 0.22)' : 'none',
+          }}
+        >
+          <Layers size={17} />
+          <span>2. Rewards Shop ({activeCount} Active)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('daily_offers')}
+          style={{
+            flex: 1,
+            minHeight: '46px',
+            padding: '8px 14px',
+            borderRadius: '12px',
+            border: 'none',
+            background: activeTab === 'daily_offers' ? '#047857' : 'transparent',
+            color: activeTab === 'daily_offers' ? '#ffffff' : '#334155',
+            fontSize: '0.86rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+            boxShadow: activeTab === 'daily_offers' ? '0 4px 10px rgba(4, 120, 87, 0.22)' : 'none',
+          }}
+        >
+          <Calendar size={17} />
+          <span>3. Daily Deals (Mon–Sun)</span>
+        </button>
       </div>
 
       {activeTab === 'daily_offers' ? (
         <AdminDailyOffersStudio onStatusMessage={(msg) => setMessage(msg)} />
       ) : activeTab === 'redemptions' ? (
-        /* VOUCHER VERIFICATION & REDEMPTION HISTORY DESK */
-        <div>
+        /* VOUCHER VERIFICATION & REDEMPTION HISTORY DESK (CLEAN LIGHT MODE) */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           {/* Instant Voucher / QR Code Verification Box */}
           <div
             style={{
-              background: 'rgba(15, 23, 42, 0.9)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: '16px',
-              padding: '16px',
-              marginBottom: '16px',
+              background: '#ffffff',
+              border: '1.5px solid #cbd5e1',
+              borderRadius: '18px',
+              padding: '20px',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <h3 style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={17} color="#10b981" /> Verify & Fulfill Member Reward Pass
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={20} color="#047857" /> Check Off a Member’s Voucher Code
             </h3>
-            <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginBottom: '12px' }}>
-              Enter a member's QR redemption token (e.g. <code style={{ color: '#34d399' }}>QR_REDEEM_8821A</code>) or click "Fulfill Now" below.
+            <p style={{ fontSize: '0.86rem', color: '#475569', marginBottom: '14px' }}>
+              Type the voucher code from the member’s phone screen, or tap <strong>"Mark Handed Out"</strong> on any waiting voucher below.
             </p>
 
-            <form onSubmit={handleVerifyVoucher} style={{ display: 'flex', gap: '8px' }}>
+            <form onSubmit={handleVerifyVoucher} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Enter QR_REDEEM_... or Promo Code"
+                placeholder="Type Voucher Code (e.g. PLAYGOLF20)..."
                 value={verifyCodeInput}
                 onChange={(e) => setVerifyCodeInput(e.target.value)}
                 style={{
-                  flex: 1,
-                  background: 'rgba(9, 13, 22, 0.9)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  color: '#ffffff',
+                  flex: '1 1 200px',
+                  background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1',
+                  color: '#0f172a',
                   marginBottom: 0,
+                  fontWeight: 700,
                 }}
               />
               <button
                 type="submit"
                 className="btn-primary"
-                style={{ width: 'auto', padding: '0 16px', height: '48px', whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ width: 'auto', padding: '0 22px', minHeight: '48px', whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #047857, #10b981)' }}
               >
-                Fulfill Pass
+                Verify Voucher
               </button>
             </form>
           </div>
 
           {/* Filter Tabs for Redemptions */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
-            {(['all', 'pending', 'fulfilled'] as const).map((st) => (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {(
+              [
+                { id: 'all', label: `All Vouchers (${redemptions.length})` },
+                { id: 'pending', label: `Waiting for Pickup (${pendingVoucherCount})` },
+                { id: 'fulfilled', label: `Already Handed Out (${redemptions.length - pendingVoucherCount})` },
+              ] as const
+            ).map((st) => (
               <button
-                key={st}
+                key={st.id}
                 type="button"
-                onClick={() => setRedemptionFilter(st)}
+                onClick={() => setRedemptionFilter(st.id)}
                 style={{
-                  padding: '6px 14px',
+                  padding: '8px 16px',
                   borderRadius: '999px',
-                  border: redemptionFilter === st ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                  background: redemptionFilter === st ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.7)',
-                  color: redemptionFilter === st ? '#10b981' : '#94a3b8',
-                  fontSize: '0.74rem',
+                  border: redemptionFilter === st.id ? '1.5px solid #047857' : '1px solid #cbd5e1',
+                  background: redemptionFilter === st.id ? '#ecfdf5' : '#ffffff',
+                  color: redemptionFilter === st.id ? '#047857' : '#475569',
+                  fontSize: '0.8rem',
                   fontWeight: 800,
-                  textTransform: 'capitalize',
                   cursor: 'pointer',
                 }}
               >
-                {st} ({st === 'all' ? redemptions.length : st === 'pending' ? pendingVoucherCount : redemptions.length - pendingVoucherCount})
+                {st.label}
               </button>
             ))}
           </div>
@@ -769,65 +744,66 @@ export function AdminRewards() {
           {/* Redemptions List */}
           <div className="admin-cards-grid">
             {filteredRedemptions.length === 0 ? (
-              <div style={{ background: 'rgba(15, 23, 42, 0.85)', borderRadius: '16px', padding: '32px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.84rem' }}>
-                No reward redemptions match this filter.
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.92rem' }}>
+                No reward vouchers match this filter.
               </div>
             ) : (
               filteredRedemptions.map((red) => (
                 <div
                   key={red.id}
                   style={{
-                    background: 'rgba(15, 23, 42, 0.9)',
-                    border: red.fulfilled ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(251, 191, 36, 0.35)',
-                    borderLeft: red.fulfilled ? '4px solid #10b981' : '4px solid #fbbf24',
-                    borderRadius: '14px',
-                    padding: '14px',
+                    background: '#ffffff',
+                    border: red.fulfilled ? '1px solid #e2e8f0' : '2px solid #f59e0b',
+                    borderLeft: red.fulfilled ? '5px solid #10b981' : '5px solid #f59e0b',
+                    borderRadius: '16px',
+                    padding: '18px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px',
+                    gap: '12px',
+                    boxShadow: 'var(--shadow-sm)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
                         <span
                           style={{
-                            fontSize: '0.62rem',
+                            fontSize: '0.7rem',
                             fontWeight: 900,
-                            padding: '2px 7px',
+                            padding: '3px 9px',
                             borderRadius: '6px',
-                            background: red.fulfilled ? 'rgba(16, 185, 129, 0.16)' : 'rgba(251, 191, 36, 0.18)',
-                            color: red.fulfilled ? '#10b981' : '#fbbf24',
+                            background: red.fulfilled ? '#d1fae5' : '#fef3c7',
+                            color: red.fulfilled ? '#065f46' : '#b45309',
                             textTransform: 'uppercase',
                           }}
                         >
-                          {red.fulfilled ? '✓ Fulfilled' : '⏳ Awaiting Collection'}
+                          {red.fulfilled ? '✓ Handed Out' : '⏳ Waiting for Pickup'}
                         </span>
                         <span
                           style={{
                             fontFamily: 'monospace',
-                            fontSize: '0.7rem',
+                            fontSize: '0.76rem',
                             fontWeight: 800,
-                            color: '#38bdf8',
-                            background: 'rgba(56, 189, 248, 0.12)',
-                            padding: '2px 7px',
+                            color: '#0369a1',
+                            background: '#e0f2fe',
+                            padding: '3px 8px',
                             borderRadius: '6px',
                           }}
                         >
-                          {red.qr_code_token || red.discount_code || 'PASS'}
+                          Code: {red.qr_code_token || red.discount_code || 'PASS'}
                         </span>
                       </div>
 
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
                         {red.reward_title}
                       </h4>
-                      <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '2px' }}>
-                        Claimed by <strong style={{ color: '#f8fafc' }}>{red.user_name || 'Alex Morgan'}</strong> ({red.user_member_id || 'PG-2445B5'}) &bull;{' '}
+                      <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: '4px' }}>
+                        Member: <strong style={{ color: '#0f172a' }}>{red.user_name || 'Alex Morgan'}</strong> ({red.user_member_id || 'PG-2445B5'}) •{' '}
                         {new Date(red.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
 
-                    <span style={{ fontSize: '0.82rem', fontWeight: 900, color: '#fbbf24', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#047857', whiteSpace: 'nowrap' }}>
                       {red.points_cost} PTS
                     </span>
                   </div>
@@ -838,21 +814,22 @@ export function AdminRewards() {
                       onClick={() => handleFulfillRedemptionRow(red)}
                       style={{
                         width: '100%',
-                        minHeight: '38px',
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        minHeight: '44px',
+                        background: 'linear-gradient(135deg, #047857, #10b981)',
                         color: '#ffffff',
                         border: 'none',
-                        borderRadius: '9px',
-                        fontSize: '0.78rem',
+                        borderRadius: '10px',
+                        fontSize: '0.86rem',
                         fontWeight: 800,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '6px',
+                        boxShadow: '0 4px 12px rgba(4, 120, 87, 0.2)',
                       }}
                     >
-                      <CheckCircle2 size={15} /> Mark Fulfilled & Handed to Member
+                      <CheckCircle2 size={17} /> Mark Handed Out to Member
                     </button>
                   )}
                 </div>
@@ -861,23 +838,22 @@ export function AdminRewards() {
           </div>
         </div>
       ) : (
-        /* REWARD CATALOG STUDIO VIEW */
-        <div>
+        /* REWARD CATALOG STUDIO VIEW (CLEAN LIGHT MODE) */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* 1-Click Quick-Launch Templates Strip */}
           <div
             style={{
-              background: 'rgba(15, 23, 42, 0.9)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
               borderRadius: '16px',
-              padding: '12px 14px',
-              marginBottom: '16px',
+              padding: '14px 16px',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <Wand2 size={14} /> 1-Tap Quick-Create Templates
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#047857', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <Wand2 size={15} /> Quick-Add Popular Rewards (Tap to pre-fill)
               </span>
-              <span style={{ fontSize: '0.66rem', color: '#64748b' }}>Tap to pre-fill</span>
             </div>
 
             <div className="hide-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '2px' }}>
@@ -887,12 +863,12 @@ export function AdminRewards() {
                   type="button"
                   onClick={() => applyQuickTemplate(tpl)}
                   style={{
-                    background: 'rgba(9, 13, 22, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '10px',
-                    padding: '7px 11px',
-                    color: '#f8fafc',
-                    fontSize: '0.73rem',
+                    padding: '8px 12px',
+                    color: '#0f172a',
+                    fontSize: '0.78rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -902,29 +878,41 @@ export function AdminRewards() {
                   }}
                 >
                   <span>{tpl.label}</span>
-                  <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.68rem' }}>({tpl.points_cost} PTS)</span>
+                  <span style={{ color: '#047857', fontWeight: 800, fontSize: '0.74rem' }}>({tpl.points_cost} PTS)</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Search, Category Pills & Sort Controls */}
-          <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '18px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
             <div style={{ position: 'relative' }}>
-              <Search size={17} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+              <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
               <input
                 type="text"
                 className="form-input"
-                placeholder="Search rewards by title, keyword or promo code..."
+                placeholder="Search rewards by title or category..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 style={{
-                  paddingLeft: '40px',
-                  background: 'rgba(15, 23, 42, 0.9)',
-                  border: '1px solid rgba(255, 255, 255, 0.14)',
-                  color: '#ffffff',
+                  paddingLeft: '42px',
+                  background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1',
+                  color: '#0f172a',
                   marginBottom: 0,
-                  minHeight: '44px',
+                  minHeight: '46px',
+                  fontWeight: 600,
                 }}
               />
             </div>
@@ -937,13 +925,13 @@ export function AdminRewards() {
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
                   style={{
-                    padding: '6px 13px',
+                    padding: '7px 14px',
                     borderRadius: 'var(--radius-full)',
-                    fontSize: '0.73rem',
+                    fontSize: '0.76rem',
                     fontWeight: 800,
-                    border: selectedCategory === cat ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
-                    background: selectedCategory === cat ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15, 23, 42, 0.7)',
-                    color: selectedCategory === cat ? '#10b981' : '#94a3b8',
+                    border: selectedCategory === cat ? '1.5px solid #047857' : '1px solid #cbd5e1',
+                    background: selectedCategory === cat ? '#ecfdf5' : '#f8fafc',
+                    color: selectedCategory === cat ? '#047857' : '#475569',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
@@ -955,22 +943,22 @@ export function AdminRewards() {
 
             {/* Status Filter + Sort Row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '4px' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
                 {(['all', 'active', 'featured', 'inactive'] as const).map((sc) => (
                   <button
                     key={sc}
                     type="button"
                     onClick={() => setStatusScope(sc)}
                     style={{
-                      padding: '4px 9px',
-                      borderRadius: '7px',
-                      border: 'none',
-                      fontSize: '0.68rem',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: statusScope === sc ? '1px solid #0369a1' : '1px solid #e2e8f0',
+                      fontSize: '0.74rem',
                       fontWeight: 800,
                       textTransform: 'capitalize',
                       cursor: 'pointer',
-                      background: statusScope === sc ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)',
-                      color: statusScope === sc ? '#38bdf8' : '#94a3b8',
+                      background: statusScope === sc ? '#e0f2fe' : '#f8fafc',
+                      color: statusScope === sc ? '#0369a1' : '#64748b',
                     }}
                   >
                     {sc === 'featured' ? '⭐ Featured' : sc}
@@ -982,16 +970,16 @@ export function AdminRewards() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
                 style={{
-                  background: 'rgba(15, 23, 42, 0.9)',
-                  color: '#cbd5e1',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '8px',
-                  padding: '4px 8px',
-                  fontSize: '0.7rem',
+                  padding: '6px 10px',
+                  fontSize: '0.76rem',
                   fontWeight: 700,
                 }}
               >
-                <option value="popular">Sort: Most Redeemed</option>
+                <option value="popular">Sort: Most Claimed</option>
                 <option value="cost_asc">Sort: Lowest Points</option>
                 <option value="cost_desc">Sort: Highest Points</option>
               </select>
@@ -1001,11 +989,11 @@ export function AdminRewards() {
           {/* Detailed Rewards Cards Grid */}
           <div className="admin-cards-grid">
             {loading ? (
-              <div style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+              <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.92rem' }}>
                 Loading rewards catalog...
               </div>
             ) : filteredRewards.length === 0 ? (
-              <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem', background: 'rgba(15,23,42,0.8)', borderRadius: '16px' }}>
+              <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.92rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
                 No reward items match your current filter.
               </div>
             ) : (
@@ -1018,24 +1006,22 @@ export function AdminRewards() {
                   <div
                     key={r.id}
                     style={{
-                      background: 'rgba(15, 23, 42, 0.9)',
-                      border: r.featured
-                        ? '1px solid rgba(251, 191, 36, 0.45)'
-                        : '1px solid rgba(16, 185, 129, 0.22)',
+                      background: '#ffffff',
+                      border: r.featured ? '2px solid #f59e0b' : '1px solid #e2e8f0',
                       borderRadius: '18px',
                       overflow: 'hidden',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                      boxShadow: 'var(--shadow-sm)',
                       opacity: r.active ? 1 : 0.65,
                     }}
                   >
                     {/* Image Header */}
-                    <div style={{ height: '148px', position: 'relative', overflow: 'hidden', background: '#0f172a' }}>
+                    <div style={{ height: '148px', position: 'relative', overflow: 'hidden', background: '#f1f5f9' }}>
                       <img src={r.image_url} alt={r.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <div
                         style={{
                           position: 'absolute',
                           inset: 0,
-                          background: 'linear-gradient(180deg, rgba(9,13,22,0.35) 0%, rgba(9,13,22,0.1) 50%, rgba(9,13,22,0.85) 100%)',
+                          background: 'linear-gradient(180deg, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.05) 50%, rgba(15,23,42,0.75) 100%)',
                         }}
                       />
 
@@ -1044,16 +1030,15 @@ export function AdminRewards() {
                         {r.featured && (
                           <span
                             style={{
-                              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                              background: '#d97706',
                               color: '#ffffff',
                               padding: '3px 9px',
                               borderRadius: '999px',
-                              fontSize: '0.64rem',
+                              fontSize: '0.66rem',
                               fontWeight: 900,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
                             }}
                           >
                             <Star size={11} fill="#ffffff" /> FEATURED
@@ -1062,44 +1047,29 @@ export function AdminRewards() {
 
                         <span
                           style={{
-                            background: 'rgba(9, 13, 22, 0.85)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            color: r.min_tier === 'Gold' ? '#fbbf24' : r.min_tier === 'Platinum' ? '#34d399' : '#e2e8f0',
-                            padding: '3px 8px',
+                            background: 'rgba(255, 255, 255, 0.92)',
+                            color: '#0f172a',
+                            padding: '3px 9px',
                             borderRadius: '999px',
-                            fontSize: '0.64rem',
+                            fontSize: '0.68rem',
                             fontWeight: 800,
                           }}
                         >
-                          {r.min_tier && r.min_tier !== 'All' ? `${r.min_tier}+ Tier` : 'All Tiers'}
+                          {r.min_tier && r.min_tier !== 'All' ? `${r.min_tier}+ Tier` : 'All Members'}
                         </span>
                       </div>
 
-                      {/* Top Right: Points Cost + Retail Value */}
+                      {/* Top Right: Points Cost */}
                       <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        {r.retail_value && (
-                          <span
-                            style={{
-                              background: 'rgba(15, 23, 42, 0.88)',
-                              color: '#cbd5e1',
-                              padding: '4px 9px',
-                              borderRadius: '999px',
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                            }}
-                          >
-                            Val: {r.retail_value}
-                          </span>
-                        )}
                         <div
                           style={{
-                            background: 'rgba(9, 13, 22, 0.92)',
-                            border: '1px solid rgba(16, 185, 129, 0.45)',
-                            color: '#10b981',
-                            padding: '4px 12px',
+                            background: '#047857',
+                            color: '#ffffff',
+                            padding: '5px 12px',
                             borderRadius: 'var(--radius-full)',
                             fontWeight: 900,
-                            fontSize: '0.82rem',
+                            fontSize: '0.84rem',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                           }}
                         >
                           {r.points_cost} PTS
@@ -1109,110 +1079,84 @@ export function AdminRewards() {
                       {/* Bottom Overlay: Category, Status & Claim Count */}
                       <div style={{ position: 'absolute', bottom: '10px', left: '12px', right: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <span style={{ background: 'rgba(15, 23, 42, 0.9)', padding: '3px 8px', borderRadius: '6px', color: '#ffffff', fontSize: '0.66rem', fontWeight: 700 }}>
+                          <span style={{ background: 'rgba(255, 255, 255, 0.92)', padding: '3px 8px', borderRadius: '6px', color: '#0f172a', fontSize: '0.68rem', fontWeight: 800 }}>
                             {r.category}
                           </span>
-                          <span style={{ background: r.active ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)', color: '#ffffff', padding: '3px 8px', borderRadius: '6px', fontSize: '0.64rem', fontWeight: 800 }}>
-                            {r.active ? 'LIVE' : 'PAUSED'}
+                          <span style={{ background: r.active ? '#10b981' : '#ef4444', color: '#ffffff', padding: '3px 8px', borderRadius: '6px', fontSize: '0.66rem', fontWeight: 800 }}>
+                            {r.active ? 'ACTIVE' : 'PAUSED'}
                           </span>
                         </div>
 
-                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#38bdf8', background: 'rgba(9,13,22,0.85)', padding: '3px 8px', borderRadius: '6px' }}>
-                          🔥 {claimed} Claimed
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#ffffff', background: 'rgba(15,23,42,0.8)', padding: '3px 8px', borderRadius: '6px' }}>
+                          {claimed} Claimed
                         </span>
                       </div>
                     </div>
 
                     {/* Card Body */}
-                    <div style={{ padding: '15px' }}>
-                      <h4 style={{ fontSize: '1.04rem', fontWeight: 800, color: '#ffffff', marginBottom: '4px', lineHeight: 1.3 }}>
+                    <div style={{ padding: '16px' }}>
+                      <h4 style={{ fontSize: '1.06rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px', lineHeight: 1.3 }}>
                         {r.title}
                       </h4>
 
-                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.45, marginBottom: '12px' }}>
+                      <p style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.45, marginBottom: '12px' }}>
                         {r.description}
                       </p>
 
-                      {/* Redemption Method & Stock Progress Bar */}
+                      {/* Quick Points Cost Adjuster */}
                       <div
                         style={{
-                          background: 'rgba(9, 13, 22, 0.65)',
+                          background: '#f8fafc',
                           padding: '10px 12px',
-                          borderRadius: '11px',
+                          borderRadius: '12px',
                           marginBottom: '12px',
-                          border: '1px solid rgba(255,255,255,0.06)',
+                          border: '1px solid #e2e8f0',
                           display: 'flex',
-                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
                           gap: '8px',
+                          flexWrap: 'wrap',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.73rem', color: '#94a3b8', fontWeight: 600 }}>
-                            Method:{' '}
-                            <strong style={{ color: '#ffffff' }}>
-                              {r.redemption_type === 'discount'
-                                ? `Promo Code (${r.discount_code || 'PLAYGOLF20'})`
-                                : 'QR Scanner Pass'}
-                            </strong>
-                          </span>
+                        <span style={{ fontSize: '0.76rem', color: '#475569', fontWeight: 700 }}>
+                          {hasStock ? `${remainingStock} left in stock` : 'Unlimited Stock'}
+                        </span>
 
-                          {/* Quick +/- Points Stepper */}
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 700, marginRight: '2px' }}>Quick Cost:</span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAdjustCost(r, -25)}
-                              style={{
-                                background: 'rgba(255,255,255,0.07)',
-                                border: '1px solid rgba(255,255,255,0.12)',
-                                color: '#cbd5e1',
-                                borderRadius: '6px',
-                                padding: '2px 7px',
-                                fontSize: '0.68rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              -25
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAdjustCost(r, 25)}
-                              style={{
-                                background: 'rgba(16, 185, 129, 0.14)',
-                                border: '1px solid rgba(16, 185, 129, 0.3)',
-                                color: '#34d399',
-                                borderRadius: '6px',
-                                padding: '2px 7px',
-                                fontSize: '0.68rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              +25
-                            </button>
-                          </div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700, marginRight: '2px' }}>Points:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickAdjustCost(r, -25)}
+                            style={{
+                              background: '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              color: '#334155',
+                              borderRadius: '6px',
+                              padding: '3px 8px',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            -25
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickAdjustCost(r, 25)}
+                            style={{
+                              background: '#ecfdf5',
+                              border: '1px solid #a7f3d0',
+                              color: '#047857',
+                              borderRadius: '6px',
+                              padding: '3px 8px',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            +25
+                          </button>
                         </div>
-
-                        {hasStock && (
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#cbd5e1', marginBottom: '4px', fontWeight: 700 }}>
-                              <span>Inventory Quota</span>
-                              <span style={{ color: (remainingStock || 0) <= 15 ? '#fbbf24' : '#34d399' }}>
-                                {remainingStock} left of {r.stock_limit}
-                              </span>
-                            </div>
-                            <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden' }}>
-                              <div
-                                style={{
-                                  width: `${Math.min(100, Math.round((claimed / (r.stock_limit || 1)) * 100))}%`,
-                                  height: '100%',
-                                  background: (remainingStock || 0) <= 15 ? '#fbbf24' : '#10b981',
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* Action Buttons Row */}
@@ -1221,72 +1165,72 @@ export function AdminRewards() {
                           onClick={() => handleOpenEdit(r)}
                           className="btn-secondary"
                           style={{
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#10b981',
-                            borderColor: 'rgba(16, 185, 129, 0.3)',
+                            background: '#ecfdf5',
+                            color: '#047857',
+                            borderColor: '#a7f3d0',
                             padding: '8px 10px',
-                            fontSize: '0.76rem',
+                            fontSize: '0.8rem',
                             fontWeight: 800,
-                            minHeight: '38px',
+                            minHeight: '40px',
                           }}
                         >
-                          <Edit2 size={13} /> Edit
+                          <Edit2 size={14} /> Edit
                         </button>
 
                         <button
                           onClick={() => toggleRewardActive(r)}
                           className="btn-secondary"
                           style={{
-                            background: 'transparent',
-                            color: r.active ? '#f87171' : '#10b981',
-                            borderColor: r.active ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)',
+                            background: '#ffffff',
+                            color: r.active ? '#dc2626' : '#047857',
+                            borderColor: r.active ? '#fecaca' : '#a7f3d0',
                             padding: '8px 10px',
-                            fontSize: '0.76rem',
+                            fontSize: '0.8rem',
                             fontWeight: 700,
-                            minHeight: '38px',
+                            minHeight: '40px',
                           }}
                         >
-                          {r.active ? <EyeOff size={13} /> : <Eye size={13} />} {r.active ? 'Pause' : 'Activate'}
+                          {r.active ? <EyeOff size={14} /> : <Eye size={14} />} {r.active ? 'Pause' : 'Turn On'}
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleToggleFeatured(r)}
-                          title="Toggle Featured Spotlight"
+                          title="Highlight as Featured"
                           style={{
-                            width: '38px',
-                            height: '38px',
+                            width: '40px',
+                            height: '40px',
                             borderRadius: '10px',
-                            border: '1px solid rgba(251, 191, 36, 0.3)',
-                            background: r.featured ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
-                            color: '#fbbf24',
+                            border: '1px solid #fde68a',
+                            background: r.featured ? '#fef3c7' : '#ffffff',
+                            color: '#d97706',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
                           }}
                         >
-                          <Star size={15} fill={r.featured ? '#fbbf24' : 'none'} />
+                          <Star size={16} fill={r.featured ? '#d97706' : 'none'} />
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleDuplicateReward(r)}
-                          title="Duplicate Perk"
+                          title="Copy Reward"
                           style={{
-                            width: '38px',
-                            height: '38px',
+                            width: '40px',
+                            height: '40px',
                             borderRadius: '10px',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            background: 'rgba(255,255,255,0.04)',
-                            color: '#cbd5e1',
+                            border: '1px solid #cbd5e1',
+                            background: '#f8fafc',
+                            color: '#475569',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
                           }}
                         >
-                          <Copy size={14} />
+                          <Copy size={15} />
                         </button>
                       </div>
                     </div>
@@ -1298,7 +1242,7 @@ export function AdminRewards() {
         </div>
       )}
 
-      {/* Add / Edit Reward Modal with Live Member Preview & Curated Golf Image Presets */}
+      {/* Add / Edit Reward Modal (Clean Light Mode) */}
       {(showAddModal || editingReward) && (
         <div
           className="modal-overlay"
@@ -1310,7 +1254,7 @@ export function AdminRewards() {
           <div
             className="modal-content admin-modal-dialog-wide"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: '#0f172a', color: '#fff', border: '1px solid rgba(16, 185, 129, 0.35)' }}
+            style={{ background: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1' }}
           >
             <button
               type="button"
@@ -1323,9 +1267,9 @@ export function AdminRewards() {
                 position: 'absolute',
                 top: '14px',
                 right: '14px',
-                background: 'rgba(255,255,255,0.1)',
+                background: '#f1f5f9',
                 border: 'none',
-                color: '#ffffff',
+                color: '#334155',
                 borderRadius: '50%',
                 width: '34px',
                 height: '34px',
@@ -1338,23 +1282,23 @@ export function AdminRewards() {
               <X size={18} />
             </button>
 
-            <h3 style={{ fontSize: '1.12rem', color: '#ffffff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '32px' }}>
-              <Gift size={19} color="#10b981" style={{ flexShrink: 0 }} />
+            <h3 style={{ fontSize: '1.2rem', color: '#0f172a', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '32px' }}>
+              <Gift size={20} color="#047857" style={{ flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {editingReward ? `Edit: ${editingReward.title}` : 'Create Reward Perk'}
+                {editingReward ? `Edit Reward: ${editingReward.title}` : 'Add New Reward to Shop'}
               </span>
             </h3>
 
             {/* Live Mini Card Preview */}
             <div
               style={{
-                background: 'rgba(9, 13, 22, 0.85)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
                 borderRadius: '14px',
-                padding: '10px',
-                marginBottom: '14px',
+                padding: '12px',
+                marginBottom: '16px',
                 display: 'flex',
-                gap: '10px',
+                gap: '12px',
                 alignItems: 'center',
               }}
             >
@@ -1364,25 +1308,25 @@ export function AdminRewards() {
                 style={{ width: '64px', height: '64px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
               />
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#047857', textTransform: 'uppercase' }}>
                     {category}
                   </span>
-                  <span style={{ fontSize: '0.6rem', color: '#fbbf24', fontWeight: 800 }}>• {pointsCost} PTS</span>
-                  {retailValue && <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>({retailValue})</span>}
+                  <span style={{ fontSize: '0.68rem', color: '#d97706', fontWeight: 800 }}>• {pointsCost} PTS</span>
+                  {retailValue && <span style={{ fontSize: '0.68rem', color: '#64748b' }}>(Worth {retailValue})</span>}
                 </div>
-                <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {title || 'Reward Title Preview'}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {description || 'Member catalog description preview...'}
+                <div style={{ fontSize: '0.78rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {description || 'Short description shown to members...'}
                 </div>
               </div>
             </div>
 
             <form onSubmit={editingReward ? handleUpdateReward : handleCreateReward}>
               <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Reward Title</label>
+                <label className="form-label">Reward Title</label>
                 <input
                   type="text"
                   className="form-input"
@@ -1390,12 +1334,11 @@ export function AdminRewards() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Description</label>
+                <label className="form-label">Short Description</label>
                 <input
                   type="text"
                   className="form-input"
@@ -1403,30 +1346,27 @@ export function AdminRewards() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
-                  style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Points Cost</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Points Cost</label>
                   <input
                     type="number"
                     className="form-input"
                     value={pointsCost}
                     onChange={(e) => setPointsCost(parseInt(e.target.value) || 0)}
                     required
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                   />
                 </div>
 
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Category</label>
                   <select
                     className="form-input"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                   >
                     <option value="Driving Range">Driving Range</option>
                     <option value="Pro Shop">Pro Shop</option>
@@ -1437,114 +1377,56 @@ export function AdminRewards() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px', fontSize: '0.72rem' }}>Min Tier</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Who Can Claim?</label>
                   <select
                     className="form-input"
                     value={minTier}
                     onChange={(e) => setMinTier(e.target.value as any)}
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff', padding: '8px' }}
                   >
-                    <option value="All">All Tiers</option>
-                    <option value="Silver">Silver+</option>
-                    <option value="Gold">Gold+</option>
-                    <option value="Platinum">Platinum</option>
+                    <option value="All">All Members</option>
+                    <option value="Silver">Silver & Above</option>
+                    <option value="Gold">Gold & Above</option>
+                    <option value="Platinum">Platinum Only</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px', fontSize: '0.72rem' }}>Retail Value</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Usual Price (£)</label>
                   <input
                     type="text"
                     className="form-input"
                     placeholder="£14.00"
                     value={retailValue}
                     onChange={(e) => setRetailValue(e.target.value)}
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff', padding: '8px' }}
                   />
                 </div>
 
                 <div>
-                  <label className="form-label" style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px', fontSize: '0.72rem' }}>Stock Limit</label>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Stock Limit (Optional)</label>
                   <input
                     type="number"
                     className="form-input"
                     placeholder="Unlimited"
                     value={stockLimit}
                     onChange={(e) => setStockLimit(e.target.value)}
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff', padding: '8px' }}
                   />
                 </div>
               </div>
-
-              <div className="form-group" style={{ marginBottom: '12px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1' }}>Redemption Method</label>
-                <select
-                  className="form-input"
-                  value={redemptionType}
-                  onChange={(e) => setRedemptionType(e.target.value as any)}
-                  style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
-                >
-                  <option value="qr">QR Code Scanner Pass (Fulfilled at Desk)</option>
-                  <option value="discount">Discount Promo Code (Instant Voucher)</option>
-                </select>
-              </div>
-
-              {redemptionType === 'discount' && (
-                <div className="form-group" style={{ marginBottom: '12px' }}>
-                  <label className="form-label" style={{ color: '#cbd5e1' }}>Discount Promo Code</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. PLAYGOLF20"
-                    value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                    required={redemptionType === 'discount'}
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff', fontFamily: 'monospace' }}
-                  />
-                </div>
-              )}
 
               {/* Curated Golf Image Picker + Device Upload */}
               <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Reward Image</span>
-                    <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 800, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                      1200 × 900 px (4:3)
-                    </span>
-                  </span>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span>Choose a Photo</span>
                   <button
                     type="button"
                     onClick={() => setShowUrlInput(!showUrlInput)}
-                    style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
+                    style={{ background: 'none', border: 'none', color: '#047857', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
                   >
-                    {showUrlInput ? 'Use Presets / Upload' : 'Paste Image URL'}
+                    {showUrlInput ? 'Choose from Presets' : 'Paste Image Link'}
                   </button>
                 </label>
-
-                {/* Perfect Size & Design Guidelines Banner */}
-                <div style={{
-                  background: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '10px',
-                  padding: '8px 12px',
-                  marginBottom: '10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  fontSize: '0.72rem',
-                  color: '#94a3b8'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontWeight: 700 }}>
-                    <span>📐 Perfect Upload Specs:</span>
-                    <span style={{ color: '#ffffff' }}>1200 × 900 px (4:3 aspect ratio) • JPG/PNG • Max 2MB</span>
-                  </div>
-                  <div style={{ color: '#94a3b8', lineHeight: 1.35 }}>
-                    🎯 <strong style={{ color: '#e2e8f0' }}>Center the subject:</strong> Mobile & desktop cards crop slightly on edges. Keep key visuals within the center 80% safe zone to avoid cutoff.
-                  </div>
-                </div>
 
                 {!showUrlInput ? (
                   <div>
@@ -1555,13 +1437,13 @@ export function AdminRewards() {
                           type="button"
                           onClick={() => setImageUrl(img.url)}
                           style={{
-                            border: imageUrl === img.url ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.15)',
+                            border: imageUrl === img.url ? '2px solid #047857' : '1px solid #cbd5e1',
                             borderRadius: '8px',
-                            padding: '3px 8px',
-                            background: imageUrl === img.url ? 'rgba(16,185,129,0.2)' : 'rgba(9,13,22,0.8)',
-                            color: imageUrl === img.url ? '#10b981' : '#cbd5e1',
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
+                            padding: '6px 12px',
+                            background: imageUrl === img.url ? '#ecfdf5' : '#f8fafc',
+                            color: imageUrl === img.url ? '#047857' : '#334155',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
                             cursor: 'pointer',
                             whiteSpace: 'nowrap',
                           }}
@@ -1583,13 +1465,13 @@ export function AdminRewards() {
                       onClick={() => fileInputRef.current?.click()}
                       style={{
                         width: '100%',
-                        padding: '10px',
+                        padding: '11px',
                         borderRadius: '10px',
-                        border: '1px dashed rgba(16, 185, 129, 0.4)',
-                        background: 'rgba(16, 185, 129, 0.08)',
-                        color: '#10b981',
-                        fontWeight: 700,
-                        fontSize: '0.76rem',
+                        border: '1.5px dashed #10b981',
+                        background: '#ecfdf5',
+                        color: '#047857',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1597,8 +1479,8 @@ export function AdminRewards() {
                         cursor: 'pointer',
                       }}
                     >
-                      <Upload size={14} />
-                      {uploadingImage ? 'Loading...' : 'Upload Custom Photo from Device'}
+                      <Upload size={15} />
+                      {uploadingImage ? 'Loading Photo...' : 'Upload Photo from Computer / Phone'}
                     </button>
                   </div>
                 ) : (
@@ -1608,34 +1490,33 @@ export function AdminRewards() {
                     placeholder="https://images.unsplash.com/..."
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    style={{ background: 'rgba(9, 13, 22, 0.9)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff' }}
                   />
                 )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: '10px 0 14px 0' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: '#ffffff', cursor: 'pointer', fontWeight: 700 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#0f172a', cursor: 'pointer', fontWeight: 700 }}>
                   <input
                     type="checkbox"
                     checked={active}
                     onChange={(e) => setActive(e.target.checked)}
-                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
+                    style={{ width: '18px', height: '18px', accentColor: '#047857' }}
                   />
-                  Active in App
+                  Show in Member App
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.8rem', color: '#fbbf24', cursor: 'pointer', fontWeight: 700 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#b45309', cursor: 'pointer', fontWeight: 700 }}>
                   <input
                     type="checkbox"
                     checked={featured}
                     onChange={(e) => setFeatured(e.target.checked)}
-                    style={{ width: '16px', height: '16px', accentColor: '#fbbf24' }}
+                    style={{ width: '18px', height: '18px', accentColor: '#d97706' }}
                   />
-                  ⭐ Featured Spotlight
+                  ⭐ Highlight as Featured
                 </label>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
                 {editingReward && (
                   <button
                     type="button"
@@ -1644,11 +1525,11 @@ export function AdminRewards() {
                       setEditingReward(null);
                     }}
                     style={{
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      border: '1px solid rgba(239, 68, 68, 0.35)',
-                      color: '#f87171',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#dc2626',
                       borderRadius: '12px',
-                      padding: '0 12px',
+                      padding: '0 14px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -1656,7 +1537,7 @@ export function AdminRewards() {
                     }}
                     title="Delete Reward"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={18} />
                   </button>
                 )}
 
@@ -1667,12 +1548,12 @@ export function AdminRewards() {
                     setEditingReward(null);
                   }}
                   className="btn-secondary"
-                  style={{ flex: 1, background: 'transparent', color: '#94a3b8', borderColor: '#334155' }}
+                  style={{ flex: 1 }}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" style={{ flex: 1.5, background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                  {editingReward ? 'Save Changes' : 'Publish Perk'}
+                <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>
+                  {editingReward ? 'Save Changes' : 'Add Reward'}
                 </button>
               </div>
             </form>
