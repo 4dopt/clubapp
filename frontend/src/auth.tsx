@@ -74,8 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const cached = getCachedUser();
-        const { data: sessionData } = await supabase.auth.getSession();
-        const session = sessionData?.session;
+        const sessionRes = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<{ data: { session: any } }>((resolve) =>
+            setTimeout(() => resolve({ data: { session: null } }), 800)
+          ),
+        ]);
+        const session = sessionRes?.data?.session;
 
         if (session?.user) {
           const instantUser = buildInstantUserFromSession(session.user, cached);

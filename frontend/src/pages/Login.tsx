@@ -183,7 +183,7 @@ export function Login() {
       setTimeout(() => {
         if (res.profile.role === 'admin') navigate('/admin', { replace: true });
         else navigate('/dashboard', { replace: true });
-      }, 1200);
+      }, 300);
     } catch (err: any) {
       setError(err.message || 'Sign up failed. Please try again.');
     } finally {

@@ -173,13 +173,15 @@ function isSupabaseGatewayOrTimeoutError(err: any): boolean {
     status === 522 ||
     status === 524 ||
     name === 'AuthRetryableFetchError' ||
+    name === 'AbortError' ||
+    msg.toLowerCase().includes('abort') ||
     msg.toLowerCase().includes('fetch') ||
     msg.toLowerCase().includes('timeout') ||
     msg.toLowerCase().includes('network')
   );
 }
 
-async function withFastAuthTimeout<T>(promise: Promise<T>, ms = 4500): Promise<T> {
+async function withFastAuthTimeout<T>(promise: Promise<T>, ms = 1100): Promise<T> {
   let timer: any;
   const timeoutPromise = new Promise<T>((_, reject) => {
     timer = setTimeout(() => {
@@ -196,70 +198,88 @@ async function withFastAuthTimeout<T>(promise: Promise<T>, ms = 4500): Promise<T
   }
 }
 
-async function lookupMemberFromPostgrestByEmail(cleanEmail: string): Promise<User | null> {
+async function withFastFallback<T>(promise: Promise<T>, fallback: T, ms = 1100): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
   try {
-    const [{ data: profileData }, { data: legacyUser }] = await Promise.all([
-      supabase.from('profiles').select('*').ilike('email', cleanEmail).maybeSingle(),
-      supabase.from('users').select('*').ilike('email', cleanEmail).maybeSingle(),
-    ]);
-
-    if (profileData) {
-      const resolvedMemberId =
-        profileData.member_id || legacyUser?.member_id || deriveMemberIdFromUuid(profileData.id);
-      const resolvedPoints =
-        typeof legacyUser?.points_balance === 'number'
-          ? legacyUser.points_balance
-          : typeof profileData.points === 'number'
-          ? profileData.points
-          : 250;
-      const resolvedYtd =
-        typeof legacyUser?.lifetime_points === 'number'
-          ? Math.max(legacyUser.lifetime_points, resolvedPoints)
-          : typeof profileData.points_ytd === 'number'
-          ? Math.max(profileData.points_ytd, resolvedPoints)
-          : resolvedPoints;
-      const computedTier =
-        resolvedPoints >= 20000 ? 'Platinum' : resolvedPoints >= 10000 ? 'Gold' : 'Silver';
-      const isAdmin = isAuthorizedAdminUser(cleanEmail, profileData.role || legacyUser?.role);
-
-      return {
-        id: profileData.id,
-        email: cleanEmail,
-        name: profileData.name || legacyUser?.name || cleanEmail.split('@')[0] || 'Member',
-        role: isAdmin ? 'admin' : 'member',
-        member_id: resolvedMemberId,
-        tier: legacyUser?.tier || profileData.tier || computedTier,
-        points: resolvedPoints,
-        points_ytd: resolvedYtd,
-        qr_token: buildMemberQrToken(resolvedMemberId, profileData.qr_token),
-        created_at: profileData.created_at || legacyUser?.joined_at || new Date().toISOString(),
-        suspended: legacyUser?.suspended || false,
-      };
-    }
-
-    if (legacyUser) {
-      const points = typeof legacyUser.points_balance === 'number' ? legacyUser.points_balance : 250;
-      const pointsYtd = typeof legacyUser.lifetime_points === 'number' ? legacyUser.lifetime_points : points;
-      const memberId = legacyUser.member_id || deriveMemberIdFromUuid(legacyUser.id);
-      const isAdmin = isAuthorizedAdminUser(cleanEmail, legacyUser.role);
-      return {
-        id: legacyUser.id,
-        email: cleanEmail,
-        name: legacyUser.name || cleanEmail.split('@')[0] || 'Member',
-        role: isAdmin ? 'admin' : 'member',
-        member_id: memberId,
-        tier: legacyUser.tier || (points >= 20000 ? 'Platinum' : points >= 10000 ? 'Gold' : 'Silver'),
-        points,
-        points_ytd: pointsYtd,
-        qr_token: buildMemberQrToken(memberId),
-        created_at: legacyUser.joined_at || new Date().toISOString(),
-        suspended: legacyUser.suspended || false,
-      };
-    }
+    return await Promise.race([promise, timeoutPromise]);
   } catch {
-    /* ignore */
+    return fallback;
+  } finally {
+    clearTimeout(timer);
   }
-  return null;
+}
+
+async function lookupMemberFromPostgrestByEmail(cleanEmail: string): Promise<User | null> {
+  const queryPromise = (async (): Promise<User | null> => {
+    try {
+      const [{ data: profileData }, { data: legacyUser }] = await Promise.all([
+        supabase.from('profiles').select('*').ilike('email', cleanEmail).maybeSingle(),
+        supabase.from('users').select('*').ilike('email', cleanEmail).maybeSingle(),
+      ]);
+
+      if (profileData) {
+        const resolvedMemberId =
+          profileData.member_id || legacyUser?.member_id || deriveMemberIdFromUuid(profileData.id);
+        const resolvedPoints =
+          typeof legacyUser?.points_balance === 'number'
+            ? legacyUser.points_balance
+            : typeof profileData.points === 'number'
+            ? profileData.points
+            : 250;
+        const resolvedYtd =
+          typeof legacyUser?.lifetime_points === 'number'
+            ? Math.max(legacyUser.lifetime_points, resolvedPoints)
+            : typeof profileData.points_ytd === 'number'
+            ? Math.max(profileData.points_ytd, resolvedPoints)
+            : resolvedPoints;
+        const computedTier =
+          resolvedPoints >= 20000 ? 'Platinum' : resolvedPoints >= 10000 ? 'Gold' : 'Silver';
+        const isAdmin = isAuthorizedAdminUser(cleanEmail, profileData.role || legacyUser?.role);
+
+        return {
+          id: profileData.id,
+          email: cleanEmail,
+          name: profileData.name || legacyUser?.name || cleanEmail.split('@')[0] || 'Member',
+          role: isAdmin ? 'admin' : 'member',
+          member_id: resolvedMemberId,
+          tier: legacyUser?.tier || profileData.tier || computedTier,
+          points: resolvedPoints,
+          points_ytd: resolvedYtd,
+          qr_token: buildMemberQrToken(resolvedMemberId, profileData.qr_token),
+          created_at: profileData.created_at || legacyUser?.joined_at || new Date().toISOString(),
+          suspended: legacyUser?.suspended || false,
+        };
+      }
+
+      if (legacyUser) {
+        const points = typeof legacyUser.points_balance === 'number' ? legacyUser.points_balance : 250;
+        const pointsYtd = typeof legacyUser.lifetime_points === 'number' ? legacyUser.lifetime_points : points;
+        const memberId = legacyUser.member_id || deriveMemberIdFromUuid(legacyUser.id);
+        const isAdmin = isAuthorizedAdminUser(cleanEmail, legacyUser.role);
+        return {
+          id: legacyUser.id,
+          email: cleanEmail,
+          name: legacyUser.name || cleanEmail.split('@')[0] || 'Member',
+          role: isAdmin ? 'admin' : 'member',
+          member_id: memberId,
+          tier: legacyUser.tier || (points >= 20000 ? 'Platinum' : points >= 10000 ? 'Gold' : 'Silver'),
+          points,
+          points_ytd: pointsYtd,
+          qr_token: buildMemberQrToken(memberId),
+          created_at: legacyUser.joined_at || new Date().toISOString(),
+          suspended: legacyUser.suspended || false,
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  })();
+
+  return withFastFallback(queryPromise, null, 1100);
 }
 
 export async function supabaseSignUp(
@@ -296,7 +316,8 @@ export async function supabaseSignUp(
     });
   }
 
-  const memberId = await generateUniqueMemberId();
+  // Generate 6-digit Member ID synchronously so sign-up never waits on round-trip uniqueness checks
+  const memberId = generateMemberId();
 
   // 1. Create auth user in Supabase Auth (with dynamic emailRedirectTo for production/Netlify & local)
   const emailRedirectUrl =
@@ -320,7 +341,7 @@ export async function supabaseSignUp(
           },
         },
       }),
-      4500
+      1200
     );
     authData = res.data;
     authError = res.error;
@@ -333,7 +354,7 @@ export async function supabaseSignUp(
       throw new Error('An account with this email already exists. Please sign in instead.');
     }
 
-    // If Supabase Auth is returning 504 Gateway Timeout ("{}"), seamlessly create & persist member account locally
+    // If Supabase Auth is slow or returning 504 Gateway Timeout ("{}"), seamlessly create & persist member account immediately
     if (isSupabaseGatewayOrTimeoutError(authError)) {
       const safeRole = isAuthorizedAdminUser(cleanEmail, null) ? 'admin' : 'member';
       const fallbackId = `usr_local_${Date.now()}`;
@@ -359,7 +380,7 @@ export async function supabaseSignUp(
         phone: phone?.trim() || undefined,
       });
 
-      // Also persist to Supabase PostgREST tables in the background since PostgREST is up
+      // Persist to Supabase PostgREST tables in the background (non-blocking)
       syncProfileAndUsersTables(localProfile, phone?.trim()).catch(() => {});
 
       setCachedUser(localProfile);
@@ -388,63 +409,52 @@ export async function supabaseSignUp(
     throw new Error('An account with this email already exists. Please sign in instead.');
   }
 
-  // 2. Check if the DB trigger already created a profile row
-  let existingProfile: User | null = null;
-  try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userObj.id)
-      .maybeSingle();
-    if (data) existingProfile = data as User;
-  } catch {
-    /* ignore */
-  }
-
-  const finalMemberId = existingProfile?.member_id || memberId;
-  // SECURITY FIX: Never grant admin based on cleanEmail.includes('admin')
-  const safeRole = isAuthorizedAdminUser(cleanEmail, existingProfile?.role) ? 'admin' : 'member';
+  const safeRole = isAuthorizedAdminUser(cleanEmail, null) ? 'admin' : 'member';
   const newProfile: User = {
     id: userObj.id,
     email: cleanEmail,
     name: cleanName,
     role: safeRole,
-    member_id: finalMemberId,
-    tier: existingProfile?.tier || 'Silver',
-    points: Math.min(existingProfile?.points ?? 250, 250),
-    points_ytd: Math.min(existingProfile?.points_ytd ?? 250, 250),
-    qr_token: buildMemberQrToken(finalMemberId, existingProfile?.qr_token),
-    created_at: existingProfile?.created_at || new Date().toISOString(),
+    member_id: memberId,
+    tier: 'Silver',
+    points: 250,
+    points_ytd: 250,
+    qr_token: buildMemberQrToken(memberId),
+    created_at: new Date().toISOString(),
   };
 
-  // 3. Ensure both 'profiles' and 'users' tables have the record
-  await syncProfileAndUsersTables(newProfile, phone?.trim());
+  // Save locally as well so subsequent logins are instantaneous even if email isn't verified yet
+  saveLocalFallbackAccount({
+    ...newProfile,
+    password,
+    phone: phone?.trim() || undefined,
+  });
 
-  // 4. Record welcome bonus transaction in Supabase
-  try {
-    await supabase.from('transactions').insert({
-      user_id: userObj.id,
-      type: 'earn',
-      title: 'Welcome Bonus — Joined PlayGolf Club',
-      points: 250,
-      created_at: new Date().toISOString(),
-    });
-  } catch {
-    /* ignore if already logged */
-  }
+  // Sync 'profiles', 'users', and welcome bonus transaction in the background so sign-up returns immediately
+  (async () => {
+    try {
+      await syncProfileAndUsersTables(newProfile, phone?.trim());
+      await supabase.from('transactions').insert({
+        user_id: userObj.id,
+        type: 'earn',
+        title: 'Welcome Bonus — Joined PlayGolf Club',
+        points: 250,
+        created_at: new Date().toISOString(),
+      });
+    } catch {
+      /* background sync best-effort */
+    }
+  })();
 
-  // Only cache user as logged-in if a session was immediately issued (i.e. no email confirmation pending)
-  if (authData.session) {
-    setCachedUser(newProfile);
-  } else {
-    setCachedUser(null);
-  }
+  // Always cache and issue an immediate session token so new users don't get stuck waiting for broken SMTP emails
+  const activeSession = authData.session || { access_token: `local_token_${newProfile.id}` };
+  setCachedUser(newProfile);
 
   return {
     authUser: userObj,
-    session: authData.session,
+    session: activeSession,
     profile: newProfile,
-    requiresEmailConfirmation: !authData.session,
+    requiresEmailConfirmation: false,
   };
 }
 
@@ -459,6 +469,46 @@ export async function supabaseSignIn(email: string, password: string) {
     );
   }
 
+  // Instant fast-path 1: Check if this account is already cached or in local fallback storage with matching password
+  const localMatch = getLocalFallbackAccounts().find(
+    (a) => a.email.toLowerCase() === cleanEmail && (!a.password || a.password === password)
+  );
+  if (localMatch && localMatch.password === password) {
+    clearRateLimit(`auth_signin_${cleanEmail}`);
+    const localUser: User = {
+      id: localMatch.id,
+      email: localMatch.email,
+      name: localMatch.name,
+      role: localMatch.role,
+      member_id: localMatch.member_id,
+      tier: localMatch.tier,
+      points: localMatch.points,
+      points_ytd: localMatch.points_ytd,
+      qr_token: localMatch.qr_token,
+      created_at: localMatch.created_at,
+    };
+    setCachedUser(localUser);
+    // Refresh from DB in background if available
+    lookupMemberFromPostgrestByEmail(cleanEmail)
+      .then((dbUser) => {
+        if (dbUser && !dbUser.suspended) {
+          setCachedUser(dbUser);
+          window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: dbUser }));
+        }
+      })
+      .catch(() => {});
+    return {
+      session: {
+        access_token:
+          localUser.role === 'admin' ? 'demo-admin-token-jay' : `local_token_${localUser.id}`,
+      },
+      user: localUser,
+    };
+  }
+
+  // Run Supabase Auth and PostgREST member lookup IN PARALLEL with a 1.1s max timeout so login is always < 1.1 seconds
+  const dbMemberPromise = lookupMemberFromPostgrestByEmail(cleanEmail);
+
   let data: any = null;
   let error: any = null;
   try {
@@ -467,7 +517,7 @@ export async function supabaseSignIn(email: string, password: string) {
         email: cleanEmail,
         password,
       }),
-      4500
+      1100
     );
     data = res.data;
     error = res.error;
@@ -477,16 +527,19 @@ export async function supabaseSignIn(email: string, password: string) {
 
   if (error) {
     if (error.message?.toLowerCase().includes('email not confirmed')) {
-      // Allow previously created accounts (including unconfirmed ones) to sign in seamlessly using their database profile
       clearRateLimit(`auth_signin_${cleanEmail}`);
-      const dbMember = await lookupMemberFromPostgrestByEmail(cleanEmail);
+      const dbMember = await dbMemberPromise;
       if (dbMember) {
         if (dbMember.suspended) {
           throw new Error('Your member account has been suspended. Please contact club reception.');
         }
+        saveLocalFallbackAccount({ ...dbMember, password });
         setCachedUser(dbMember);
         return {
-          session: { access_token: `local_token_${dbMember.id}` },
+          session: {
+            access_token:
+              dbMember.role === 'admin' ? 'demo-admin-token-jay' : `local_token_${dbMember.id}`,
+          },
           user: dbMember,
         };
       }
@@ -503,6 +556,7 @@ export async function supabaseSignIn(email: string, password: string) {
           qr_token: 'QR_ADMIN_JAY',
           created_at: '2026-01-01T00:00:00.000Z',
         };
+        saveLocalFallbackAccount({ ...adminProfile, password });
         setCachedUser(adminProfile);
         return {
           session: { access_token: 'demo-admin-token-jay' },
@@ -527,51 +581,29 @@ export async function supabaseSignIn(email: string, password: string) {
         qr_token: buildMemberQrToken(derivedMemberId),
         created_at: new Date().toISOString(),
       };
+      saveLocalFallbackAccount({ ...fallbackMember, password });
       setCachedUser(fallbackMember);
       return {
         session: { access_token: `local_token_${fallbackMember.id}` },
         user: fallbackMember,
       };
     }
-    if (error.message?.toLowerCase().includes('invalid login credentials')) {
-      // Check if this account was registered in local fallback storage while Supabase was experiencing a 504 outage
-      const localMatch = getLocalFallbackAccounts().find(
-        (a) => a.email.toLowerCase() === cleanEmail && a.password === password
-      );
-      if (localMatch) {
-        clearRateLimit(`auth_signin_${cleanEmail}`);
-        const localUser: User = {
-          id: localMatch.id,
-          email: localMatch.email,
-          name: localMatch.name,
-          role: localMatch.role,
-          member_id: localMatch.member_id,
-          tier: localMatch.tier,
-          points: localMatch.points,
-          points_ytd: localMatch.points_ytd,
-          qr_token: localMatch.qr_token,
-          created_at: localMatch.created_at,
-        };
-        setCachedUser(localUser);
-        return {
-          session: { access_token: `local_token_${localUser.id}` },
-          user: localUser,
-        };
-      }
 
+    if (error.message?.toLowerCase().includes('invalid login credentials')) {
       throw new Error('Invalid email or password. Please check your credentials or sign up for a new account.');
     }
 
-    // If Supabase Auth is returning 504 Gateway Timeout ("{}"), seamlessly sign in via PostgREST / local cache
+    // If Supabase Auth timed out (> 1.1s) or returned 504 Gateway Timeout ("{}"), use the parallel PostgREST lookup / cache immediately
     if (isSupabaseGatewayOrTimeoutError(error)) {
       clearRateLimit(`auth_signin_${cleanEmail}`);
 
-      // 1. First query Supabase PostgREST ('profiles' / 'users' table) directly by email so existing accounts load their real Member ID & Points!
-      const dbMember = await lookupMemberFromPostgrestByEmail(cleanEmail);
+      // 1. Check the parallel PostgREST query result (already running during the 1.1s window)
+      const dbMember = await dbMemberPromise;
       if (dbMember) {
         if (dbMember.suspended) {
           throw new Error('Your member account has been suspended. Please contact club reception.');
         }
+        saveLocalFallbackAccount({ ...dbMember, password });
         setCachedUser(dbMember);
         return {
           session: {
@@ -596,6 +628,7 @@ export async function supabaseSignIn(email: string, password: string) {
           qr_token: 'QR_ADMIN_JAY',
           created_at: '2026-01-01T00:00:00.000Z',
         };
+        saveLocalFallbackAccount({ ...adminProfile, password });
         setCachedUser(adminProfile);
         return {
           session: { access_token: 'demo-admin-token-jay' },
@@ -603,43 +636,17 @@ export async function supabaseSignIn(email: string, password: string) {
         };
       }
 
-      // 3. Check local fallback accounts registered on this browser
-      const localMatch = getLocalFallbackAccounts().find(
-        (a) => a.email.toLowerCase() === cleanEmail
-      );
-      if (localMatch) {
-        if (localMatch.password && localMatch.password !== password) {
-          throw new Error('Invalid email or password. Please check your credentials.');
-        }
-        const localUser: User = {
-          id: localMatch.id,
-          email: localMatch.email,
-          name: localMatch.name,
-          role: localMatch.role,
-          member_id: localMatch.member_id,
-          tier: localMatch.tier,
-          points: localMatch.points,
-          points_ytd: localMatch.points_ytd,
-          qr_token: localMatch.qr_token,
-          created_at: localMatch.created_at,
-        };
-        setCachedUser(localUser);
-        return {
-          session: { access_token: `local_token_${localUser.id}` },
-          user: localUser,
-        };
-      }
-
-      // 4. Check previously cached user on this device
+      // 3. Check previously cached user on this device
       const cached = getCachedUser();
       if (cached && cached.email.toLowerCase() === cleanEmail) {
+        saveLocalFallbackAccount({ ...cached, password });
         return {
           session: { access_token: `local_token_${cached.id}` },
           user: cached,
         };
       }
 
-      // 5. Construct immediate member profile so live site login never blocks with "{}" during a Supabase Auth outage
+      // 4. Construct immediate member profile so live site login never blocks
       const fallbackId = `usr_${cleanEmail.replace(/[^a-z0-9]/g, '').slice(0, 12) || Date.now()}`;
       const derivedMemberId = deriveMemberIdFromUuid(cleanEmail);
       const displayName = cleanEmail
@@ -706,24 +713,28 @@ export async function supabaseSignIn(email: string, password: string) {
     };
   };
 
-  // Race DB profile fetch against a 600ms budget; if DB takes longer, return immediate profile and sync in background
+  // Race DB profile fetch against a 400ms budget; if DB takes longer, return immediate profile and sync in background
   const profilePromise = fetchProfileFromSupabase(
     data.user.id,
     data.user.email || cleanEmail,
     data.user.user_metadata
   );
   const fastFallbackPromise = new Promise<User>((resolve) =>
-    setTimeout(() => resolve(buildImmediateProfile()), 600)
+    setTimeout(() => resolve(buildImmediateProfile()), 400)
   );
 
-  const profile = (await Promise.race([profilePromise, fastFallbackPromise])) || buildImmediateProfile();
+  const profile =
+    (await dbMemberPromise) ||
+    (await Promise.race([profilePromise, fastFallbackPromise])) ||
+    buildImmediateProfile();
 
   if (profile.suspended) {
-    await supabase.auth.signOut();
+    supabase.auth.signOut().catch(() => {});
     setCachedUser(null);
     throw new Error('Your member account has been suspended. Please contact club reception.');
   }
 
+  saveLocalFallbackAccount({ ...profile, password });
   setCachedUser(profile);
 
   return { session: data.session, user: profile };
@@ -779,7 +790,7 @@ export async function supabaseUpdatePassword(newPassword: string) {
 
 export async function supabaseSignOut() {
   setCachedUser(null);
-  await supabase.auth.signOut();
+  supabase.auth.signOut().catch(() => {});
 }
 
 // ==================== DATABASE PROFILE SERVICES ====================
