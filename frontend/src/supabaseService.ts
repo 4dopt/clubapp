@@ -127,7 +127,7 @@ interface LocalFallbackAccount {
   password: string;
   name: string;
   phone?: string;
-  role: 'member' | 'admin';
+  role: 'member' | 'staff' | 'admin';
   member_id: string;
   tier: 'Silver' | 'Gold' | 'Platinum';
   points: number;
