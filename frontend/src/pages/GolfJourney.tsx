@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Target,
@@ -120,13 +120,23 @@ export function GolfJourney() {
         }
       })
       .catch(() => {});
-  }, [user, token]);
+    // Only reload when the signed-in member changes (not on every points/profile refresh),
+    // otherwise refresh() -> new user object -> reload -> refresh() loops forever and hammers the database.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.member_id, token]);
 
-  // Initial load + auth refresh
+  // Keep a ref to the latest user so realtime handlers don't need to resubscribe on every change
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Initial load + one-time auth refresh per member
   useEffect(() => {
     loadLiveData();
     refresh().catch(() => {});
-  }, [loadLiveData, refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadLiveData]);
 
   // Keep Off-Peak / Peak clock accurate every 30s
   useEffect(() => {
@@ -145,13 +155,14 @@ export function GolfJourney() {
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
         (payload) => {
           const next = payload.new as any;
-          if (next) {
+          const current = userRef.current;
+          if (next && current) {
             setUser({
-              ...user,
-              points: typeof next.points === 'number' ? next.points : user.points,
-              points_balance: typeof next.points === 'number' ? next.points : user.points_balance,
-              points_ytd: typeof next.points_ytd === 'number' ? next.points_ytd : user.points_ytd,
-              tier: next.tier || user.tier,
+              ...current,
+              points: typeof next.points === 'number' ? next.points : current.points,
+              points_balance: typeof next.points === 'number' ? next.points : current.points_balance,
+              points_ytd: typeof next.points_ytd === 'number' ? next.points_ytd : current.points_ytd,
+              tier: next.tier || current.tier,
             });
             setLastUpdated(new Date());
           }
@@ -191,7 +202,7 @@ export function GolfJourney() {
       supabase.removeChannel(channel);
       window.removeEventListener('playgolf-journey-updated', onJourneyEvent);
     };
-  }, [user, setUser, refresh, loadLiveData]);
+  }, [user?.id, setUser, refresh, loadLiveData]);
 
   const userPoints = user ? user.points ?? user.points_balance ?? 0 : 0;
   const visitRate = getVisitPointsRate();
