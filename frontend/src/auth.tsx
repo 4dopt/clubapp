@@ -107,8 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Check if Staff/Admin PIN session is active
+        // Check if Staff/Admin PIN session or Local Fallback session is active
         const adminTok = localStorage.getItem(ADMIN_TOKEN_KEY);
+        const existingTok = localStorage.getItem(TOKEN_KEY);
         if (adminTok && (adminTok.includes('admin') || cached?.role === 'admin')) {
           if (mounted) {
             setToken(adminTok);
@@ -122,12 +123,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     role: 'admin',
                     member_id: 'PG-000001',
                     tier: 'Platinum',
-                    points: 12500,
-                    points_ytd: 12500,
+                    points: 22500,
+                    points_ytd: 22500,
                     qr_token: 'QR_ADMIN_JAY',
                     created_at: '2026-01-01T00:00:00.000Z',
                   }
             );
+          }
+        } else if (existingTok && cached && existingTok.startsWith('local_token_')) {
+          if (mounted) {
+            setToken(existingTok);
+            setUserState(cached);
           }
         } else {
           localStorage.removeItem(TOKEN_KEY);

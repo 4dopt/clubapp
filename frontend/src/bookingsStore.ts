@@ -244,7 +244,10 @@ export function saveStoredBookings(bookings: BookingItem[]): void {
 export async function syncBookingsFromSupabase(): Promise<BookingItem[]> {
   const localList = getStoredBookings();
   try {
-    const remoteList = await fetchBookingsFromSupabase();
+    const fastTimeout = new Promise<BookingItem[]>((resolve) =>
+      setTimeout(() => resolve([]), 1500)
+    );
+    const remoteList = await Promise.race([fetchBookingsFromSupabase(), fastTimeout]);
     if (!remoteList || remoteList.length === 0) {
       return localList;
     }

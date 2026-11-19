@@ -134,8 +134,8 @@ const MOCK_ADMIN_USER: User = {
   role: 'admin',
   member_id: 'PG-000001',
   tier: 'Platinum',
-  points: 12500,
-  points_ytd: 12500,
+  points: 22500,
+  points_ytd: 22500,
   qr_token: 'QR_ADMIN_JAY',
   created_at: '2026-01-01T00:00:00.000Z',
 };
@@ -729,7 +729,10 @@ export const adminApi = {
   },
 
   async stats(adminToken: string) {
-    const sbStats = await fetchAdminStatsFromSupabase();
+    const fastTimeout = new Promise<AdminStats | null>((resolve) =>
+      setTimeout(() => resolve(null), 1500)
+    );
+    const sbStats = await Promise.race([fetchAdminStatsFromSupabase(), fastTimeout]);
     if (sbStats) {
       return sbStats;
     }
@@ -739,7 +742,10 @@ export const adminApi = {
   },
 
   async listMembers(adminToken: string, query?: string) {
-    const sbMembers = await fetchAllMembersFromSupabase(query);
+    const fastTimeout = new Promise<User[] | null>((resolve) =>
+      setTimeout(() => resolve(null), 1500)
+    );
+    const sbMembers = await Promise.race([fetchAllMembersFromSupabase(query), fastTimeout]);
     if (sbMembers && sbMembers.length > 0) return sbMembers;
     const q = query ? `?q=${encodeURIComponent(query)}` : '';
     return request<User[]>(`/api/admin/members${q}`, {
@@ -890,7 +896,10 @@ export const adminApi = {
 
   async listRedemptions(_adminToken: string) {
     const localList = getStoredRedemptions();
-    const remoteList = await fetchAllRedemptionsFromSupabase();
+    const fastTimeout = new Promise<any[] | null>((resolve) =>
+      setTimeout(() => resolve(null), 1500)
+    );
+    const remoteList = await Promise.race([fetchAllRedemptionsFromSupabase(), fastTimeout]);
     if (remoteList && remoteList.length > 0) {
       const byId = new Map<string, RewardRedemption>();
       for (const loc of localList) {

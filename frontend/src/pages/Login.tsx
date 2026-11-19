@@ -272,8 +272,8 @@ export function Login() {
         role: 'admin',
         member_id: 'PG-000001',
         tier: 'Platinum',
-        points: 12500,
-        points_ytd: 12500,
+        points: 22500,
+        points_ytd: 22500,
         qr_token: 'QR_ADMIN_JAY',
         created_at: '2026-01-01T00:00:00.000Z',
       };
