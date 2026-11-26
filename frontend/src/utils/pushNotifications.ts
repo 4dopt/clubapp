@@ -222,41 +222,30 @@ export function getStoredNotifications(userId?: string, memberId?: string, tier?
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        list = parsed;
+        // Filter out any legacy demo/seed notifications that may have been cached previously
+        const cleaned = parsed.filter(
+          (n) =>
+            n &&
+            typeof n.id === 'string' &&
+            !n.id.startsWith('notif_seed_') &&
+            !n.id.startsWith('notif_demo_') &&
+            !(n.title && n.title.includes('Live Push Test'))
+        );
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(cleaned));
+        }
+        list = cleaned;
       }
     }
   } catch {
     /* ignore */
   }
 
-  if (list.length === 0) {
-    const now = Date.now();
-    list = [
-      {
-        id: 'notif_seed_1',
-        user_id: null,
-        category: 'offer',
-        title: '⚡ Quiet-Time 2× Points Active Today',
-        body: 'Check in at the Driving Range during off-peak hours (Mon–Thu before 4 PM) to earn double loyalty points!',
-        action_url: '/journey',
-        created_at: new Date(now - 1000 * 60 * 25).toISOString(),
-      },
-      {
-        id: 'notif_seed_2',
-        user_id: null,
-        category: 'reward',
-        title: '☕ Early Win: 50 PTS Barista Coffee',
-        body: 'Redeem your first instant reward in the Rewards Shop with just 50 points.',
-        action_url: '/rewards',
-        created_at: new Date(now - 1000 * 60 * 120).toISOString(),
-      },
-    ];
-  }
-
   const prefs = getPushPreferences();
 
   return list
     .filter((n) => {
+      if (!n || !n.id || n.id.startsWith('notif_seed_') || n.id.startsWith('notif_demo_')) return false;
       if (n.title && n.title.includes('Live Push Test')) return false;
       // Category preference filter
       if (n.category === 'points' && !prefs.pointsAlerts) return false;
@@ -339,6 +328,17 @@ export async function sendPushNotification(params: {
   // Trigger in-app live toast banner & state refresh
   window.dispatchEvent(new CustomEvent('playgolf-live-push', { detail: newNotif }));
   window.dispatchEvent(new Event('playgolf-notifications-updated'));
+
+  // Broadcast across open browser tabs so member tab receives live alert when staff tab scans QR
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('playgolf_sync_channel');
+      bc.postMessage({ type: 'LIVE_PUSH_NOTIFICATION', notification: newNotif });
+      bc.close();
+    }
+  } catch {
+    /* ignore */
+  }
 
   // Trigger native OS / Service Worker notification if permission is granted
   const prefs = getPushPreferences();
@@ -468,7 +468,41 @@ export function startRealtimePushListener(
     )
     .subscribe();
 
+  // 3. Cross-tab BroadcastChannel listener so open member tabs get live toast alerts immediately
+  let bc: BroadcastChannel | null = null;
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('playgolf_sync_channel');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'LIVE_PUSH_NOTIFICATION' && event.data.notification) {
+          const incoming = event.data.notification as AppNotification;
+          const target = incoming.user_id;
+          const isForMe =
+            !target ||
+            target === 'ALL' ||
+            (target === 'TIER_VIP' && (currentTier === 'Gold' || currentTier === 'Platinum')) ||
+            (currentUserId && String(target).toLowerCase() === currentUserId.toLowerCase()) ||
+            (currentMemberId && String(target).toUpperCase() === currentMemberId.toUpperCase());
+
+          if (!isForMe) return;
+
+          window.dispatchEvent(new CustomEvent('playgolf-live-push', { detail: incoming }));
+          window.dispatchEvent(new Event('playgolf-notifications-updated'));
+        }
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+
   return () => {
     supabase.removeChannel(channel).catch(() => {});
+    if (bc) {
+      try {
+        bc.close();
+      } catch {
+        /* ignore */
+      }
+    }
   };
 }

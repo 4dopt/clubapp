@@ -12,13 +12,14 @@ import { api, Transaction } from '../api';
 import { getChosenRewardProgress, getVisitPointsRate } from '../loyaltyJourneyStore';
 
 export function Dashboard() {
-  const { user, token } = useAuth();
+  const { user, token, refresh } = useAuth();
   const [showQrModal, setShowQrModal] = useState(false);
   const [selectedBookingPass, setSelectedBookingPass] = useState<BookingItem | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [, setLoading] = useState(true);
 
   useEffect(() => {
+    refresh().catch(() => {});
     if (token) {
       api.history(token)
         .then(setTransactions)
@@ -27,7 +28,15 @@ export function Dashboard() {
     } else {
       setLoading(false);
     }
-  }, [token]);
+
+    const onProfileUpdate = () => {
+      if (token) {
+        api.history(token).then(setTransactions).catch(() => {});
+      }
+    };
+    window.addEventListener('playgolf-profile-synced', onProfileUpdate);
+    return () => window.removeEventListener('playgolf-profile-synced', onProfileUpdate);
+  }, [token, refresh]);
 
   if (!user) return null;
 

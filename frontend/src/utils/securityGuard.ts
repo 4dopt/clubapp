@@ -328,8 +328,10 @@ export function clearRateLimit(actionKey: string): void {
  */
 export function checkMemberQrScanCooldown(
   memberIdentifier: string,
-  cooldownMs: number = 3 * 60 * 1000 // 3 minutes default cooldown between check-in scans for same member
+  cooldownMs?: number
 ): { allowed: boolean; remainingSeconds: number } {
+  const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const effectiveCooldown = typeof cooldownMs === 'number' ? cooldownMs : (isLocalDev ? 3000 : 3 * 60 * 1000);
   const cleanId = (memberIdentifier || '').trim().toUpperCase();
   if (!cleanId) return { allowed: true, remainingSeconds: 0 };
 
@@ -339,8 +341,8 @@ export function checkMemberQrScanCooldown(
     const map: Record<string, number> = raw ? JSON.parse(raw) : {};
     const lastScan = map[cleanId] || 0;
 
-    if (now - lastScan < cooldownMs) {
-      const remainingSeconds = Math.ceil((cooldownMs - (now - lastScan)) / 1000);
+    if (now - lastScan < effectiveCooldown) {
+      const remainingSeconds = Math.ceil((effectiveCooldown - (now - lastScan)) / 1000);
       logSecurityAuditEvent({
         event_type: 'QR_REPLAY_COOLDOWN_BLOCKED',
         severity: 'warning',

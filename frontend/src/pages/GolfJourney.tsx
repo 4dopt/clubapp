@@ -146,7 +146,7 @@ export function GolfJourney() {
 
   // Real-time Supabase subscriptions for live points, bookings, transactions & rewards
   useEffect(() => {
-    if (!user?.id || user.id.startsWith('usr_')) return;
+    if (!user?.id) return;
 
     const channel = supabase
       .channel(`golf-journey-live-${user.id}`)

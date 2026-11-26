@@ -100,13 +100,69 @@ export function getCachedUser(): User | null {
   }
 }
 
+// Cross-tab broadcast channel for instant multi-tab sync
+let globalSyncChannel: BroadcastChannel | null = null;
+try {
+  if (typeof BroadcastChannel !== 'undefined') {
+    globalSyncChannel = new BroadcastChannel('playgolf_sync_channel');
+  }
+} catch {
+  globalSyncChannel = null;
+}
+
+export function broadcastProfileUpdate(user: User): void {
+  try {
+    if (globalSyncChannel) {
+      globalSyncChannel.postMessage({ type: 'PROFILE_UPDATED', user });
+    }
+  } catch {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: user }));
+    try {
+      localStorage.setItem('playgolf.last_sync_timestamp', `${Date.now()}_${user.id}_${user.points}`);
+    } catch {}
+  }
+}
+
 export function setCachedUser(user: User | null): void {
   try {
     if (!user) {
       localStorage.removeItem(USER_CACHE_KEY);
     } else {
       localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-      window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: user }));
+      broadcastProfileUpdate(user);
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+// Helper to update points/tier in local offline fallback accounts so cached accounts never drift
+export function updateLocalFallbackAccountPoints(
+  userIdOrEmailOrMemberId: string,
+  newPoints: number,
+  newTier: 'Silver' | 'Gold' | 'Platinum',
+  newYtd?: number
+): void {
+  try {
+    const clean = (userIdOrEmailOrMemberId || '').trim().toLowerCase();
+    if (!clean) return;
+    const list = getLocalFallbackAccounts();
+    let updated = false;
+    for (const a of list) {
+      if (
+        (a.id && a.id.toLowerCase() === clean) ||
+        (a.email && a.email.toLowerCase() === clean) ||
+        (a.member_id && a.member_id.toLowerCase() === clean)
+      ) {
+        a.points = newPoints;
+        a.tier = newTier;
+        if (typeof newYtd === 'number') a.points_ytd = newYtd;
+        updated = true;
+      }
+    }
+    if (updated) {
+      localStorage.setItem(LOCAL_ACCOUNTS_STORAGE_KEY, JSON.stringify(list));
     }
   } catch {
     /* ignore storage errors */
@@ -114,14 +170,16 @@ export function setCachedUser(user: User | null): void {
 }
 
 // Helper to keep both 'profiles' and legacy 'users' tables synchronized in Supabase
+// Uses UPDATE first so PostgreSQL BEFORE INSERT anti-tampering triggers do not clamp earned points
 export async function syncProfileAndUsersTables(profile: User, phone?: string): Promise<void> {
   const validId = ensureValidUuid(profile.id, profile.email);
   const cleanEmail = (profile.email || '').trim().toLowerCase();
 
   try {
-    const { error: pErr } = await supabase.from('profiles').upsert(
-      {
-        id: validId,
+    // 1. Update 'profiles' table first (triggers TG_OP = 'UPDATE' allowing point increases)
+    const { data: pUpdated, error: pUpErr } = await supabase
+      .from('profiles')
+      .update({
         email: cleanEmail,
         name: profile.name,
         role: profile.role,
@@ -130,21 +188,52 @@ export async function syncProfileAndUsersTables(profile: User, phone?: string): 
         points: profile.points,
         points_ytd: profile.points_ytd,
         qr_token: profile.qr_token,
-        created_at: profile.created_at,
-      },
-      { onConflict: 'id' }
-    );
-    if (pErr) {
-      console.warn('Supabase profiles upsert warning:', pErr.message);
+      })
+      .eq('id', validId)
+      .select('id, points');
+
+    if (!pUpdated || pUpdated.length === 0) {
+      // Try update by email if ID differed
+      const { data: pByEmail } = await supabase
+        .from('profiles')
+        .update({
+          name: profile.name,
+          role: profile.role,
+          member_id: profile.member_id,
+          tier: profile.tier,
+          points: profile.points,
+          points_ytd: profile.points_ytd,
+          qr_token: profile.qr_token,
+        })
+        .eq('email', cleanEmail)
+        .select('id, points');
+
+      if (!pByEmail || pByEmail.length === 0) {
+        // If row does not exist at all, insert new row
+        const { error: pErr } = await supabase.from('profiles').insert({
+          id: validId,
+          email: cleanEmail,
+          name: profile.name,
+          role: profile.role,
+          member_id: profile.member_id,
+          tier: profile.tier,
+          points: profile.points,
+          points_ytd: profile.points_ytd,
+          qr_token: profile.qr_token,
+          created_at: profile.created_at || new Date().toISOString(),
+        });
+        if (pErr) console.warn('Supabase profiles insert warning:', pErr.message);
+      }
     }
   } catch (e) {
-    console.warn('Supabase profiles upsert warning:', e);
+    console.warn('Supabase profiles update warning:', e);
   }
 
   try {
-    const { error: uErr } = await supabase.from('users').upsert(
-      {
-        id: validId,
+    // 2. Update 'users' table (triggers TG_OP = 'UPDATE' allowing point increases)
+    const { data: uUpdated } = await supabase
+      .from('users')
+      .update({
         email: cleanEmail,
         name: profile.name,
         phone: phone || null,
@@ -154,15 +243,51 @@ export async function syncProfileAndUsersTables(profile: User, phone?: string): 
         lifetime_points: profile.points_ytd,
         role: profile.role === 'admin' ? 'admin' : 'user',
         suspended: Boolean(profile.suspended),
-      },
-      { onConflict: 'id' }
-    );
-    if (uErr) {
-      console.warn('Supabase users table sync warning:', uErr.message);
+      })
+      .eq('id', validId)
+      .select('id, points_balance');
+
+    if (!uUpdated || uUpdated.length === 0) {
+      const { data: uByEmail } = await supabase
+        .from('users')
+        .update({
+          name: profile.name,
+          phone: phone || null,
+          member_id: profile.member_id,
+          tier: profile.tier,
+          points_balance: profile.points,
+          lifetime_points: profile.points_ytd,
+          role: profile.role === 'admin' ? 'admin' : 'user',
+          suspended: Boolean(profile.suspended),
+        })
+        .eq('email', cleanEmail)
+        .select('id, points_balance');
+
+      if (!uByEmail || uByEmail.length === 0) {
+        const { error: uErr } = await supabase.from('users').insert({
+          id: validId,
+          email: cleanEmail,
+          name: profile.name,
+          phone: phone || null,
+          member_id: profile.member_id,
+          tier: profile.tier,
+          points_balance: profile.points,
+          lifetime_points: profile.points_ytd,
+          role: profile.role === 'admin' ? 'admin' : 'user',
+          suspended: Boolean(profile.suspended),
+        });
+        if (uErr) console.warn('Supabase users insert warning:', uErr.message);
+      }
     }
   } catch (e) {
     console.warn('Supabase users table sync warning:', e);
   }
+
+  // Update local fallback accounts and notify any open windows
+  updateLocalFallbackAccountPoints(profile.id, profile.points, profile.tier, profile.points_ytd);
+  if (profile.email) updateLocalFallbackAccountPoints(profile.email, profile.points, profile.tier, profile.points_ytd);
+  if (profile.member_id) updateLocalFallbackAccountPoints(profile.member_id, profile.points, profile.tier, profile.points_ytd);
+  broadcastProfileUpdate(profile);
 }
 
 // ==================== AUTH SERVICES ====================
@@ -796,10 +921,10 @@ export async function fetchProfileFromSupabase(
       }
 
       // Ensure 'users' table also has this user so foreign keys on 'transactions' and staff scans succeed
-      if (!legacyUser || legacyUser.points_balance !== resolvedPoints || !legacyUser.member_id) {
+      if (!legacyUser) {
         supabase
           .from('users')
-          .upsert({
+          .insert({
             id: userProfile.id,
             email: userProfile.email.toLowerCase(),
             name: userProfile.name,
@@ -809,6 +934,18 @@ export async function fetchProfileFromSupabase(
             lifetime_points: userProfile.points_ytd,
             role: userProfile.role === 'admin' ? 'admin' : 'user',
           })
+          .then(() => {});
+      } else if (legacyUser.points_balance !== resolvedPoints || !legacyUser.member_id) {
+        supabase
+          .from('users')
+          .update({
+            member_id: userProfile.member_id,
+            tier: userProfile.tier,
+            points_balance: userProfile.points,
+            lifetime_points: userProfile.points_ytd,
+            role: userProfile.role === 'admin' ? 'admin' : 'user',
+          })
+          .eq('id', userProfile.id)
           .then(() => {});
       }
 
@@ -887,7 +1024,7 @@ export async function fetchCurrentUserFromSupabase(): Promise<User | null> {
     }
 
     const cached = getCachedUser();
-    if (cached && cached.id && !cached.id.startsWith('usr_')) {
+    if (cached && cached.id) {
       const profile = await fetchProfileFromSupabase(cached.id, cached.email);
       if (profile) return profile;
     }
@@ -913,7 +1050,7 @@ export async function fetchTransactionsFromSupabase(userId?: string): Promise<Tr
       const { data } = await supabase.auth.getSession();
       targetUserId = data?.session?.user?.id || getCachedUser()?.id;
     }
-    if (!targetUserId || targetUserId.startsWith('usr_')) return null;
+    if (!targetUserId) return null;
 
     const { data, error } = await supabase
       .from('transactions')
@@ -1070,7 +1207,7 @@ export async function redeemRewardInSupabase(rewardId: string): Promise<{
     }
 
     const profile = await fetchCurrentUserFromSupabase();
-    if (!profile || profile.id.startsWith('usr_')) return null;
+    if (!profile) return null;
 
     if (profile.suspended) {
       throw new Error('Account is suspended. Please contact club reception.');
@@ -1610,7 +1747,7 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
   try {
     const members = await fetchAllMembersFromSupabase();
     if (members && members.length > 0) {
-      const match = members.find((p: User) => {
+      let match = members.find((p: User) => {
         const pIdUpper = (p.id || '').toUpperCase();
         const pMemberUpper = (p.member_id || '').toUpperCase();
         const pQrUpper = (p.qr_token || '').toUpperCase();
@@ -1644,6 +1781,49 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
         return false;
       });
 
+      if (!match) {
+        // Direct query fallback by qr_token, member_id, id, or email
+        const [{ data: pByCode }, { data: uByCode }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('*')
+            .or(`member_id.eq.${cleanCode},qr_token.eq.${cleanCode},id.eq.${cleanCode}`)
+            .maybeSingle(),
+          supabase
+            .from('users')
+            .select('*')
+            .or(`member_id.eq.${cleanCode},id.eq.${cleanCode}`)
+            .maybeSingle(),
+        ]);
+        const found = pByCode || uByCode;
+        if (found) {
+          const resolvedPoints =
+            typeof uByCode?.points_balance === 'number'
+              ? uByCode.points_balance
+              : typeof pByCode?.points === 'number'
+              ? pByCode.points
+              : 250;
+          const resolvedYtd =
+            typeof uByCode?.lifetime_points === 'number'
+              ? uByCode.lifetime_points
+              : typeof pByCode?.points_ytd === 'number'
+              ? pByCode.points_ytd
+              : resolvedPoints;
+          match = {
+            id: found.id,
+            email: found.email || '',
+            name: found.name || 'Member',
+            role: found.role || 'member',
+            member_id: found.member_id || cleanCode,
+            tier: found.tier || 'Silver',
+            points: resolvedPoints,
+            points_ytd: resolvedYtd,
+            qr_token: found.qr_token || cleanCode,
+            created_at: found.created_at || new Date().toISOString(),
+          };
+        }
+      }
+
       if (match) {
         if (match.suspended) {
           throw new Error(`Member ${match.name} (${match.member_id}) is currently suspended.`);
@@ -1670,11 +1850,25 @@ export async function logVisitInSupabaseOrStore(qrText: string, pointsDelta: num
           tier: newTier,
         };
 
+        // 1. Sync to Supabase 'profiles' & 'users'
         await syncProfileAndUsersTables(updatedUser);
 
-        // If the scanned user is also the currently cached user in this browser, keep cache fresh
+        // 2. Keep local fallback offline account synced
+        updateLocalFallbackAccountPoints(match.id, newPoints, newTier, newYtd);
+        if (match.email) updateLocalFallbackAccountPoints(match.email, newPoints, newTier, newYtd);
+        if (match.member_id) updateLocalFallbackAccountPoints(match.member_id, newPoints, newTier, newYtd);
+
+        // 3. Broadcast across tabs and dispatch local event so member screen updates live immediately
+        broadcastProfileUpdate(updatedUser);
+
+        // 4. If current browser tab session matches this user, refresh cached user
         const cached = getCachedUser();
-        if (cached && cached.id === match.id) {
+        if (
+          cached &&
+          (cached.id === match.id ||
+            (cached.email && match.email && cached.email.toLowerCase() === match.email.toLowerCase()) ||
+            (cached.member_id && match.member_id && cached.member_id === match.member_id))
+        ) {
           setCachedUser(updatedUser);
         }
 
@@ -1809,8 +2003,18 @@ export async function adjustMemberPointsInSupabase(
 
       await syncProfileAndUsersTables(updatedUser);
 
+      updateLocalFallbackAccountPoints(profile.id, newPoints, newTier, newYtd);
+      if (profile.email) updateLocalFallbackAccountPoints(profile.email, newPoints, newTier, newYtd);
+      if (profile.member_id) updateLocalFallbackAccountPoints(profile.member_id, newPoints, newTier, newYtd);
+      broadcastProfileUpdate(updatedUser);
+
       const cached = getCachedUser();
-      if (cached && cached.id === profile.id) {
+      if (
+        cached &&
+        (cached.id === profile.id ||
+          (cached.email && profile.email && cached.email.toLowerCase() === profile.email.toLowerCase()) ||
+          (cached.member_id && profile.member_id && cached.member_id === profile.member_id))
+      ) {
         setCachedUser(updatedUser);
       }
 

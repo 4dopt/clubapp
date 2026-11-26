@@ -16,6 +16,7 @@ import {
   getCachedUser,
   setCachedUser,
   supabaseSignOut,
+  USER_CACHE_KEY,
 } from './supabaseService';
 import { isAuthorizedAdminUser, isValidAdminSessionToken } from './utils/securityGuard';
 
@@ -71,11 +72,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const onProfileSynced = (e: Event) => {
       const synced = (e as CustomEvent<User>).detail;
-      if (mounted && synced) {
-        setUserState(synced);
-      }
+      if (!mounted || !synced) return;
+      setUserState((currentUser) => {
+        if (!currentUser) return currentUser;
+        const matchesCurrent =
+          currentUser.id === synced.id ||
+          (currentUser.email && synced.email && currentUser.email.toLowerCase() === synced.email.toLowerCase()) ||
+          (currentUser.member_id && synced.member_id && currentUser.member_id === synced.member_id);
+        if (matchesCurrent) {
+          return {
+            ...currentUser,
+            points: synced.points,
+            points_ytd: synced.points_ytd,
+            tier: synced.tier,
+          };
+        }
+        return currentUser;
+      });
     };
     window.addEventListener('playgolf-profile-synced', onProfileSynced);
+
+    // Cross-tab broadcast channel for immediate multi-tab updates
+    let syncChannel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        syncChannel = new BroadcastChannel('playgolf_sync_channel');
+        syncChannel.onmessage = (event) => {
+          if (!mounted) return;
+          if (event.data?.type === 'PROFILE_UPDATED' && event.data.user) {
+            const synced = event.data.user as User;
+            setUserState((currentUser) => {
+              if (!currentUser) return currentUser;
+              const matchesCurrent =
+                currentUser.id === synced.id ||
+                (currentUser.email && synced.email && currentUser.email.toLowerCase() === synced.email.toLowerCase()) ||
+                (currentUser.member_id && synced.member_id && currentUser.member_id === synced.member_id);
+              if (matchesCurrent) {
+                const updated = {
+                  ...currentUser,
+                  points: synced.points,
+                  points_ytd: synced.points_ytd,
+                  tier: synced.tier,
+                };
+                try {
+                  localStorage.setItem(USER_CACHE_KEY, JSON.stringify(updated));
+                } catch {}
+                return updated;
+              }
+              return currentUser;
+            });
+          }
+        };
+      }
+    } catch {}
+
+    const onStorageChange = (e: StorageEvent) => {
+      if (!mounted) return;
+      if (e.key === 'playgolf.last_sync_timestamp' || e.key === USER_CACHE_KEY) {
+        fetchCurrentUserFromSupabase().then((fresh) => {
+          if (mounted && fresh) setUserState(fresh);
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('storage', onStorageChange);
+
+    const onVisibilityOrFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchCurrentUserFromSupabase().then((fresh) => {
+          if (mounted && fresh) setUserState(fresh);
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('visibilitychange', onVisibilityOrFocus);
+    window.addEventListener('focus', onVisibilityOrFocus);
 
     (async () => {
       try {
@@ -211,9 +280,97 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
       window.removeEventListener('playgolf-profile-synced', onProfileSynced);
+      window.removeEventListener('storage', onStorageChange);
+      window.removeEventListener('visibilitychange', onVisibilityOrFocus);
+      window.removeEventListener('focus', onVisibilityOrFocus);
+      if (syncChannel) {
+        try {
+          syncChannel.close();
+        } catch {}
+      }
       data.subscription.unsubscribe();
     };
   }, []);
+
+  // Supabase Realtime channel for live profile, balance, and transaction updates
+  useEffect(() => {
+    if (!user?.id || user.id === 'usr_admin_jay') return;
+    let mounted = true;
+
+    const channel = supabase
+      .channel(`live-member-auth-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          if (!mounted) return;
+          if (payload.new && typeof payload.new.points === 'number') {
+            setUserState((prev) => {
+              if (!prev || prev.id !== user.id) return prev;
+              const next = {
+                ...prev,
+                points: payload.new.points,
+                points_ytd: payload.new.points_ytd ?? prev.points_ytd,
+                tier: payload.new.tier ?? prev.tier,
+              };
+              setCachedUser(next);
+              return next;
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          if (!mounted) return;
+          if (payload.new && typeof payload.new.points_balance === 'number') {
+            setUserState((prev) => {
+              if (!prev || prev.id !== user.id) return prev;
+              const next = {
+                ...prev,
+                points: payload.new.points_balance,
+                points_ytd: payload.new.lifetime_points ?? prev.points_ytd,
+                tier: payload.new.tier ?? prev.tier,
+              };
+              setCachedUser(next);
+              return next;
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          if (!mounted) return;
+          fetchCurrentUserFromSupabase().then((sbUser) => {
+            if (mounted && sbUser) setUserState(sbUser);
+          }).catch(() => {});
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const signIn = useCallback(async (t: string, u: User) => {
     localStorage.setItem(TOKEN_KEY, t);

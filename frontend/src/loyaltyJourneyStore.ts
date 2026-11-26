@@ -403,7 +403,10 @@ export async function recordVerifiedReceptionVisit(
   const cleanKey = (memberIdentifier || '').trim().toUpperCase();
   const rate = getVisitPointsRate();
 
-  // 1. Check Anti-Passback (Max 1 points-earning visit check-in per member per day)
+  // 1. Check Anti-Passback (Max 1 points-earning visit check-in per member per day in production; relaxed on local dev for test scanning)
+  const isLocalDev =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   let visitMap: Record<string, string> = {};
   try {
     const rawMap = localStorage.getItem(VISIT_ANTI_PASSBACK_KEY);
@@ -412,7 +415,7 @@ export async function recordVerifiedReceptionVisit(
     visitMap = {};
   }
 
-  const alreadyCheckedInToday = Boolean(cleanKey && visitMap[cleanKey] === today);
+  const alreadyCheckedInToday = !isLocalDev && Boolean(cleanKey && visitMap[cleanKey] === today);
   if (cleanKey && !alreadyCheckedInToday) {
     visitMap[cleanKey] = today;
     try {

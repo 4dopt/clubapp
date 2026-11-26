@@ -25,12 +25,13 @@ import { QrModal } from '../components/QrModal';
 import { resolveCardVisualTier } from '../components/MembershipCard';
 
 export function Profile() {
-  const { user, token, signOut } = useAuth();
+  const { user, token, signOut, refresh } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
+    refresh().catch(() => {});
     if (token) {
       api.history(token)
         .then(setTransactions)
@@ -39,7 +40,15 @@ export function Profile() {
     } else {
       setLoading(false);
     }
-  }, [token]);
+
+    const onProfileUpdate = () => {
+      if (token) {
+        api.history(token).then(setTransactions).catch(() => {});
+      }
+    };
+    window.addEventListener('playgolf-profile-synced', onProfileUpdate);
+    return () => window.removeEventListener('playgolf-profile-synced', onProfileUpdate);
+  }, [token, refresh]);
 
   if (!user) return null;
 

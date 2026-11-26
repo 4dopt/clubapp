@@ -22,6 +22,9 @@ export function Rewards() {
   const [goalRefreshTick, setGoalRefreshTick] = useState(0);
 
   useEffect(() => {
+    // Refresh user balance on Rewards mount so points are 100% current
+    refresh().catch(() => {});
+
     const syncLocalRewards = () => {
       const active = getStoredRewards().filter((r) => r.active);
       if (active.length > 0) {
@@ -29,7 +32,12 @@ export function Rewards() {
         setLoading(false);
       }
     };
+    const onProfileUpdate = () => {
+      setGoalRefreshTick((t) => t + 1);
+    };
+
     window.addEventListener('playgolf-rewards-updated', syncLocalRewards);
+    window.addEventListener('playgolf-profile-synced', onProfileUpdate);
 
     if (token) {
       api.rewards(token)
@@ -44,8 +52,11 @@ export function Rewards() {
       setLoading(false);
     }
 
-    return () => window.removeEventListener('playgolf-rewards-updated', syncLocalRewards);
-  }, [token]);
+    return () => {
+      window.removeEventListener('playgolf-rewards-updated', syncLocalRewards);
+      window.removeEventListener('playgolf-profile-synced', onProfileUpdate);
+    };
+  }, [token, refresh]);
 
   const handleRedeem = async (reward: Reward) => {
     if (!token || !user) return;

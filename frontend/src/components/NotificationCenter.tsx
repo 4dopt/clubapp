@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Bell,
   BellRing,
@@ -13,6 +13,10 @@ import {
   Shield,
   ChevronRight,
   Smartphone,
+  Camera,
+  MapPin,
+  HardDrive,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../auth';
 import {
@@ -46,12 +50,73 @@ function getCategoryIcon(category: AppNotification['category']) {
 export function NotificationBellButton({ isAdminTheme = false }: { isAdminTheme?: boolean }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [liveToast, setLiveToast] = useState<AppNotification | null>(null);
   const [prefs, setPrefs] = useState(() => getPushPreferences());
   const [permission, setPermission] = useState(() => getBrowserNotificationPermission());
+  const [cameraPerm, setCameraPerm] = useState<'granted' | 'denied' | 'prompt'>(() =>
+    localStorage.getItem('playgolf.perm_camera') === 'granted' ? 'granted' : 'prompt'
+  );
+  const [locationPerm, setLocationPerm] = useState<'granted' | 'denied' | 'prompt'>(() =>
+    localStorage.getItem('playgolf.perm_location') === 'granted' ? 'granted' : 'prompt'
+  );
+  const [offlineStoragePerm, setOfflineStoragePerm] = useState<boolean>(() =>
+    localStorage.getItem('playgolf.perm_offline_pass') === 'granted'
+  );
+  const [requestingAll, setRequestingAll] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState<string>('');
+
+  // Query live browser Permissions API if supported
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('permissions' in navigator)) return;
+    try {
+      navigator.permissions.query({ name: 'camera' as PermissionName }).then((res) => {
+        if (res.state === 'granted') {
+          setCameraPerm('granted');
+          localStorage.setItem('playgolf.perm_camera', 'granted');
+        } else if (res.state === 'denied') {
+          setCameraPerm('denied');
+        }
+      }).catch(() => {});
+    } catch {}
+    try {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((res) => {
+        if (res.state === 'granted') {
+          setLocationPerm('granted');
+          localStorage.setItem('playgolf.perm_location', 'granted');
+        } else if (res.state === 'denied') {
+          setLocationPerm('denied');
+        }
+      }).catch(() => {});
+    } catch {}
+  }, []);
+
+  // Show in-app prompt modal asking user to allow required app permissions when inside the app
+  useEffect(() => {
+    if (!user || location.pathname === '/login') {
+      setShowPermissionPrompt(false);
+      return;
+    }
+
+    const currentNotifPerm = getBrowserNotificationPermission();
+    const alreadyAcceptedAll = localStorage.getItem('playgolf.app_permissions_prompt_done') === 'true';
+    const dismissedSession = sessionStorage.getItem('playgolf.notif_prompt_dismissed') === 'true';
+
+    if (alreadyAcceptedAll && currentNotifPerm === 'granted') {
+      setShowPermissionPrompt(false);
+      return;
+    }
+
+    if (!alreadyAcceptedAll && !dismissedSession) {
+      const timer = setTimeout(() => {
+        setShowPermissionPrompt(true);
+      }, 850);
+      return () => clearTimeout(timer);
+    }
+  }, [user, location.pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -101,7 +166,13 @@ export function NotificationBellButton({ isAdminTheme = false }: { isAdminTheme?
     setStatusFeedback('');
     const res = await requestPushPermissionAndSubscribe(user.id);
     setPermission(res.permission);
-    setPrefs(getPushPreferences());
+    const updatedPrefs = savePushPreferences({
+      enabled: true,
+      pointsAlerts: true,
+      bookingAlerts: true,
+      flashOfferAlerts: true,
+    });
+    setPrefs(updatedPrefs);
     if (res.granted) {
       setStatusFeedback('Push notifications enabled on this device!');
     } else if (res.reason) {
@@ -109,10 +180,410 @@ export function NotificationBellButton({ isAdminTheme = false }: { isAdminTheme?
     }
   };
 
+  const handleRequestCamera = async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setCameraPerm('granted');
+      localStorage.setItem('playgolf.perm_camera', 'granted');
+      return true;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream.getTracks().forEach((t) => t.stop());
+      setCameraPerm('granted');
+      localStorage.setItem('playgolf.perm_camera', 'granted');
+      return true;
+    } catch {
+      setCameraPerm('denied');
+      return false;
+    }
+  };
+
+  const handleRequestLocation = async (): Promise<boolean> => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      setLocationPerm('granted');
+      localStorage.setItem('playgolf.perm_location', 'granted');
+      return true;
+    }
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          setLocationPerm('granted');
+          localStorage.setItem('playgolf.perm_location', 'granted');
+          resolve(true);
+        },
+        () => {
+          setLocationPerm('denied');
+          resolve(false);
+        },
+        { timeout: 6000, maximumAge: 60000 }
+      );
+    });
+  };
+
+  const handleRequestOfflinePassStorage = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+        await navigator.storage.persist();
+      }
+    } catch {}
+    setOfflineStoragePerm(true);
+    localStorage.setItem('playgolf.perm_offline_pass', 'granted');
+    return true;
+  };
+
+  const handleAllowAllFromPromptModal = async () => {
+    setRequestingAll(true);
+    try {
+      // 1. Notifications
+      const res = await requestPushPermissionAndSubscribe(user.id);
+      setPermission(res.permission);
+      const updatedPrefs = savePushPreferences({
+        enabled: true,
+        pointsAlerts: true,
+        bookingAlerts: true,
+        flashOfferAlerts: true,
+      });
+      setPrefs(updatedPrefs);
+
+      // 2. Offline Pass & Club Terms Storage
+      await handleRequestOfflinePassStorage();
+
+      // 3. Location Services (if not already granted)
+      if (locationPerm !== 'granted') {
+        await handleRequestLocation();
+      }
+
+      // 4. Camera Access (if on admin/scanner or user wants QR scanning ready)
+      if (cameraPerm !== 'granted') {
+        await handleRequestCamera();
+      }
+
+      localStorage.setItem('playgolf.notifications_allowed_prompt_done', 'true');
+      localStorage.setItem('playgolf.app_permissions_prompt_done', 'true');
+      setShowPermissionPrompt(false);
+    } finally {
+      setRequestingAll(false);
+    }
+  };
+
+  const handleDismissPromptModal = () => {
+    sessionStorage.setItem('playgolf.notif_prompt_dismissed', 'true');
+    setShowPermissionPrompt(false);
+  };
+
+  const isNotifAllowed = permission === 'granted' || prefs.enabled;
+
   const overlays =
     typeof document !== 'undefined'
       ? createPortal(
           <>
+            {/* In-App App Permissions & Conditions Pop-Up Modal */}
+            {showPermissionPrompt && !open && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(9, 13, 22, 0.82)',
+                  backdropFilter: 'blur(7px)',
+                  WebkitBackdropFilter: 'blur(7px)',
+                  zIndex: 10040,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '16px',
+                  overflowY: 'auto',
+                }}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '100%',
+                    maxWidth: '420px',
+                    background: 'linear-gradient(160deg, #0f172a 0%, #111c30 100%)',
+                    border: '1.5px solid rgba(16, 185, 129, 0.45)',
+                    borderRadius: '24px',
+                    padding: '22px 20px',
+                    color: '#ffffff',
+                    boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7)',
+                    textAlign: 'center',
+                    position: 'relative',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '17px',
+                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(4, 120, 87, 0.4) 100%)',
+                      border: '1px solid rgba(52, 211, 153, 0.45)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 12px auto',
+                      boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25)',
+                    }}
+                  >
+                    <Shield size={25} style={{ color: '#34d399' }} />
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      background: 'rgba(16, 185, 129, 0.16)',
+                      border: '1px solid rgba(52, 211, 153, 0.35)',
+                      color: '#34d399',
+                      fontSize: '0.67rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    APP PERMISSIONS &amp; CLUB ACCESS
+                  </div>
+
+                  <h3 style={{ fontSize: '1.18rem', fontWeight: 900, color: '#ffffff', margin: '0 0 6px 0' }}>
+                    Allow App Permissions
+                  </h3>
+
+                  <p style={{ fontSize: '0.79rem', color: '#cbd5e1', lineHeight: 1.45, margin: '0 0 16px 0' }}>
+                    Please allow the permissions below so your digital pass, QR scanner, and real-time loyalty points work seamlessly:
+                  </p>
+
+                  {/* Interactive Permission Rows */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '9px',
+                      textAlign: 'left',
+                      marginBottom: '18px',
+                    }}
+                  >
+                    {/* 1. Push Notifications */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        background: isNotifAllowed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                        border: isNotifAllowed ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.09)',
+                        borderRadius: '14px',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <BellRing size={18} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ffffff' }}>
+                            Push Notifications
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.3 }}>
+                            Instant +100/+200 PTS scan alerts, booking passes &amp; 2× flash deals
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleEnablePush}
+                        style={{
+                          background: isNotifAllowed ? 'rgba(16, 185, 129, 0.2)' : '#10b981',
+                          border: isNotifAllowed ? '1px solid #34d399' : 'none',
+                          color: isNotifAllowed ? '#6ee7b7' : '#090d16',
+                          borderRadius: '999px',
+                          padding: '5px 11px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isNotifAllowed ? '✓ Allowed' : 'Allow'}
+                      </button>
+                    </div>
+
+                    {/* 2. Camera Access for QR Scanning */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        background: cameraPerm === 'granted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                        border: cameraPerm === 'granted' ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.09)',
+                        borderRadius: '14px',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <Camera size={18} style={{ color: '#38bdf8', flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ffffff' }}>
+                            Camera Access
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.3 }}>
+                            Required for scanning QR club passes, range bay codes &amp; vouchers
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRequestCamera}
+                        style={{
+                          background: cameraPerm === 'granted' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)',
+                          border: cameraPerm === 'granted' ? '1px solid #34d399' : '1px solid rgba(56, 189, 248, 0.45)',
+                          color: cameraPerm === 'granted' ? '#6ee7b7' : '#7dd3fc',
+                          borderRadius: '999px',
+                          padding: '5px 11px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {cameraPerm === 'granted' ? '✓ Allowed' : 'Allow'}
+                      </button>
+                    </div>
+
+                    {/* 3. Location Services */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        background: locationPerm === 'granted' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                        border: locationPerm === 'granted' ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.09)',
+                        borderRadius: '14px',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <MapPin size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ffffff' }}>
+                            Location Services
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.3 }}>
+                            Northwick Park arrival detection, course weather &amp; Quiet-Time prompts
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRequestLocation}
+                        style={{
+                          background: locationPerm === 'granted' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(251, 191, 36, 0.18)',
+                          border: locationPerm === 'granted' ? '1px solid #34d399' : '1px solid rgba(251, 191, 36, 0.45)',
+                          color: locationPerm === 'granted' ? '#6ee7b7' : '#fde68a',
+                          borderRadius: '999px',
+                          padding: '5px 11px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {locationPerm === 'granted' ? '✓ Allowed' : 'Allow'}
+                      </button>
+                    </div>
+
+                    {/* 4. Offline Digital Pass & Club Conditions */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        background: offlineStoragePerm ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                        border: offlineStoragePerm ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.09)',
+                        borderRadius: '14px',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <HardDrive size={18} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ffffff' }}>
+                            Offline Digital Pass &amp; Club Terms
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.3 }}>
+                            Keeps your QR membership card &amp; vouchers scannable with zero signal
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRequestOfflinePassStorage}
+                        style={{
+                          background: offlineStoragePerm ? 'rgba(16, 185, 129, 0.2)' : 'rgba(167, 139, 250, 0.2)',
+                          border: offlineStoragePerm ? '1px solid #34d399' : '1px solid rgba(167, 139, 250, 0.45)',
+                          color: offlineStoragePerm ? '#6ee7b7' : '#ddd6fe',
+                          borderRadius: '999px',
+                          padding: '5px 11px',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {offlineStoragePerm ? '✓ Active' : 'Enable'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      type="button"
+                      disabled={requestingAll}
+                      onClick={handleAllowAllFromPromptModal}
+                      style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        border: 'none',
+                        color: '#ffffff',
+                        padding: '13px 16px',
+                        borderRadius: '14px',
+                        fontSize: '0.9rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: '0 10px 24px rgba(16, 185, 129, 0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <CheckCircle2 size={18} />
+                      <span>{requestingAll ? 'Enabling Permissions...' : 'Allow All & Continue'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDismissPromptModal}
+                      style={{
+                        width: '100%',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        padding: '7px',
+                        fontSize: '0.77rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Continue with Current Settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Native-Style Slide-Down Live Push Banner Toast */}
             {liveToast && (
               <div
@@ -302,8 +773,8 @@ export function NotificationBellButton({ isAdminTheme = false }: { isAdminTheme?
                         </div>
                       </div>
 
-                      {permission !== 'granted' && (
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                        {permission !== 'granted' && (
                           <button
                             type="button"
                             onClick={handleEnablePush}
@@ -320,8 +791,31 @@ export function NotificationBellButton({ isAdminTheme = false }: { isAdminTheme?
                           >
                             Allow Push Alerts
                           </button>
-                        </div>
-                      )}
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpen(false);
+                            setShowPermissionPrompt(true);
+                          }}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.16)',
+                            color: '#e2e8f0',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                          }}
+                        >
+                          <Shield size={13} style={{ color: '#34d399' }} />
+                          <span>App Permissions</span>
+                        </button>
+                      </div>
                     </div>
 
                     {statusFeedback && (
