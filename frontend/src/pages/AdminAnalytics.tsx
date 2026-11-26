@@ -42,7 +42,7 @@ function parsePriceValue(priceStr?: string): number {
 export function AdminAnalytics() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [bookings, setBookings] = useState<BookingItem[]>(() => getStoredBookings());
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,13 @@ export function AdminAnalytics() {
   const [paymentPeriod, setPaymentPeriod] = useState<PaymentPeriod>('today');
   const [auditLogs, setAuditLogs] = useState<SecurityAuditEvent[]>(() => getSecurityAuditLogs());
   const [selfTestBanner, setSelfTestBanner] = useState<string>('');
+
+  // Thermal Printer & Till Sheet Report Modal State
+  const [showTillSheetModal, setShowTillSheetModal] = useState(false);
+  const [printerFormat, setPrinterFormat] = useState<'80mm' | '58mm' | 'a4'>('80mm');
+  const [openingFloatInput, setOpeningFloatInput] = useState<string>('100.00');
+  const [actualDrawerInput, setActualDrawerInput] = useState<string>('');
+  const [operatorInput, setOperatorInput] = useState<string>(user?.name || 'Reception Desk #01');
 
   useEffect(() => {
     const loadData = async () => {
@@ -247,6 +254,264 @@ export function AdminAnalytics() {
     a.download = `playgolf-till-report-${paymentPeriod}-${todayStr}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const periodLabelDisplay =
+    paymentPeriod === 'today'
+      ? `Today (${todayStr})`
+      : paymentPeriod === 'yesterday'
+      ? `Yesterday (${yesterdayStr})`
+      : paymentPeriod === 'week'
+      ? 'Past 7 Days'
+      : 'All Time';
+
+  const parsedOpeningFloat = parseFloat(openingFloatInput) || 0;
+  const expectedTillDrawerTotal = parsedOpeningFloat + deskRevenue;
+  const hasActualCount = actualDrawerInput.trim().length > 0 && !isNaN(parseFloat(actualDrawerInput));
+  const parsedActualDrawer = hasActualCount ? parseFloat(actualDrawerInput) : expectedTillDrawerTotal;
+  const tillVariance = parsedActualDrawer - expectedTillDrawerTotal;
+  const zReportId = `Z-${todayStr.replace(/-/g, '')}-${String(periodCount).padStart(3, '0')}`;
+
+  const handlePrintThermalTillSheet = (targetFormat: '80mm' | '58mm' | 'a4' = printerFormat) => {
+    const nowStr = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const pageWidthCss =
+      targetFormat === '58mm' ? '58mm' : targetFormat === '80mm' ? '80mm' : '190mm';
+    const pageRuleCss =
+      targetFormat === 'a4'
+        ? '@page { size: A4 portrait; margin: 12mm; }'
+        : `@page { size: ${pageWidthCss} auto; margin: 1.5mm; }`;
+    const bodyFontSize = targetFormat === '58mm' ? '10px' : targetFormat === '80mm' ? '11.5px' : '13px';
+
+    const escapeHtml = (s: string) =>
+      String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const deptRowsHtml = paymentsByActivity
+      .map(
+        (act) => `
+        <tr>
+          <td style="padding:3px 0;font-weight:700;">${escapeHtml(act.shortTag || act.name)}</td>
+          <td style="padding:3px 4px;text-align:center;">${act.count}</td>
+          <td style="padding:3px 0;text-align:right;font-weight:700;">£${act.revenue.toFixed(2)}</td>
+        </tr>`
+      )
+      .join('');
+
+    const itemRowsHtml =
+      paymentsFilteredBookings.length === 0
+        ? `<tr><td colspan="3" style="padding:8px 0;text-align:center;color:#555;">No transactions in period</td></tr>`
+        : paymentsFilteredBookings
+            .slice(0, 60)
+            .map((b) => {
+              const priceNum = parsePriceValue(b.price);
+              const methodTag =
+                b.payment_status === 'pay_at_desk'
+                  ? 'TILL'
+                  : b.payment_status === 'comp'
+                  ? 'COMP'
+                  : 'APP';
+              return `
+              <tr style="border-bottom:1px dotted #ccc;">
+                <td style="padding:4px 0;">
+                  <div style="font-weight:700;">${escapeHtml(b.time || '--:--')} • ${escapeHtml(b.booking_code)}</div>
+                  <div style="font-size:0.88em;color:#333;">${escapeHtml(b.user_name || 'Member')} (${escapeHtml(
+                b.activity_name
+              )})</div>
+                </td>
+                <td style="padding:4px 4px;text-align:center;font-weight:700;font-size:0.88em;">[${methodTag}]</td>
+                <td style="padding:4px 0;text-align:right;font-weight:800;">£${priceNum.toFixed(2)}</td>
+              </tr>`;
+            })
+            .join('');
+
+    const varianceStr = hasActualCount
+      ? `${tillVariance >= 0 ? '+' : '-'}£${Math.abs(tillVariance).toFixed(2)} (${
+          Math.abs(tillVariance) < 0.01 ? 'BALANCED' : tillVariance > 0 ? 'OVER' : 'SHORT'
+        })`
+      : '£0.00 (BALANCED)';
+
+    const htmlDoc = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PlayGolf Till Report ${escapeHtml(zReportId)}</title>
+  <style>
+    ${pageRuleCss}
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #000000;
+      font-family: 'Courier New', Courier, 'Liberation Mono', monospace;
+      font-size: ${bodyFontSize};
+      line-height: 1.35;
+      font-variant-numeric: tabular-nums;
+    }
+    .sheet {
+      width: 100%;
+      max-width: ${pageWidthCss};
+      margin: 0 auto;
+      padding: ${targetFormat === 'a4' ? '12px' : '4px 3px'};
+    }
+    .center { text-align: center; }
+    .bold { font-weight: 800; }
+    .divider-solid { border-top: 2px solid #000; margin: 6px 0; }
+    .divider-dashed { border-top: 1px dashed #000; margin: 6px 0; }
+    .section-title {
+      background: #000;
+      color: #fff;
+      font-weight: 800;
+      padding: 2px 6px;
+      font-size: 0.92em;
+      letter-spacing: 0.04em;
+      margin: 7px 0 4px 0;
+      text-transform: uppercase;
+    }
+    .kv-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 1.5px 0;
+    }
+    .kv-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 4px 0;
+      font-size: 1.18em;
+      font-weight: 900;
+      border-top: 1.5px solid #000;
+      border-bottom: 1.5px solid #000;
+      margin: 4px 0;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+    th { border-bottom: 1px solid #000; text-align: left; padding: 2px 0; font-weight: 800; }
+    .sign-box {
+      border: 1px solid #000;
+      padding: 6px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="center">
+      <div style="font-size:1.25em;font-weight:900;letter-spacing:0.03em;">PLAYGOLF NORTHWICK PARK</div>
+      <div style="font-size:0.95em;font-weight:700;">END-OF-DAY Z-READ &amp; TILL REPORT</div>
+      <div style="font-size:0.85em;">Watford Rd, Harrow HA1 34 • Club POS</div>
+    </div>
+
+    <div class="divider-solid"></div>
+
+    <div class="kv-row"><span>REPORT REF:</span><span class="bold">${escapeHtml(zReportId)}</span></div>
+    <div class="kv-row"><span>PERIOD:</span><span class="bold">${escapeHtml(periodLabelDisplay)}</span></div>
+    <div class="kv-row"><span>PRINTED AT:</span><span>${escapeHtml(nowStr)}</span></div>
+    <div class="kv-row"><span>OPERATOR:</span><span>${escapeHtml(operatorInput || 'Duty Manager')}</span></div>
+    <div class="kv-row"><span>FORMAT:</span><span>${targetFormat.toUpperCase()} POS REPORT</span></div>
+
+    <div class="section-title">1. FINANCIAL TAKINGS SUMMARY</div>
+    <div class="kv-row"><span>Total Bookings:</span><span class="bold">${periodCount}</span></div>
+    <div class="kv-row"><span>Avg Spend (ATV):</span><span>£${periodAtv.toFixed(2)}</span></div>
+    <div class="kv-total"><span>GROSS TAKINGS:</span><span>£${periodRevenue.toFixed(2)}</span></div>
+
+    <div class="section-title">2. TENDER &amp; TILL RECONCILIATION</div>
+    <div class="kv-row"><span>Paid Online (App):</span><span>(${onlinePaid.length}) £${onlineRevenue.toFixed(2)}</span></div>
+    <div class="kv-row"><span>Paid at Reception Till:</span><span class="bold">(${deskPaid.length}) £${deskRevenue.toFixed(2)}</span></div>
+    <div class="kv-row"><span>VIP / Comp Vouchers:</span><span>(${compPaid.length}) £0.00</span></div>
+    <div class="divider-dashed"></div>
+    <div class="kv-row"><span>Opening Till Float:</span><span>£${parsedOpeningFloat.toFixed(2)}</span></div>
+    <div class="kv-row"><span>+ Reception Till Sales:</span><span>£${deskRevenue.toFixed(2)}</span></div>
+    <div class="kv-row bold"><span>EXPECTED IN DRAWER:</span><span>£${expectedTillDrawerTotal.toFixed(2)}</span></div>
+    <div class="kv-row"><span>Actual Drawer Count:</span><span>${
+      hasActualCount ? `£${parsedActualDrawer.toFixed(2)}` : '£________'
+    }</span></div>
+    <div class="kv-row bold"><span>TILL VARIANCE:</span><span>${escapeHtml(varianceStr)}</span></div>
+
+    <div class="section-title">3. DEPARTMENT BREAKDOWN</div>
+    <table>
+      <thead>
+        <tr>
+          <th>ACTIVITY</th>
+          <th style="text-align:center;">QTY</th>
+          <th style="text-align:right;">AMOUNT</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${deptRowsHtml || '<tr><td colspan="3">No activity sales</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="section-title">4. LOYALTY &amp; CHECK-IN LEDGER</div>
+    <div class="kv-row"><span>Reception Check-Ins:</span><span>${stats?.visits_today ?? 0} visits</span></div>
+    <div class="kv-row"><span>Loyalty Pts Issued:</span><span>+${(stats?.points_issued_today ?? 0).toLocaleString()} PTS</span></div>
+    <div class="kv-row"><span>Rewards Redeemed:</span><span>${stats?.redemptions_today ?? 0} vouchers</span></div>
+
+    <div class="section-title">5. ITEMIZED TILL JOURNAL (${paymentsFilteredBookings.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>TIME / REF / GUEST</th>
+          <th style="text-align:center;">TYPE</th>
+          <th style="text-align:right;">TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRowsHtml}
+      </tbody>
+    </table>
+
+    <div class="sign-box">
+      <div class="bold" style="font-size:0.9em;margin-bottom:6px;">6. SHIFT HANDOVER &amp; SIGN-OFF</div>
+      <div class="kv-row" style="margin-top:8px;"><span>Cashier Sign:</span><span>__________________</span></div>
+      <div class="kv-row" style="margin-top:10px;"><span>Manager Sign:</span><span>__________________</span></div>
+    </div>
+
+    <div class="divider-dashed"></div>
+    <div class="center" style="font-size:0.85em;padding-top:2px;">
+      <div class="bold">*** END OF Z-READ TILL REPORT ***</div>
+      <div>PlayGolf Northwick Park Member System</div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    // Print via hidden iframe so thermal printer drivers receive isolated page dimensions without popup blockers
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(htmlDoc);
+      doc.close();
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } finally {
+          setTimeout(() => {
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          }, 2000);
+        }
+      }, 200);
+    }
   };
 
   const handleDownloadCSV = () => {
@@ -476,11 +741,11 @@ export function AdminAnalytics() {
                 </button>
 
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => setShowTillSheetModal(true)}
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    color: '#0f172a',
+                    background: '#0f172a',
+                    border: '1px solid #0f172a',
+                    color: '#ffffff',
                     padding: '11px 16px',
                     borderRadius: '12px',
                     fontSize: '0.84rem',
@@ -489,6 +754,7 @@ export function AdminAnalytics() {
                     alignItems: 'center',
                     gap: '6px',
                     cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
                   }}
                 >
                   <Printer size={16} /> Print Till Sheet
@@ -1506,6 +1772,510 @@ export function AdminAnalytics() {
           </div>
         );
       })()}
+
+      {/* THERMAL PRINTER & TILL SHEET Z-READ REPORT MODAL */}
+      {showTillSheetModal && (
+        <div
+          onClick={() => setShowTillSheetModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            zIndex: 10050,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            padding: '20px 14px',
+            overflowY: 'auto',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '880px',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '22px',
+              padding: '22px',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5)',
+              marginTop: '12px',
+              marginBottom: '28px',
+              color: '#0f172a',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+                paddingBottom: '16px',
+                borderBottom: '1px solid #e2e8f0',
+                marginBottom: '18px',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    color: '#047857',
+                    fontSize: '0.72rem',
+                    fontWeight: 900,
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <Printer size={13} /> POS THERMAL PRINTER &amp; Z-READ STUDIO
+                </div>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
+                  End-of-Day Till Sheet &amp; Reconciliation Report
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: '#475569', margin: '3px 0 0 0' }}>
+                  Optimized for 80mm / 58mm small thermal receipt printers and standard A4 accounting sheets.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handlePrintThermalTillSheet(printerFormat)}
+                  style={{
+                    background: '#047857',
+                    border: 'none',
+                    color: '#ffffff',
+                    padding: '11px 18px',
+                    borderRadius: '12px',
+                    fontSize: '0.86rem',
+                    fontWeight: 900,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    cursor: 'pointer',
+                    boxShadow: '0 6px 16px rgba(4, 120, 87, 0.3)',
+                  }}
+                >
+                  <Printer size={16} /> Print {printerFormat.toUpperCase()} Report Now
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowTillSheetModal(false)}
+                  style={{
+                    background: '#e2e8f0',
+                    border: 'none',
+                    color: '#334155',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Two-Column Layout: Left = Printer Controls & Cash Reconciliation, Right = Live Thermal Receipt Report Preview */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '20px',
+                alignItems: 'start',
+              }}
+            >
+              {/* Left Column: Printer Size & Till Drawer Count Inputs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '16px',
+                    padding: '16px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#0f172a', marginBottom: '10px' }}>
+                    1. Select Printer Paper Size
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[
+                      {
+                        id: '80mm',
+                        title: '80mm Thermal Receipt Roll (Recommended)',
+                        desc: 'Standard POS thermal printer (Epson TM-T20, Star TSP100, Square/Clover)',
+                      },
+                      {
+                        id: '58mm',
+                        title: '58mm Compact Thermal Roll',
+                        desc: 'Small handheld / portable credit card terminal printer',
+                      },
+                      {
+                        id: 'a4',
+                        title: 'A4 Management Report Sheet',
+                        desc: 'Full-page office desktop printer sheet for binder filing',
+                      },
+                    ].map((opt) => {
+                      const active = printerFormat === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setPrinterFormat(opt.id as '80mm' | '58mm' | 'a4')}
+                          style={{
+                            textAlign: 'left',
+                            padding: '11px 13px',
+                            borderRadius: '12px',
+                            border: active ? '2px solid #047857' : '1px solid #cbd5e1',
+                            background: active ? '#ecfdf5' : '#f8fafc',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{ fontSize: '0.82rem', fontWeight: 800, color: active ? '#047857' : '#0f172a' }}>
+                            {active ? '✓ ' : ''}{opt.title}
+                          </div>
+                          <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '2px' }}>{opt.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Cash Drawer Reconciliation Inputs */}
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '16px',
+                    padding: '16px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#0f172a', marginBottom: '4px' }}>
+                    2. Till Drawer Reconciliation (Optional)
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 12px 0' }}>
+                    Enter your opening float and counted till total to print an exact variance check on the Z-Read slip.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
+                        Opening Till Float (£)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={openingFloatInput}
+                        onChange={(e) => setOpeningFloatInput(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '9px 11px',
+                          borderRadius: '10px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '0.86rem',
+                          fontWeight: 700,
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
+                        Actual Counted in Till (£)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder={expectedTillDrawerTotal.toFixed(2)}
+                        value={actualDrawerInput}
+                        onChange={(e) => setActualDrawerInput(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '9px 11px',
+                          borderRadius: '10px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '0.86rem',
+                          fontWeight: 700,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
+                      Cashier / Duty Manager Name
+                    </label>
+                    <input
+                      type="text"
+                      value={operatorInput}
+                      onChange={(e) => setOperatorInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '9px 11px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                        fontWeight: 700,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Live Thermal Receipt Z-Read Preview */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  background: '#e2e8f0',
+                  borderRadius: '16px',
+                  padding: '18px 12px',
+                  border: '1px solid #cbd5e1',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#475569', letterSpacing: '0.06em', marginBottom: '10px' }}>
+                  LIVE THERMAL RECEIPT PREVIEW ({printerFormat.toUpperCase()})
+                </div>
+
+                {/* Simulated Thermal Paper Roll Slip */}
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: printerFormat === '58mm' ? '255px' : printerFormat === '80mm' ? '335px' : '460px',
+                    background: '#ffffff',
+                    color: '#000000',
+                    fontFamily: "'Courier New', Courier, monospace",
+                    fontSize: printerFormat === '58mm' ? '11px' : '12px',
+                    lineHeight: 1.38,
+                    padding: '16px 14px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.18)',
+                    borderTop: '4px dashed #cbd5e1',
+                    borderBottom: '4px dashed #cbd5e1',
+                  }}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 900, fontSize: '1.15em', letterSpacing: '0.02em' }}>
+                      PLAYGOLF NORTHWICK PARK
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92em' }}>END-OF-DAY Z-READ &amp; TILL REPORT</div>
+                    <div style={{ fontSize: '0.82em', color: '#333' }}>Watford Rd, Harrow HA1 34 • Club POS</div>
+                  </div>
+
+                  <div style={{ borderTop: '2px solid #000', margin: '8px 0' }} />
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>REPORT REF:</span>
+                    <strong>{zReportId}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>PERIOD:</span>
+                    <strong>{periodLabelDisplay}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>OPERATOR:</span>
+                    <span>{operatorInput || 'Duty Manager'}</span>
+                  </div>
+
+                  {/* Section 1 */}
+                  <div
+                    style={{
+                      background: '#000',
+                      color: '#fff',
+                      fontWeight: 900,
+                      padding: '2px 6px',
+                      fontSize: '0.88em',
+                      margin: '9px 0 5px 0',
+                    }}
+                  >
+                    1. FINANCIAL TAKINGS SUMMARY
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Total Bookings:</span>
+                    <strong>{periodCount}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Avg Spend (ATV):</span>
+                    <span>£{periodAtv.toFixed(2)}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      borderTop: '1.5px solid #000',
+                      borderBottom: '1.5px solid #000',
+                      padding: '4px 0',
+                      margin: '5px 0',
+                      fontWeight: 900,
+                      fontSize: '1.14em',
+                    }}
+                  >
+                    <span>GROSS TAKINGS:</span>
+                    <span>£{periodRevenue.toFixed(2)}</span>
+                  </div>
+
+                  {/* Section 2 */}
+                  <div
+                    style={{
+                      background: '#000',
+                      color: '#fff',
+                      fontWeight: 900,
+                      padding: '2px 6px',
+                      fontSize: '0.88em',
+                      margin: '9px 0 5px 0',
+                    }}
+                  >
+                    2. TENDER &amp; TILL RECONCILIATION
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Paid Online (App):</span>
+                    <span>({onlinePaid.length}) £{onlineRevenue.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
+                    <span>Paid at Reception Till:</span>
+                    <span>({deskPaid.length}) £{deskRevenue.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>VIP / Comp Vouchers:</span>
+                    <span>({compPaid.length}) £0.00</span>
+                  </div>
+                  <div style={{ borderTop: '1px dashed #000', margin: '5px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Opening Float:</span>
+                    <span>£{parsedOpeningFloat.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
+                    <span>EXPECTED IN DRAWER:</span>
+                    <span>£{expectedTillDrawerTotal.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Actual Drawer Count:</span>
+                    <span>{hasActualCount ? `£${parsedActualDrawer.toFixed(2)}` : '£________'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
+                    <span>VARIANCE:</span>
+                    <span>
+                      {hasActualCount
+                        ? `${tillVariance >= 0 ? '+' : '-'}£${Math.abs(tillVariance).toFixed(2)}`
+                        : '£0.00 (BALANCED)'}
+                    </span>
+                  </div>
+
+                  {/* Section 3 */}
+                  <div
+                    style={{
+                      background: '#000',
+                      color: '#fff',
+                      fontWeight: 900,
+                      padding: '2px 6px',
+                      fontSize: '0.88em',
+                      margin: '9px 0 5px 0',
+                    }}
+                  >
+                    3. DEPARTMENT BREAKDOWN
+                  </div>
+                  {paymentsByActivity.map((act) => (
+                    <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{act.shortTag || act.name} ({act.count})</span>
+                      <strong>£{act.revenue.toFixed(2)}</strong>
+                    </div>
+                  ))}
+
+                  {/* Section 4 */}
+                  <div
+                    style={{
+                      background: '#000',
+                      color: '#fff',
+                      fontWeight: 900,
+                      padding: '2px 6px',
+                      fontSize: '0.88em',
+                      margin: '9px 0 5px 0',
+                    }}
+                  >
+                    4. LOYALTY &amp; CHECK-IN LEDGER
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Visits Checked In:</span>
+                    <span>{stats?.visits_today ?? 0}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Points Credited:</span>
+                    <span>+{(stats?.points_issued_today ?? 0).toLocaleString()} PTS</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Vouchers Redeemed:</span>
+                    <span>{stats?.redemptions_today ?? 0}</span>
+                  </div>
+
+                  {/* Section 5 */}
+                  <div
+                    style={{
+                      background: '#000',
+                      color: '#fff',
+                      fontWeight: 900,
+                      padding: '2px 6px',
+                      fontSize: '0.88em',
+                      margin: '9px 0 5px 0',
+                    }}
+                  >
+                    5. TILL JOURNAL ({paymentsFilteredBookings.length} TXNS)
+                  </div>
+                  {paymentsFilteredBookings.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '6px 0', color: '#555' }}>
+                      No transactions in selected period
+                    </div>
+                  ) : (
+                    paymentsFilteredBookings.slice(0, 8).map((b) => {
+                      const priceNum = parsePriceValue(b.price);
+                      const tag = b.payment_status === 'pay_at_desk' ? 'TILL' : b.payment_status === 'comp' ? 'COMP' : 'APP';
+                      return (
+                        <div
+                          key={b.id}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            borderBottom: '1px dotted #ccc',
+                            padding: '3px 0',
+                          }}
+                        >
+                          <div style={{ minWidth: 0, paddingRight: '6px' }}>
+                            <div style={{ fontWeight: 800 }}>
+                              {b.time || '--:--'} {b.booking_code} [{tag}]
+                            </div>
+                            <div style={{ fontSize: '0.88em', color: '#333' }}>
+                              {b.user_name || 'Member'} • {b.activity_name}
+                            </div>
+                          </div>
+                          <strong>£{priceNum.toFixed(2)}</strong>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  <div style={{ border: '1px solid #000', padding: '6px', marginTop: '10px', fontSize: '0.9em' }}>
+                    <div style={{ fontWeight: 800 }}>6. SHIFT SIGN-OFF</div>
+                    <div style={{ marginTop: '6px' }}>Cashier: ___________________</div>
+                    <div style={{ marginTop: '6px' }}>Manager: ___________________</div>
+                  </div>
+
+                  <div style={{ borderTop: '1px dashed #000', margin: '8px 0 4px 0' }} />
+                  <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.85em' }}>
+                    *** END OF Z-READ TILL REPORT ***
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
