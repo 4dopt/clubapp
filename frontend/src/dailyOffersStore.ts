@@ -117,9 +117,9 @@ export const DEFAULT_DAILY_OFFERS: DailyOffer[] = [
     jsDayIndex: 4,
     dayName: 'Thursday',
     shortDay: 'Thu',
-    title: 'TrackMan Pro Tune-Up Thursday',
-    subtitle: 'Pro Coaching & Launch Monitor Perk',
-    dealBadge: '+15 MIN PRO ANALYSIS',
+    title: 'TrackMan 4 Range & Pro Shop Thursday',
+    subtitle: 'TrackMan 4 Range & Pro Shop Perk',
+    dealBadge: '20% OFF PRO SHOP + TRACKMAN',
     timeWindow: '10:00 – 20:00',
     description:
       'Upgrade your Thursday practice with complimentary TrackMan 4 swing speed & carry distance benchmarking plus 20% off Pro Shop gloves.',

@@ -1714,7 +1714,7 @@ export function AdminBookings() {
                   <option value="nine-holes">9 Holes Championship Course (£28)</option>
                   <option value="putt-crazy">Putt Crazy Adventure Minigolf (£12)</option>
                   <option value="darts-interactive">Darts Interactive Lane (£20)</option>
-                  <option value="golf-coaching">PGA Golf Coaching & Lesson (£65)</option>
+                  <option value="driving-range">VIP TrackMan 4 Range Bay (£25)</option>
                   <option value="club-fitting">Custom Club Fitting Session (£50)</option>
                 </select>
               </div>

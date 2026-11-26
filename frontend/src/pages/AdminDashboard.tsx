@@ -965,7 +965,7 @@ export function AdminDashboard() {
                 },
                 {
                   title: 'Bookings & Tee Sheet',
-                  desc: 'Full reservation calendar across all bays, courses, and coaching.',
+                  desc: 'Full reservation calendar across all bays, courses, minigolf, and darts.',
                   path: '/admin/bookings',
                   icon: <Calendar size={24} />,
                   color: '#0369a1',

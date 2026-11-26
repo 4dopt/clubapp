@@ -579,7 +579,7 @@ export function Login() {
       badgeBg: '#fef3c7',
       title: 'Collect Points Every Time You Play',
       description:
-        'Earn loyalty points on range balls, green fees, coaching, and cafe visits. Watch your tier climb from Green to Platinum VIP.',
+        'Earn loyalty points on range balls, green fees, minigolf, darts, and cafe visits. Watch your tier climb from Green to Platinum VIP.',
       renderGfx: () => (
         <div
           style={{
@@ -714,7 +714,7 @@ export function Login() {
       badgeBg: '#ecfdf5',
       title: 'Redeem Perks, Gear & Free Golf',
       description:
-        'Exchange your points in one tap for complimentary range buckets, PGA coaching sessions, Pro Shop discounts, and clubhouse treats.',
+        'Exchange your points in one tap for complimentary range buckets, 9-hole green fees, Pro Shop discounts, and clubhouse treats.',
       renderGfx: () => (
         <div
           style={{
@@ -770,7 +770,7 @@ export function Login() {
           <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[
               { title: 'Free Large Range Bucket', pts: '300 PTS', tag: 'Range Perk' },
-              { title: 'PGA Pro TrackMan Lesson', pts: '950 PTS', tag: 'Coaching' },
+              { title: '9-Hole Twilight Green Fee', pts: '400 PTS', tag: 'Course Perk' },
               { title: '20% Off Pro Shop Apparel', pts: '450 PTS', tag: 'Pro Shop' },
             ].map((r) => (
               <div

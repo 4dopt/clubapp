@@ -110,7 +110,7 @@ export const UPGRADE_PLANS: UpgradePlan[] = [
       'Birthday VIP Package: 200 Range Balls + Complimentary Round',
       '14-day priority VIP booking + reserved prime TrackMan bays',
       '+1,500 Instant Bonus Points + 2.0× Double Points on every visit',
-      'Complimentary monthly 30-min PGA TrackMan swing check + Obsidian VIP Card',
+      'Complimentary monthly Putt Crazy & AR Darts VIP lane pass + Obsidian VIP Card',
     ],
   },
 ];

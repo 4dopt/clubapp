@@ -118,7 +118,7 @@ export function Rewards() {
             <Gift size={22} style={{ color: '#d97706', flexShrink: 0 }} /> Rewards Catalog
           </h2>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
-            Redeem your points for balls, gear & coaching
+            Redeem your points for balls, gear, food &amp; free golf
           </p>
         </div>
 

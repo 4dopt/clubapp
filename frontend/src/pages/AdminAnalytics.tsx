@@ -547,7 +547,7 @@ export function AdminAnalytics() {
               Takings by Activity
             </h2>
             <p style={{ fontSize: '0.86rem', color: '#64748b', marginBottom: '18px' }}>
-              Where the money came from across your bays, course, and coaching.
+              Where the money came from across your bays, course, minigolf, and darts.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

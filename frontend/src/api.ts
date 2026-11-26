@@ -215,10 +215,10 @@ const DEFAULT_REWARDS: Reward[] = [
   },
   {
     id: 'rew_3',
-    title: '1-Hour PGA Pro Coaching & TrackMan Session',
-    description: 'One-on-one swing analysis and TrackMan 4 launch monitor review with our Head PGA Professional.',
+    title: '1-Hour VIP TrackMan 4 Range Bay Session',
+    description: '60-minute reserved VIP Driving Range bay session with full TrackMan 4 shot radar and virtual golf courses.',
     points_cost: 600,
-    category: 'Coaching',
+    category: 'Driving Range',
     image_url: 'https://images.unsplash.com/photo-1592919505780-303950717480?crop=entropy&cs=srgb&fm=jpg&q=80',
     active: true,
     redemption_type: 'qr',
@@ -226,9 +226,9 @@ const DEFAULT_REWARDS: Reward[] = [
     featured: true,
     stock_limit: 25,
     redeemed_count: 0,
-    retail_value: '£65.00',
+    retail_value: '£25.00',
     validity_days: 60,
-    terms: 'Advance booking required with Pro Shop reception.',
+    terms: 'Valid any day at Northwick Park Driving Range. Present QR pass at reception.',
   },
   {
     id: 'rew_4',
@@ -276,13 +276,31 @@ export function getStoredRewards(): Reward[] {
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_REWARDS;
-    const hasEarlyWin = parsed.some((r: Reward) => r.id === 'rew_early_1');
+
+    // Migrate out any legacy PGA / Coaching cached rewards
+    let migratedChanged = false;
+    const cleaned = parsed.map((r: Reward) => {
+      if (
+        r.id === 'rew_3' ||
+        /pga|coaching/i.test(r.title || '') ||
+        /pga|coaching/i.test(r.category || '')
+      ) {
+        migratedChanged = true;
+        return DEFAULT_REWARDS.find((d) => d.id === 'rew_3') || r;
+      }
+      return r;
+    });
+
+    const hasEarlyWin = cleaned.some((r: Reward) => r.id === 'rew_early_1');
     if (!hasEarlyWin) {
-      const merged = [DEFAULT_REWARDS[0], ...parsed];
+      const merged = [DEFAULT_REWARDS[0], ...cleaned];
       localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(merged));
       return merged;
     }
-    return parsed;
+    if (migratedChanged) {
+      localStorage.setItem(REWARDS_STORAGE_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return DEFAULT_REWARDS;
   }

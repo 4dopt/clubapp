@@ -701,15 +701,15 @@ DEFAULT_REWARDS = [
         "image_url": "https://images.unsplash.com/photo-1585418694458-dc80a5c20294?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBnb2xmJTIwY2x1Ymhvb3VzZSUyMHJlc3RhdXJhbnR8ZW58MHx8fHwxNzgxNjE2OTkxfDA&ixlib=rb-4.1.0&q=85",
     },
     {
-        "title": "30-min Lesson with Pro",
-        "description": "Half-hour private lesson with a PGA-certified instructor.",
-        "points_cost": 1800, "category": "lessons",
+        "title": "60-min VIP TrackMan 4 Range Bay",
+        "description": "1-hour reserved VIP Driving Range bay with full TrackMan 4 virtual golf & launch monitor.",
+        "points_cost": 1800, "category": "range",
         "image_url": "https://images.unsplash.com/photo-1709525616662-8d9f9a995ceb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwyfHxnb2xmJTIwY291cnNlJTIwZ29sZGVuJTIwaG91cnxlbnwwfHx8fDE3ODE2MTY5Nzd8MA&ixlib=rb-4.1.0&q=85",
     },
     {
-        "title": "Full 1-Hour Lesson",
-        "description": "Comprehensive 60-minute swing analysis & coaching.",
-        "points_cost": 3200, "category": "lessons",
+        "title": "Putt Crazy & AR Darts VIP Group Pass",
+        "description": "Complimentary 60-minute AR Darts lane and Putt Crazy minigolf pass for up to 4 guests.",
+        "points_cost": 3200, "category": "course",
         "image_url": "https://images.unsplash.com/photo-1709525616662-8d9f9a995ceb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwyfHxnb2xmJTIwY291cnNlJTIwZ29sZGVuJTIwaG91cnxlbnwwfHx8fDE3ODE2MTY5Nzd8MA&ixlib=rb-4.1.0&q=85",
     },
 ]

@@ -81,17 +81,17 @@ const QUICK_REWARD_TEMPLATES: RewardTemplate[] = [
     terms: 'Valid on full-price items in store.',
   },
   {
-    label: '🎯 PGA TrackMan Lesson',
-    title: '45-Min PGA Pro TrackMan Swing Tune-Up',
-    description: 'Private 1-on-1 launch monitor coaching session with a PlayGolf PGA Professional.',
+    label: '🎯 VIP TrackMan Bay',
+    title: '60-Min VIP TrackMan 4 Range Bay Pass',
+    description: 'Reserved 1-hour VIP Driving Range bay session with full TrackMan 4 launch monitor & virtual courses.',
     points_cost: 550,
-    category: 'Coaching',
+    category: 'Driving Range',
     redemption_type: 'qr',
     min_tier: 'Gold',
-    retail_value: '£55.00',
+    retail_value: '£25.00',
     stock_limit: 25,
     image_url: 'https://images.unsplash.com/photo-1592919505780-303950717480?crop=entropy&cs=srgb&fm=jpg&q=80',
-    terms: 'Subject to pro availability. Book via reception desk.',
+    terms: 'Valid any day at Northwick Park Driving Range. Book via reception desk.',
   },
   {
     label: '⛳ 9-Hole Twilight Pass',
@@ -118,7 +118,7 @@ const CURATED_GOLF_IMAGES = [
     url: 'https://images.unsplash.com/photo-1593111774601-dfbce324a35f?crop=entropy&cs=srgb&fm=jpg&q=80',
   },
   {
-    label: 'PGA Coaching',
+    label: 'TrackMan Radar',
     url: 'https://images.unsplash.com/photo-1592919505780-303950717480?crop=entropy&cs=srgb&fm=jpg&q=80',
   },
   {
@@ -428,7 +428,7 @@ export function AdminRewards() {
     }
   };
 
-  const categories = ['All', 'Driving Range', 'Pro Shop', 'Coaching', 'Food & Beverage', 'Course & Games'];
+  const categories = ['All', 'Driving Range', 'Pro Shop', 'Food & Beverage', 'Course & Games'];
 
   const filteredRewards = rewards
     .filter((r) => {
@@ -1370,7 +1370,6 @@ export function AdminRewards() {
                   >
                     <option value="Driving Range">Driving Range</option>
                     <option value="Pro Shop">Pro Shop</option>
-                    <option value="Coaching">Coaching</option>
                     <option value="Food & Beverage">Food & Beverage</option>
                     <option value="Course & Games">Course & Games</option>
                   </select>

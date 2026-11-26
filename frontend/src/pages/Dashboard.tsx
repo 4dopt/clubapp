@@ -343,7 +343,7 @@ export function Dashboard() {
               Browse Rewards
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--slate-grey)', lineHeight: 1.3, fontWeight: 600 }}>
-              Balls, Gear & Coaching
+              Balls, Gear &amp; Free Golf
             </div>
           </div>
         </Link>
