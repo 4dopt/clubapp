@@ -3,7 +3,7 @@ import {
   saveBookingToSupabase,
   updateBookingStatusInSupabase,
 } from './supabaseService';
-import { validateBookingAntiAbuse } from './utils/securityGuard';
+import { validateBookingAntiAbuse, computeQrSignature, verifyQrSignature } from './utils/securityGuard';
 import { sendPushNotification } from './utils/pushNotifications';
 
 export interface BookingItem {
@@ -443,6 +443,7 @@ export function updateBookingDetails(
  * scanning the QR code on ANY Admin device immediately displays the full booking details.
  */
 export function buildBookingQrPayload(booking: BookingItem): string {
+  const sig = computeQrSignature(booking.booking_code, booking.user_member_id || booking.user_id, booking.date);
   return JSON.stringify({
     t: 'PG_BK',
     code: booking.booking_code,
@@ -461,6 +462,7 @@ export function buildBookingQrPayload(booking: BookingItem): string {
     pay: booking.payment_status || 'paid',
     pr: booking.price || '£20.00',
     n: booking.notes || '',
+    sig,
   });
 }
 
@@ -477,6 +479,10 @@ export function parseBookingQrPayload(rawQr: string): BookingItem | null {
     const code = obj.code || obj.booking_code;
     if (!code || !String(code).toUpperCase().startsWith('PG-BK')) return null;
 
+    const memberIdOrUid = obj.mid || obj.user_member_id || obj.uid || obj.user_id || 'PG-MEMBER';
+    const bookingDate = obj.d || obj.date || todayStr;
+    const isSigValid = verifyQrSignature(code, memberIdOrUid, bookingDate, obj.sig);
+
     return enrichBookingItem({
       id: obj.id || `bk_${Date.now()}`,
       booking_code: code,
@@ -486,12 +492,12 @@ export function parseBookingQrPayload(rawQr: string): BookingItem | null {
       member_tier: obj.tier || obj.member_tier || 'Silver',
       activity_id: obj.aid || obj.activity_id || 'nine-holes',
       activity_name: obj.aname || obj.activity_name || 'Club Activity',
-      date: obj.d || obj.date || todayStr,
+      date: bookingDate,
       time: obj.tm || obj.time || '14:00',
       duration: obj.dur || obj.duration || '60 mins',
-      party_size: Number(obj.pax || obj.party_size || 1),
+      party_size: Math.min(Math.max(Number(obj.pax || obj.party_size || 1), 1), 12),
       bay_assignment: obj.bay || obj.bay_assignment || 'Assigned at Reception',
-      payment_status: obj.pay || obj.payment_status || 'paid',
+      payment_status: isSigValid ? obj.pay || obj.payment_status || 'paid' : 'pay_at_desk',
       price: obj.pr || obj.price || '£20.00',
       status: 'confirmed',
       notes: obj.n || obj.notes || '',

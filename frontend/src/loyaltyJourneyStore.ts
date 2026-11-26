@@ -481,10 +481,11 @@ export function registerPendingReferral(params: {
   friendEmail?: string;
   friendMemberId?: string;
 }): { ok: boolean; error?: string; referral?: FriendReferral } {
-  const name = (params.friendName || '').trim();
+  const name = (params.friendName || '').replace(/[<>]/g, '').trim().slice(0, 80);
   const email = (params.friendEmail || '').trim().toLowerCase();
   const memberId = (params.friendMemberId || '').trim().toUpperCase();
   const referrerCode = (params.referrerCode || 'PG-MEMBER').trim().toUpperCase();
+  const referrerMemberId = (params.referrerMemberId || '').trim().toUpperCase();
 
   if (!name) {
     return { ok: false, error: 'Please enter your friend’s name.' };
@@ -493,7 +494,25 @@ export function registerPendingReferral(params: {
     return { ok: false, error: 'Please enter your friend’s email address or Member ID.' };
   }
 
+  // SECURITY FIX 1: Block Self-Referral Point Farming
+  if (
+    (referrerMemberId && memberId && referrerMemberId === memberId) ||
+    (memberId && referrerCode.endsWith(memberId.replace(/[^A-Z0-9]/g, '').slice(-4)))
+  ) {
+    return { ok: false, error: 'Security Guard: You cannot refer your own Member ID.' };
+  }
+
   const registry = getStoredReferralRegistry();
+
+  // SECURITY FIX 2: Cap pending referrals to max 5 per member to prevent referral spam
+  const pendingCount = registry.filter((r) => r.status === 'pending_first_visit').length;
+  if (pendingCount >= 5) {
+    return {
+      ok: false,
+      error: 'You already have 5 pending friend referrals awaiting their first visit.',
+    };
+  }
+
   const duplicate = registry.find(
     (r) =>
       (email && r.friendEmail?.toLowerCase() === email) ||
@@ -543,13 +562,12 @@ export async function verifyReferralOnReceptionScan(
   const cleanEmail = (scannedEmail || '').trim().toLowerCase();
 
   const registry = getStoredReferralRegistry();
+  // SECURITY FIX: Require exact Member ID or Email match (do not match by common first name alone)
   const pendingMatch = registry.find((r) => {
     if (r.status !== 'pending_first_visit') return false;
     if (cleanId && r.friendMemberId && r.friendMemberId.toUpperCase() === cleanId) return true;
     if (cleanId && r.friendEmail && r.friendEmail.toUpperCase() === cleanId) return true;
     if (cleanEmail && r.friendEmail && r.friendEmail.toLowerCase() === cleanEmail) return true;
-    if (cleanName && r.friendName.toLowerCase() === cleanName) return true;
-    if (cleanId && r.friendName.toUpperCase() === cleanId) return true;
     return false;
   });
 

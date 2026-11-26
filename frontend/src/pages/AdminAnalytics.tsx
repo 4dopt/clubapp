@@ -27,6 +27,7 @@ import {
   getSecurityAuditLogs,
   runSecuritySelfTestSimulation,
   SecurityAuditEvent,
+  sanitizeCsvCell,
 } from '../utils/securityGuard';
 
 type AnalyticsTab = 'payments' | 'overview' | 'traffic' | 'activities' | 'members' | 'security';
@@ -238,7 +239,7 @@ export function AdminAnalytics() {
         b.status,
       ]),
     ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = rows.map((r) => r.map((v) => `"${sanitizeCsvCell(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

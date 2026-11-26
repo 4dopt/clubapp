@@ -3,6 +3,7 @@ import {
   checkRateLimit,
   clearRateLimit,
   checkMemberQrScanCooldown,
+  createSignedAdminToken,
 } from './utils/securityGuard';
 import {
   logVisitInSupabaseOrStore,
@@ -379,7 +380,7 @@ function getMockFallback<T>(path: string, options: RequestInit): T {
     const expectedPin = (import.meta as any).env?.VITE_ADMIN_PIN || '123456';
     if (pin === expectedPin) {
       clearRateLimit('admin_pin_login');
-      return { admin_token: 'demo-admin-token-jay' } as unknown as T;
+      return { admin_token: createSignedAdminToken() } as unknown as T;
     }
     throw new Error('Invalid Admin PIN');
   }

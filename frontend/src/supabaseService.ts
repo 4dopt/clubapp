@@ -1891,3 +1891,26 @@ export async function adjustMemberPointsInSupabase(
   }
   return null;
 }
+
+export async function setMemberSuspendedInSupabase(
+  userId: string,
+  suspended: boolean
+): Promise<boolean> {
+  try {
+    logSecurityAuditEvent({
+      event_type: 'HIGH_VALUE_POINTS_ALERT',
+      severity: suspended ? 'warning' : 'info',
+      actor: 'staff_admin',
+      target: userId,
+      details: `Member account ${userId} ${suspended ? 'SUSPENDED / PAUSED' : 'RE-ACTIVATED'} by staff.`,
+    });
+
+    await Promise.all([
+      supabase.from('profiles').update({ suspended }).eq('id', userId),
+      supabase.from('users').update({ suspended }).eq('id', userId),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}

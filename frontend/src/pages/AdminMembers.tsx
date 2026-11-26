@@ -14,6 +14,8 @@ import {
 import { useAuth } from '../auth';
 import { adminApi, User } from '../api';
 import { getStoredBookings, BookingItem } from '../bookingsStore';
+import { setMemberSuspendedInSupabase } from '../supabaseService';
+import { sanitizeCsvCell } from '../utils/securityGuard';
 import { QRCodeSVG } from 'qrcode.react';
 
 export function AdminMembers() {
@@ -71,15 +73,16 @@ export function AdminMembers() {
     }
   };
 
-  const handleToggleSuspend = (member: User) => {
+  const handleToggleSuspend = async (member: User) => {
     const nextSuspended = !member.suspended;
     setMembers((prev) =>
       prev.map((m) => (m.id === member.id ? { ...m, suspended: nextSuspended } : m))
     );
+    await setMemberSuspendedInSupabase(member.id, nextSuspended);
     setMessage(
       nextSuspended
-        ? `⚠️ Account paused for ${member.name} (${member.member_id}).`
-        : `✅ Account re-activated for ${member.name}.`
+        ? `⚠️ Account paused in database for ${member.name} (${member.member_id}).`
+        : `✅ Account re-activated in database for ${member.name}.`
     );
   };
 
@@ -87,10 +90,10 @@ export function AdminMembers() {
     const rows = [
       ['Member ID', 'Name', 'Email', 'Tier', 'Points Balance', 'Total Points Earned', 'Status'],
       ...members.map((m) => [
-        m.member_id,
-        `"${m.name}"`,
-        m.email,
-        m.tier,
+        sanitizeCsvCell(m.member_id),
+        `"${sanitizeCsvCell(m.name).replace(/"/g, '""')}"`,
+        sanitizeCsvCell(m.email),
+        sanitizeCsvCell(m.tier),
         String(m.points ?? 0),
         String(m.points_ytd ?? m.points ?? 0),
         m.suspended ? 'Paused' : 'Active',

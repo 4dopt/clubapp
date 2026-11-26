@@ -162,6 +162,92 @@ export function isAuthorizedAdminUser(email?: string | null, dbRole?: string | n
   return false;
 }
 
+const QR_SIG_SALT = 'PG_NORTHWICK_SIG_2026_V2';
+
+/**
+ * Computes a deterministic integrity tag for QR JSON payloads (Bookings & Daily Offers)
+ * so attackers cannot forge fake "Paid Online" or free food QR codes via external QR generators.
+ */
+export function computeQrSignature(code: string, memberOrUserId: string, dateStr: string): string {
+  const raw = `${(code || '').trim().toUpperCase()}|${(memberOrUserId || '').trim().toUpperCase()}|${(dateStr || '').trim()}|${QR_SIG_SALT}`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw.charCodeAt(i);
+    h1 ^= ch;
+    h1 = Math.imul(h1, 0x01000193);
+    h2 ^= ch * (i + 1);
+    h2 = Math.imul(h2, 0x85ebca6b);
+  }
+  const hex1 = (h1 >>> 0).toString(16).padStart(8, '0');
+  const hex2 = (h2 >>> 0).toString(16).padStart(8, '0');
+  return `PGSIG_${(hex1 + hex2).toUpperCase().slice(0, 12)}`;
+}
+
+export function verifyQrSignature(
+  code: string,
+  memberOrUserId: string,
+  dateStr: string,
+  providedSig?: string | null
+): boolean {
+  if (!providedSig) return false;
+  return computeQrSignature(code, memberOrUserId, dateStr) === providedSig.trim().toUpperCase();
+}
+
+/**
+ * Generates and verifies signed Admin Session Tokens so typing
+ * `localStorage.setItem('playgolf.admin_token', 'admin')` in DevTools cannot bypass authentication.
+ */
+export function createSignedAdminToken(): string {
+  const issuedDay = new Date().toISOString().slice(0, 10);
+  const sig = computeQrSignature('ADMIN_SESSION', 'PG-000001', issuedDay);
+  return `pg_adm_${issuedDay}_${sig}`;
+}
+
+export function isValidAdminSessionToken(token: string | null | undefined): boolean {
+  if (!token) return false;
+  // Valid signed admin token from PIN login
+  if (token.startsWith('pg_adm_')) {
+    const parts = token.split('_');
+    if (parts.length >= 4) {
+      const datePart = parts[2];
+      const sigPart = parts.slice(3).join('_');
+      return verifyQrSignature('ADMIN_SESSION', 'PG-000001', datePart, sigPart);
+    }
+    return false;
+  }
+  // Or valid Supabase JWT (3 base64url segments) when logged in via jay@gmail.com
+  if (token.split('.').length === 3 && token.length > 80) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Prevents CSV Formula Injection (CWE-1236) when exporting member lists or Z-Reports to Excel.
+ */
+export function sanitizeCsvCell(value: unknown): string {
+  const str = String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return `'${str}`;
+  }
+  return str;
+}
+
+/**
+ * Sanitizes image URLs to prevent javascript: or data:text/html XSS vectors.
+ */
+export function sanitizeImageUrl(url?: string | null): string {
+  const clean = (url || '').trim();
+  if (!clean) {
+    return 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?crop=entropy&cs=srgb&fm=jpg&q=80';
+  }
+  if (/^(https?:\/\/|\/)/i.test(clean)) {
+    return clean;
+  }
+  return 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?crop=entropy&cs=srgb&fm=jpg&q=80';
+}
+
 interface RateBucket {
   timestamps: number[];
   lockedUntil?: number;

@@ -169,19 +169,20 @@ export function AdminScan() {
 
   const handleScannedQr = async (rawQrText: string) => {
     if (!token) return;
-    const qrPayloadBooking = parseBookingQrPayload(rawQrText);
-    const qrPayloadDailyOffer = parseDailyOfferQrPayload(rawQrText);
-    const qrText = parseQrText(rawQrText);
-
-    if (!qrText) {
-      setError('Invalid or empty QR Code scanned.');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
+      const qrPayloadBooking = parseBookingQrPayload(rawQrText);
+      const qrPayloadDailyOffer = parseDailyOfferQrPayload(rawQrText);
+      const qrText = parseQrText(rawQrText);
+
+      if (!qrText) {
+        setError('Invalid or empty QR Code scanned.');
+        setLoading(false);
+        return;
+      }
+
       const upper = qrText.toUpperCase();
 
       // 0. Check if this is a Daily Offer Pass (PG_DO payload or QR_DAILY_...)
@@ -197,8 +198,10 @@ export function AdminScan() {
           if (res?.member?.name) memberName = res.member.name;
           if (res?.member?.member_id) memberId = res.member.member_id;
           if (res?.redemption?.reward_title) rewardTitle = res.redemption.reward_title;
-        } catch {
-          /* allow cross-device payload verification even if not in local storage */
+        } catch (err: any) {
+          if (err?.message?.includes('already been fulfilled')) {
+            throw err;
+          }
         }
 
         setScanResult({

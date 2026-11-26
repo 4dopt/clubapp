@@ -1,4 +1,5 @@
 import { User, getStoredRedemptions, saveStoredRedemptions, RewardRedemption } from './api';
+import { computeQrSignature, verifyQrSignature } from './utils/securityGuard';
 
 export type DayOfWeekKey =
   | 'monday'
@@ -324,6 +325,7 @@ export function claimDailyOfferPass(offer: DailyOffer, user: User): DailyOfferCl
 }
 
 export function buildDailyOfferQrPayload(claim: DailyOfferClaim): string {
+  const sig = computeQrSignature(claim.pass_code, claim.user_member_id || 'PG-MEMBER', claim.claimed_date);
   return JSON.stringify({
     t: 'PG_DO',
     code: claim.pass_code,
@@ -335,6 +337,7 @@ export function buildDailyOfferQrPayload(claim: DailyOfferClaim): string {
     uName: claim.user_name,
     uMid: claim.user_member_id,
     dt: claim.claimed_date,
+    sig,
   });
 }
 
@@ -344,6 +347,20 @@ export function parseDailyOfferQrPayload(raw: string): DailyOfferClaim | null {
     if (!clean.startsWith('{')) return null;
     const p = JSON.parse(clean);
     if (p.t !== 'PG_DO' || !p.code) return null;
+
+    const today = getTodayDateStr();
+    const claimedDate = p.dt || today;
+
+    // 1. Block expired screenshot replay attacks from previous days
+    if (claimedDate !== today) {
+      throw new Error(`Expired Daily Offer Pass: This QR pass was issued for ${claimedDate} and is only valid on the day it was claimed.`);
+    }
+
+    // 2. Verify cryptographic QR signature so external QR generators cannot forge free daily offer passes
+    if (!verifyQrSignature(p.code, p.uMid || 'PG-MEMBER', claimedDate, p.sig)) {
+      throw new Error('Invalid or Forged Daily Offer QR signature. Please open your live pass inside the PlayGolf app.');
+    }
+
     return {
       id: `do_qr_${p.code}`,
       pass_code: p.code,
@@ -356,10 +373,13 @@ export function parseDailyOfferQrPayload(raw: string): DailyOfferClaim | null {
       user_id: 'usr_scanned',
       user_name: p.uName || 'Club Member',
       user_member_id: p.uMid || 'PG-MEMBER',
-      claimed_date: p.dt || getTodayDateStr(),
+      claimed_date: claimedDate,
       created_at: new Date().toISOString(),
     };
-  } catch {
+  } catch (err: any) {
+    if (err?.message?.includes('Expired Daily Offer') || err?.message?.includes('Forged Daily Offer')) {
+      throw err;
+    }
     return null;
   }
 }

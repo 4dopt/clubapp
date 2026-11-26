@@ -17,6 +17,7 @@ import {
   setCachedUser,
   supabaseSignOut,
 } from './supabaseService';
+import { isAuthorizedAdminUser, isValidAdminSessionToken } from './utils/securityGuard';
 
 type AuthState = {
   token: string | null;
@@ -34,13 +35,18 @@ const TOKEN_KEY = 'playgolf.token';
 const ADMIN_TOKEN_KEY = 'playgolf.admin_token';
 
 function buildInstantUserFromSession(sessionUser: any, cached: User | null): User {
-  if (cached && cached.id === sessionUser.id) {
-    return cached;
-  }
   const emailStr = (sessionUser.email || '').toLowerCase();
+  // SECURITY FIX: Never trust user-writable sessionUser.user_metadata.role === 'admin'
+  // or a tampered localStorage cached.role === 'admin' unless email is authorized.
+  const isAdmin = isAuthorizedAdminUser(emailStr, null);
+  if (cached && cached.id === sessionUser.id) {
+    return {
+      ...cached,
+      role: isAdmin ? 'admin' : 'member',
+    };
+  }
   const memberId =
     sessionUser.user_metadata?.member_id || deriveMemberIdFromUuid(sessionUser.id);
-  const isAdmin = emailStr === 'jay@gmail.com' || sessionUser.user_metadata?.role === 'admin';
   return {
     id: sessionUser.id,
     email: emailStr,
@@ -112,14 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Check if Staff/Admin PIN session or Local Fallback session is active
+        // Check if a cryptographically signed Staff/Admin PIN session is active
         const adminTok = localStorage.getItem(ADMIN_TOKEN_KEY);
         const existingTok = localStorage.getItem(TOKEN_KEY);
-        if (adminTok && (adminTok.includes('admin') || cached?.role === 'admin')) {
+        if (adminTok && isValidAdminSessionToken(adminTok)) {
           if (mounted) {
             setToken(adminTok);
             setUserState(
-              cached?.role === 'admin'
+              cached?.role === 'admin' && cached?.email === 'jay@gmail.com'
                 ? cached
                 : {
                     id: 'usr_admin_jay',
@@ -135,13 +141,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   }
             );
           }
-        } else if (existingTok && cached && existingTok.startsWith('local_token_')) {
+        } else if (existingTok && cached && existingTok.startsWith('local_token_') && cached.role !== 'admin') {
           if (mounted) {
             setToken(existingTok);
             setUserState(cached);
           }
         } else {
           localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(ADMIN_TOKEN_KEY);
           setCachedUser(null);
           if (mounted) {
             setToken(null);
