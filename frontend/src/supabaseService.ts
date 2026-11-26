@@ -492,15 +492,16 @@ export async function supabaseSignUp(
     /* ignore if already logged */
   }
 
-  // Always cache and issue an immediate session token so new users don't get stuck waiting for broken SMTP emails
-  const activeSession = authData.session || { access_token: `local_token_${newProfile.id}` };
-  setCachedUser(newProfile);
+  const requiresEmailConfirmation = !authData.session;
+  if (!requiresEmailConfirmation) {
+    setCachedUser(newProfile);
+  }
 
   return {
     authUser: userObj,
-    session: activeSession,
+    session: authData.session,
     profile: newProfile,
-    requiresEmailConfirmation: false,
+    requiresEmailConfirmation,
   };
 }
 
@@ -515,47 +516,7 @@ export async function supabaseSignIn(email: string, password: string) {
     );
   }
 
-  // Instant fast-path 1: Check if this account is already cached or in local fallback storage with matching password
-  const localMatch = getLocalFallbackAccounts().find(
-    (a) => a.email.toLowerCase() === cleanEmail && (!a.password || a.password === password)
-  );
-  if (localMatch && localMatch.password === password) {
-    clearRateLimit(`auth_signin_${cleanEmail}`);
-    const validId = ensureValidUuid(localMatch.id, localMatch.email);
-    const localUser: User = {
-      id: validId,
-      email: localMatch.email,
-      name: localMatch.name,
-      role: isAuthorizedAdminUser(localMatch.email, localMatch.role) ? 'admin' : 'member',
-      member_id: localMatch.member_id,
-      tier: localMatch.tier,
-      points: localMatch.points,
-      points_ytd: localMatch.points_ytd,
-      qr_token: localMatch.qr_token,
-      created_at: localMatch.created_at,
-    };
-    setCachedUser(localUser);
-    // Refresh from DB in background, or push local account into Supabase if missing from DB
-    lookupMemberFromPostgrestByEmail(cleanEmail)
-      .then((dbUser) => {
-        if (dbUser && !dbUser.suspended) {
-          setCachedUser(dbUser);
-          window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: dbUser }));
-        } else if (!dbUser) {
-          syncProfileAndUsersTables(localUser, localMatch.phone).catch(() => {});
-        }
-      })
-      .catch(() => {});
-    return {
-      session: {
-        access_token:
-          localUser.role === 'admin' ? 'demo-admin-token-jay' : `local_token_${localUser.id}`,
-      },
-      user: localUser,
-    };
-  }
-
-  // Run Supabase Auth and PostgREST member lookup IN PARALLEL with a 4.5s max timeout
+  // Run Supabase Auth and PostgREST member lookup IN PARALLEL with a 6s max timeout
   const dbMemberPromise = lookupMemberFromPostgrestByEmail(cleanEmail);
 
   let data: any = null;
@@ -566,7 +527,7 @@ export async function supabaseSignIn(email: string, password: string) {
         email: cleanEmail,
         password,
       }),
-      4500
+      6000
     );
     data = res.data;
     error = res.error;
@@ -576,161 +537,19 @@ export async function supabaseSignIn(email: string, password: string) {
 
   if (error) {
     if (error.message?.toLowerCase().includes('email not confirmed')) {
-      clearRateLimit(`auth_signin_${cleanEmail}`);
-      const dbMember = await dbMemberPromise;
-      if (dbMember) {
-        if (dbMember.suspended) {
-          throw new Error('Your member account has been suspended. Please contact club reception.');
-        }
-        saveLocalFallbackAccount({ ...dbMember, password });
-        setCachedUser(dbMember);
-        return {
-          session: {
-            access_token:
-              dbMember.role === 'admin' ? 'demo-admin-token-jay' : `local_token_${dbMember.id}`,
-          },
-          user: dbMember,
-        };
-      }
-      if (isAuthorizedAdminUser(cleanEmail, null)) {
-        const adminProfile: User = {
-          id: 'usr_admin_jay',
-          email: cleanEmail,
-          name: 'Jay (Admin)',
-          role: 'admin',
-          member_id: 'PG-000001',
-          tier: 'Platinum',
-          points: 22500,
-          points_ytd: 22500,
-          qr_token: 'QR_ADMIN_JAY',
-          created_at: '2026-01-01T00:00:00.000Z',
-        };
-        saveLocalFallbackAccount({ ...adminProfile, password });
-        setCachedUser(adminProfile);
-        return {
-          session: { access_token: 'demo-admin-token-jay' },
-          user: adminProfile,
-        };
-      }
-      const fallbackId = `usr_${cleanEmail.replace(/[^a-z0-9]/g, '').slice(0, 12) || Date.now()}`;
-      const derivedMemberId = deriveMemberIdFromUuid(cleanEmail);
-      const displayName = cleanEmail
-        .split('@')[0]
-        .replace(/[._-]+/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-      const fallbackMember: User = {
-        id: fallbackId,
-        email: cleanEmail,
-        name: displayName || 'Club Member',
-        role: 'member',
-        member_id: derivedMemberId,
-        tier: 'Silver',
-        points: 250,
-        points_ytd: 250,
-        qr_token: buildMemberQrToken(derivedMemberId),
-        created_at: new Date().toISOString(),
-      };
-      saveLocalFallbackAccount({ ...fallbackMember, password });
-      setCachedUser(fallbackMember);
-      return {
-        session: { access_token: `local_token_${fallbackMember.id}` },
-        user: fallbackMember,
-      };
+      throw new Error(
+        'Please verify your email address before signing in. Check your inbox (and spam folder) for the confirmation link, or tap "Resend Verification Email" below.'
+      );
     }
 
     if (error.message?.toLowerCase().includes('invalid login credentials')) {
       throw new Error('Invalid email or password. Please check your credentials or sign up for a new account.');
     }
 
-    // If Supabase Auth timed out (> 1.1s) or returned 504 Gateway Timeout ("{}"), use the parallel PostgREST lookup / cache immediately
-    if (isSupabaseGatewayOrTimeoutError(error)) {
-      clearRateLimit(`auth_signin_${cleanEmail}`);
-
-      // 1. Check the parallel PostgREST query result (already running during the 1.1s window)
-      const dbMember = await dbMemberPromise;
-      if (dbMember) {
-        if (dbMember.suspended) {
-          throw new Error('Your member account has been suspended. Please contact club reception.');
-        }
-        saveLocalFallbackAccount({ ...dbMember, password });
-        setCachedUser(dbMember);
-        return {
-          session: {
-            access_token:
-              dbMember.role === 'admin' ? 'demo-admin-token-jay' : `local_token_${dbMember.id}`,
-          },
-          user: dbMember,
-        };
-      }
-
-      // 2. Admin email login fallback (jay@gmail.com)
-      if (isAuthorizedAdminUser(cleanEmail, null)) {
-        const adminProfile: User = {
-          id: 'usr_admin_jay',
-          email: cleanEmail,
-          name: 'Jay (Admin)',
-          role: 'admin',
-          member_id: 'PG-000001',
-          tier: 'Platinum',
-          points: 22500,
-          points_ytd: 22500,
-          qr_token: 'QR_ADMIN_JAY',
-          created_at: '2026-01-01T00:00:00.000Z',
-        };
-        saveLocalFallbackAccount({ ...adminProfile, password });
-        setCachedUser(adminProfile);
-        return {
-          session: { access_token: 'demo-admin-token-jay' },
-          user: adminProfile,
-        };
-      }
-
-      // 3. Check previously cached user on this device
-      const cached = getCachedUser();
-      if (cached && cached.email.toLowerCase() === cleanEmail) {
-        saveLocalFallbackAccount({ ...cached, password });
-        return {
-          session: { access_token: `local_token_${cached.id}` },
-          user: cached,
-        };
-      }
-
-      // 4. Construct immediate member profile so live site login never blocks
-      const fallbackId = `usr_${cleanEmail.replace(/[^a-z0-9]/g, '').slice(0, 12) || Date.now()}`;
-      const derivedMemberId = deriveMemberIdFromUuid(cleanEmail);
-      const displayName = cleanEmail
-        .split('@')[0]
-        .replace(/[._-]+/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-
-      const fallbackMember: User = {
-        id: fallbackId,
-        email: cleanEmail,
-        name: displayName || 'Club Member',
-        role: 'member',
-        member_id: derivedMemberId,
-        tier: 'Silver',
-        points: 250,
-        points_ytd: 250,
-        qr_token: buildMemberQrToken(derivedMemberId),
-        created_at: new Date().toISOString(),
-      };
-
-      saveLocalFallbackAccount({
-        ...fallbackMember,
-        password,
-      });
-      setCachedUser(fallbackMember);
-      return {
-        session: { access_token: `local_token_${fallbackMember.id}` },
-        user: fallbackMember,
-      };
-    }
-
     throw new Error(
       error.message && error.message !== '{}'
         ? error.message
-        : 'Unable to sign in right now. Please try again.'
+        : 'Unable to sign in right now. Please check your connection and try again.'
     );
   }
   if (!data.user) throw new Error('Invalid email or password');
