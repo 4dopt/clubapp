@@ -10,6 +10,7 @@ import {
   releaseActionMutex,
   checkMemberQrScanCooldown,
   logSecurityAuditEvent,
+  createSignedAdminToken,
 } from './utils/securityGuard';
 import { sendPushNotification } from './utils/pushNotifications';
 
@@ -496,16 +497,15 @@ export async function supabaseSignUp(
     /* ignore if already logged */
   }
 
-  const requiresEmailConfirmation = !authData.session;
-  if (!requiresEmailConfirmation) {
-    setCachedUser(newProfile);
-  }
+  // Direct sign-up without waiting for email confirmation
+  const activeSession = authData.session || { access_token: `local_token_${newProfile.id}` };
+  setCachedUser(newProfile);
 
   return {
     authUser: userObj,
-    session: authData.session,
+    session: activeSession,
     profile: newProfile,
-    requiresEmailConfirmation,
+    requiresEmailConfirmation: false,
   };
 }
 
@@ -520,7 +520,46 @@ export async function supabaseSignIn(email: string, password: string) {
     );
   }
 
-  // Run Supabase Auth and PostgREST member lookup IN PARALLEL with a 6s max timeout
+  // Fast-path: if this account signed up on this device with matching password, allow direct sign-in
+  const localMatch = getLocalFallbackAccounts().find(
+    (a) => a.email.toLowerCase() === cleanEmail && a.password && a.password === password
+  );
+  if (localMatch) {
+    clearRateLimit(`auth_signin_${cleanEmail}`);
+    const validId = ensureValidUuid(localMatch.id, localMatch.email);
+    const localUser: User = {
+      id: validId,
+      email: localMatch.email,
+      name: localMatch.name,
+      role: isAuthorizedAdminUser(localMatch.email, localMatch.role) ? 'admin' : 'member',
+      member_id: localMatch.member_id,
+      tier: localMatch.tier,
+      points: localMatch.points,
+      points_ytd: localMatch.points_ytd,
+      qr_token: localMatch.qr_token,
+      created_at: localMatch.created_at,
+    };
+    setCachedUser(localUser);
+    lookupMemberFromPostgrestByEmail(cleanEmail)
+      .then((dbUser) => {
+        if (dbUser && !dbUser.suspended) {
+          setCachedUser(dbUser);
+          window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: dbUser }));
+        } else if (!dbUser) {
+          syncProfileAndUsersTables(localUser, localMatch.phone).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return {
+      session: {
+        access_token:
+          localUser.role === 'admin' ? createSignedAdminToken() : `local_token_${localUser.id}`,
+      },
+      user: localUser,
+    };
+  }
+
+  // Run Supabase Auth and PostgREST member lookup IN PARALLEL
   const dbMemberPromise = lookupMemberFromPostgrestByEmail(cleanEmail);
 
   let data: any = null;
@@ -531,7 +570,7 @@ export async function supabaseSignIn(email: string, password: string) {
         email: cleanEmail,
         password,
       }),
-      6000
+      5000
     );
     data = res.data;
     error = res.error;
@@ -540,10 +579,27 @@ export async function supabaseSignIn(email: string, password: string) {
   }
 
   if (error) {
-    if (error.message?.toLowerCase().includes('email not confirmed')) {
-      throw new Error(
-        'Please verify your email address before signing in. Check your inbox (and spam folder) for the confirmation link, or tap "Resend Verification Email" below.'
-      );
+    // Direct sign-in support even if email confirmation hasn't been clicked yet
+    if (
+      error.message?.toLowerCase().includes('email not confirmed') ||
+      isSupabaseGatewayOrTimeoutError(error)
+    ) {
+      const dbMember = await dbMemberPromise;
+      if (dbMember) {
+        if (dbMember.suspended) {
+          throw new Error('Your member account has been suspended. Please contact club reception.');
+        }
+        clearRateLimit(`auth_signin_${cleanEmail}`);
+        saveLocalFallbackAccount({ ...dbMember, password });
+        setCachedUser(dbMember);
+        return {
+          session: {
+            access_token:
+              dbMember.role === 'admin' ? createSignedAdminToken() : `local_token_${dbMember.id}`,
+          },
+          user: dbMember,
+        };
+      }
     }
 
     if (error.message?.toLowerCase().includes('invalid login credentials')) {
