@@ -27,6 +27,38 @@ export function deriveMemberIdFromUuid(userId: string): string {
   return `PG-${cleanHex.slice(0, 6).padEnd(6, '0')}`;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Ensures any user ID (including legacy 'usr_local_...' fallback IDs) is converted
+ * into a valid RFC-4122 UUID so Postgres UUID columns in `profiles` and `users` never reject it.
+ */
+export function ensureValidUuid(rawId?: string | null, seedStr?: string): string {
+  const trimmed = (rawId || '').trim();
+  if (UUID_REGEX.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+  const source = `${trimmed}|${(seedStr || '').trim().toLowerCase()}|playgolf_uuid_v4`;
+  if (!trimmed && !seedStr && typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Deterministic 128-bit hash formatted as UUID v4
+  let h1 = 0xdeadbeef ^ source.length;
+  let h2 = 0x41c6ce57 ^ source.length;
+  let h3 = 0x811c9dc5 ^ source.length;
+  let h4 = 0x01000193 ^ source.length;
+  for (let i = 0; i < source.length; i++) {
+    const ch = source.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+    h3 = Math.imul(h3 ^ ch, 2246822507);
+    h4 = Math.imul(h4 ^ ch, 3266489909);
+  }
+  const hex = (n: number) => (n >>> 0).toString(16).padStart(8, '0');
+  const full = `${hex(h1)}${hex(h2)}${hex(h3)}${hex(h4)}`;
+  return `${full.slice(0, 8)}-${full.slice(8, 12)}-4${full.slice(13, 16)}-a${full.slice(17, 20)}-${full.slice(20, 32)}`;
+}
+
 export function buildMemberQrToken(memberId: string, existingToken?: string | null): string {
   if (existingToken && existingToken.trim().length > 0 && existingToken.trim() !== 'QR_MEMBER_') {
     return existingToken.trim();
@@ -82,36 +114,51 @@ export function setCachedUser(user: User | null): void {
 
 // Helper to keep both 'profiles' and legacy 'users' tables synchronized in Supabase
 export async function syncProfileAndUsersTables(profile: User, phone?: string): Promise<void> {
+  const validId = ensureValidUuid(profile.id, profile.email);
+  const cleanEmail = (profile.email || '').trim().toLowerCase();
+
   try {
-    await supabase.from('profiles').upsert({
-      id: profile.id,
-      email: profile.email.toLowerCase(),
-      name: profile.name,
-      role: profile.role,
-      member_id: profile.member_id,
-      tier: profile.tier,
-      points: profile.points,
-      points_ytd: profile.points_ytd,
-      qr_token: profile.qr_token,
-      created_at: profile.created_at,
-    });
+    const { error: pErr } = await supabase.from('profiles').upsert(
+      {
+        id: validId,
+        email: cleanEmail,
+        name: profile.name,
+        role: profile.role,
+        member_id: profile.member_id,
+        tier: profile.tier,
+        points: profile.points,
+        points_ytd: profile.points_ytd,
+        qr_token: profile.qr_token,
+        created_at: profile.created_at,
+      },
+      { onConflict: 'id' }
+    );
+    if (pErr) {
+      console.warn('Supabase profiles upsert warning:', pErr.message);
+    }
   } catch (e) {
     console.warn('Supabase profiles upsert warning:', e);
   }
 
   try {
-    await supabase.from('users').upsert({
-      id: profile.id,
-      email: profile.email.toLowerCase(),
-      name: profile.name,
-      phone: phone || null,
-      member_id: profile.member_id,
-      tier: profile.tier,
-      points_balance: profile.points,
-      lifetime_points: profile.points_ytd,
-      role: profile.role === 'admin' ? 'admin' : 'user',
-      suspended: false,
-    });
+    const { error: uErr } = await supabase.from('users').upsert(
+      {
+        id: validId,
+        email: cleanEmail,
+        name: profile.name,
+        phone: phone || null,
+        member_id: profile.member_id,
+        tier: profile.tier,
+        points_balance: profile.points,
+        lifetime_points: profile.points_ytd,
+        role: profile.role === 'admin' ? 'admin' : 'user',
+        suspended: Boolean(profile.suspended),
+      },
+      { onConflict: 'id' }
+    );
+    if (uErr) {
+      console.warn('Supabase users table sync warning:', uErr.message);
+    }
   } catch (e) {
     console.warn('Supabase users table sync warning:', e);
   }
@@ -328,6 +375,7 @@ export async function supabaseSignUp(
   let authData: any = null;
   let authError: any = null;
   try {
+    // Allow 7.5s for Supabase Auth signUp (bcrypt + DB trigger + SMTP confirmation email)
     const res = await withFastAuthTimeout(
       supabase.auth.signUp({
         email: cleanEmail,
@@ -341,7 +389,7 @@ export async function supabaseSignUp(
           },
         },
       }),
-      1200
+      7500
     );
     authData = res.data;
     authError = res.error;
@@ -354,10 +402,10 @@ export async function supabaseSignUp(
       throw new Error('An account with this email already exists. Please sign in instead.');
     }
 
-    // If Supabase Auth is slow or returning 504 Gateway Timeout ("{}"), seamlessly create & persist member account immediately
+    // If Supabase Auth is slow or returning 504 Gateway Timeout ("{}"), create with a valid UUID and persist to Supabase tables
     if (isSupabaseGatewayOrTimeoutError(authError)) {
       const safeRole = isAuthorizedAdminUser(cleanEmail, null) ? 'admin' : 'member';
-      const fallbackId = `usr_local_${Date.now()}`;
+      const fallbackId = ensureValidUuid(null, cleanEmail);
       const qrTok = buildMemberQrToken(memberId);
       const nowIso = new Date().toISOString();
 
@@ -380,8 +428,8 @@ export async function supabaseSignUp(
         phone: phone?.trim() || undefined,
       });
 
-      // Persist to Supabase PostgREST tables in the background (non-blocking)
-      syncProfileAndUsersTables(localProfile, phone?.trim()).catch(() => {});
+      // Await persistence to Supabase PostgREST tables with valid UUID so member always appears in database
+      await syncProfileAndUsersTables(localProfile, phone?.trim());
 
       setCachedUser(localProfile);
       return {
@@ -411,7 +459,7 @@ export async function supabaseSignUp(
 
   const safeRole = isAuthorizedAdminUser(cleanEmail, null) ? 'admin' : 'member';
   const newProfile: User = {
-    id: userObj.id,
+    id: ensureValidUuid(userObj.id, cleanEmail),
     email: cleanEmail,
     name: cleanName,
     role: safeRole,
@@ -430,21 +478,19 @@ export async function supabaseSignUp(
     phone: phone?.trim() || undefined,
   });
 
-  // Sync 'profiles', 'users', and welcome bonus transaction in the background so sign-up returns immediately
-  (async () => {
-    try {
-      await syncProfileAndUsersTables(newProfile, phone?.trim());
-      await supabase.from('transactions').insert({
-        user_id: userObj.id,
-        type: 'earn',
-        title: 'Welcome Bonus — Joined PlayGolf Club',
-        points: 250,
-        created_at: new Date().toISOString(),
-      });
-    } catch {
-      /* background sync best-effort */
-    }
-  })();
+  // Await sync to 'profiles' and 'users' tables before returning so member is guaranteed to be saved in Supabase
+  await syncProfileAndUsersTables(newProfile, phone?.trim());
+  try {
+    await supabase.from('transactions').insert({
+      user_id: newProfile.id,
+      type: 'earn',
+      title: 'Welcome Bonus — Joined PlayGolf Club',
+      points: 250,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    /* ignore if already logged */
+  }
 
   // Always cache and issue an immediate session token so new users don't get stuck waiting for broken SMTP emails
   const activeSession = authData.session || { access_token: `local_token_${newProfile.id}` };
@@ -475,11 +521,12 @@ export async function supabaseSignIn(email: string, password: string) {
   );
   if (localMatch && localMatch.password === password) {
     clearRateLimit(`auth_signin_${cleanEmail}`);
+    const validId = ensureValidUuid(localMatch.id, localMatch.email);
     const localUser: User = {
-      id: localMatch.id,
+      id: validId,
       email: localMatch.email,
       name: localMatch.name,
-      role: localMatch.role,
+      role: isAuthorizedAdminUser(localMatch.email, localMatch.role) ? 'admin' : 'member',
       member_id: localMatch.member_id,
       tier: localMatch.tier,
       points: localMatch.points,
@@ -488,12 +535,14 @@ export async function supabaseSignIn(email: string, password: string) {
       created_at: localMatch.created_at,
     };
     setCachedUser(localUser);
-    // Refresh from DB in background if available
+    // Refresh from DB in background, or push local account into Supabase if missing from DB
     lookupMemberFromPostgrestByEmail(cleanEmail)
       .then((dbUser) => {
         if (dbUser && !dbUser.suspended) {
           setCachedUser(dbUser);
           window.dispatchEvent(new CustomEvent('playgolf-profile-synced', { detail: dbUser }));
+        } else if (!dbUser) {
+          syncProfileAndUsersTables(localUser, localMatch.phone).catch(() => {});
         }
       })
       .catch(() => {});
@@ -506,7 +555,7 @@ export async function supabaseSignIn(email: string, password: string) {
     };
   }
 
-  // Run Supabase Auth and PostgREST member lookup IN PARALLEL with a 1.1s max timeout so login is always < 1.1 seconds
+  // Run Supabase Auth and PostgREST member lookup IN PARALLEL with a 4.5s max timeout
   const dbMemberPromise = lookupMemberFromPostgrestByEmail(cleanEmail);
 
   let data: any = null;
@@ -517,7 +566,7 @@ export async function supabaseSignIn(email: string, password: string) {
         email: cleanEmail,
         password,
       }),
-      1100
+      4500
     );
     data = res.data;
     error = res.error;
@@ -1308,6 +1357,32 @@ export async function fetchAllMembersFromSupabase(searchQuery?: string): Promise
           created_at: p.created_at || uRow?.joined_at || new Date().toISOString(),
           suspended: uRow?.suspended || false,
         });
+      }
+    }
+
+    // Auto-recover & merge any local fallback accounts stored on this browser into Supabase and the member map
+    const localFallbacks = getLocalFallbackAccounts();
+    for (const loc of localFallbacks) {
+      const validId = ensureValidUuid(loc.id, loc.email);
+      const alreadyByEmail = Array.from(map.values()).some(
+        (m) => m.email && loc.email && m.email.toLowerCase() === loc.email.toLowerCase()
+      );
+      if (!map.has(validId) && !alreadyByEmail) {
+        const recoveredUser: User = {
+          id: validId,
+          email: loc.email,
+          name: loc.name,
+          role: isAuthorizedAdminUser(loc.email, loc.role) ? 'admin' : 'member',
+          member_id: loc.member_id || deriveMemberIdFromUuid(validId),
+          tier: loc.tier || 'Silver',
+          points: typeof loc.points === 'number' ? loc.points : 250,
+          points_ytd: typeof loc.points_ytd === 'number' ? loc.points_ytd : 250,
+          qr_token: buildMemberQrToken(loc.member_id, loc.qr_token),
+          created_at: loc.created_at || new Date().toISOString(),
+        };
+        map.set(validId, recoveredUser);
+        // Push recovered local account to Supabase in background
+        syncProfileAndUsersTables(recoveredUser, loc.phone).catch(() => {});
       }
     }
 

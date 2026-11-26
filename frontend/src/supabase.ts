@@ -31,8 +31,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
       const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url || '';
       const isAuthEndpoint = urlStr.includes('/auth/v1/');
-      // Abort hung Supabase Auth requests at 1.4s and PostgREST requests at 3.5s so the UI never freezes
-      const timeoutMs = isAuthEndpoint ? 1400 : 3500;
+      // Allow up to 8s for Supabase Auth (signUp bcrypt + email dispatch) and 6s for PostgREST queries
+      const timeoutMs = isAuthEndpoint ? 8000 : 6000;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {

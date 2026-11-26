@@ -549,7 +549,57 @@ DROP POLICY IF EXISTS "Allow user manage own push subscription" ON public.push_s
 CREATE POLICY "Allow user manage own push subscription" ON public.push_subscriptions
   FOR ALL USING (auth.uid()::text = user_id::text OR public.is_admin());
 
--- 13. Performance & Cost Optimization Indexes (Prevents Sequential Table Scans)
+-- 13. Backfill Any Missing Members from auth.users into public.profiles and public.users
+-- Also drop strict auth.users foreign key on profiles so gateway-timeout fallback UUIDs are never rejected
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
+INSERT INTO public.profiles (id, email, name, member_id, role, tier, points, points_ytd, qr_token, created_at)
+SELECT
+  au.id,
+  LOWER(trim(au.email)),
+  COALESCE(au.raw_user_meta_data->>'name', split_part(au.email, '@', 1)),
+  COALESCE(au.raw_user_meta_data->>'member_id', 'PG-' || UPPER(substr(replace(au.id::text, '-', ''), 1, 6))),
+  CASE WHEN LOWER(trim(au.email)) = 'jay@gmail.com' THEN 'admin' ELSE 'member' END,
+  'Silver',
+  250,
+  250,
+  'QR_MEMBER_' || UPPER(substr(md5(au.id::text), 1, 8)),
+  COALESCE(au.created_at, NOW())
+FROM auth.users au
+WHERE au.email IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id::text = au.id::text OR LOWER(p.email) = LOWER(trim(au.email))
+  )
+ON CONFLICT DO NOTHING;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+    EXECUTE 'ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_id_fkey';
+    EXECUTE $sql$
+      INSERT INTO public.users (id, email, name, member_id, tier, points_balance, lifetime_points, role, suspended)
+      SELECT
+        p.id,
+        LOWER(trim(p.email)),
+        p.name,
+        p.member_id,
+        p.tier,
+        COALESCE(p.points, 250),
+        COALESCE(p.points_ytd, 250),
+        CASE WHEN p.role = 'admin' THEN 'admin' ELSE 'user' END,
+        COALESCE(p.suspended, false)
+      FROM public.profiles p
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.users u
+        WHERE u.id::text = p.id::text OR LOWER(u.email) = LOWER(trim(p.email))
+      )
+      ON CONFLICT DO NOTHING
+    $sql$;
+  END IF;
+END $$;
+
+-- 14. Performance & Cost Optimization Indexes (Prevents Sequential Table Scans)
 CREATE INDEX IF NOT EXISTS idx_notifications_created ON public.notifications(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_profiles_member_id ON public.profiles(member_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
