@@ -209,11 +209,13 @@ function saveLocalFallbackAccount(acct: LocalFallbackAccount): void {
 function isSupabaseGatewayOrTimeoutError(err: any): boolean {
   if (!err) return false;
   const msg = String(err.message || '').trim();
+  const lowerMsg = msg.toLowerCase();
   const name = String(err.name || '');
   const status = Number(err.status || 0);
   return (
     msg === '{}' ||
     msg === '' ||
+    status === 500 ||
     status === 502 ||
     status === 503 ||
     status === 504 ||
@@ -221,10 +223,12 @@ function isSupabaseGatewayOrTimeoutError(err: any): boolean {
     status === 524 ||
     name === 'AuthRetryableFetchError' ||
     name === 'AbortError' ||
-    msg.toLowerCase().includes('abort') ||
-    msg.toLowerCase().includes('fetch') ||
-    msg.toLowerCase().includes('timeout') ||
-    msg.toLowerCase().includes('network')
+    lowerMsg.includes('error sending') ||
+    lowerMsg.includes('confirmation email') ||
+    lowerMsg.includes('abort') ||
+    lowerMsg.includes('fetch') ||
+    lowerMsg.includes('timeout') ||
+    lowerMsg.includes('network')
   );
 }
 
